@@ -10,7 +10,7 @@ import pandas as pd
 import seaborn as sns
 import tkinter as tk
 import matplotlib
-from matplotlib import colors as matplotlib_colors
+import matplotlib.pyplot as plt
 import json
 from os.path import join, realpath, dirname, isfile
 
@@ -93,3 +93,34 @@ def load_subjects():
     return subjects
 
 
+def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, t_after=3,
+                     event_labels=None, color_palette='colorblind', ind_lines=False):
+    
+    # Construct dataframe for plotting
+    plot_df = pd.DataFrame()
+    time_x = np.arange(-t_before + np.diff(timestamps)[0]/2, t_after + np.diff(timestamps)[0]/2,
+                       np.diff(timestamps)[0])
+    for i, t in enumerate(event_times[~np.isnan(event_times)]):
+        plot_df = pd.concat((plot_df, pd.DataFrame(data={
+            'y': array[(timestamps >= t-t_before) & (timestamps < t+t_after)],
+            'time': time_x, 'event_id': event_ids[i], 'event_nr': i})))
+    
+    # Plot
+    if ind_lines:
+        sns.lineplot(data=plot_df, x='time', y='y', hue='event_id', estimator=None, units='event_nr',
+                     palette=color_palette, err_kws={'lw': 0}, ax=ax)
+    else:
+        sns.lineplot(data=plot_df, x='time', y='y', hue='event_id', errorbar='se',
+                     palette=color_palette, err_kws={'lw': 0}, ax=ax)
+    if event_labels is None:
+        ax.get_legend().remove()
+    else:
+        ax.legend(title='', labels=event_labels)    
+    
+    #sns.despine(trim=True)
+    #plt.tight_layout()
+    
+    
+    
+    
+        
