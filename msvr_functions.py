@@ -94,7 +94,7 @@ def load_subjects():
 
 
 def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, t_after=3,
-                     event_labels=None, color_palette='colorblind', ind_lines=False):
+                     event_labels=None, color_palette='colorblind', ind_lines=False, kwargs=[]):
     
     # Construct dataframe for plotting
     plot_df = pd.DataFrame()
@@ -108,10 +108,10 @@ def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, 
     # Plot
     if ind_lines:
         sns.lineplot(data=plot_df, x='time', y='y', hue='event_id', estimator=None, units='event_nr',
-                     palette=color_palette, err_kws={'lw': 0}, ax=ax)
+                     palette=color_palette, err_kws={'lw': 0}, ax=ax, **kwargs)
     else:
         sns.lineplot(data=plot_df, x='time', y='y', hue='event_id', errorbar='se',
-                     palette=color_palette, err_kws={'lw': 0}, ax=ax)
+                     palette=color_palette, err_kws={'lw': 0}, ax=ax, **kwargs)
     if event_labels is None:
         ax.get_legend().remove()
     else:
