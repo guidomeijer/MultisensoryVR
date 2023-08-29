@@ -149,7 +149,7 @@ def load_subjects():
 
 def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, t_after=3,
                      event_labels=None, color_palette='colorblind', ind_lines=False, kwargs=[]):
-    
+
     # Construct dataframe for plotting
     plot_df = pd.DataFrame()
     time_x = np.arange(-t_before + np.diff(timestamps)[0]/2, t_after + np.diff(timestamps)[0]/2,
@@ -169,7 +169,9 @@ def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, 
     if event_labels is None:
         ax.get_legend().remove()
     else:
-        ax.legend(title='', labels=event_labels)
+        g = ax.legend(title='', prop={'size': 5.5})
+        for t, l in zip(g.texts, event_labels):
+            t.set_text(l)
 
     # sns.despine(trim=True)
     # plt.tight_layout()
