@@ -52,7 +52,7 @@ for i, subject in enumerate(subjects['SubjectID']):
             # Plot
             all_obj_enters = np.concatenate(
                 (trials['enterObj1'], trials['enterObj2'], trials['enterObj3']))
-            all_obj_enters = np.sort(all_obj_enters[~np.isnan(all_obj_enters)])
+            #all_obj_enters = np.sort(all_obj_enters[~np.isnan(all_obj_enters)])
             peri_event_trace(wheel_speed, wheel_times, all_obj_enters,
                              event_ids=np.ones(all_obj_enters.shape),
                              t_before=2, t_after=6, ax=axs[j], kwargs={'zorder': 1})

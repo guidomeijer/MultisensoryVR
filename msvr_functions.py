@@ -18,7 +18,7 @@ import datetime
 from os.path import join, realpath, dirname, isfile, split, isdir
 
 
-def paths(synchronize=True):
+def paths(force_sync=False):
     """
     Load in figure path from paths.json, if this file does not exist it will be generated from
     user input
@@ -53,7 +53,7 @@ def paths(synchronize=True):
         path_dict = json.load(json_file)
 
     # Synchronize data from the server with the local data folder
-    if synchronize & isdir(path_dict['server_path']):
+    if isdir(path_dict['server_path']):
 
         # Create Subjects folder if it doesn't exist
         if not isdir(join(path_dict['local_data_path'], 'Subjects')):
@@ -69,7 +69,7 @@ def paths(synchronize=True):
             sync_date = datetime.date.today() - datetime.timedelta(days=1)
 
         # Synchronize server with local data once a day
-        if (datetime.date.today() - sync_date).days > 0:
+        if ((datetime.date.today() - sync_date).days > 0) | force_sync:
             print('Synchronizing data from server with local data folder')
 
             # Copy data from server to local folder
