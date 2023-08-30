@@ -79,13 +79,13 @@ def paths(force_sync=False):
                     os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject))
                 sessions = os.listdir(join(path_dict['server_path'], 'Subjects', subject))
                 for j, session in enumerate(sessions):
-                    print(
-                        f'Copying {join(path_dict["server_path"], "Subjects", subject, session)}')
                     if not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session)):
                         os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject, session))
                     files = [f for f in os.listdir(join(path_dict['server_path'], 'Subjects', subject, session))
                              if isfile(join(path_dict['server_path'], 'Subjects', subject, session, f))]
-
+                    if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, files[0])):
+                        print(
+                            f'Copying {join(path_dict["server_path"], "Subjects", subject, session)}')
                     for f, file in enumerate(files):
                         if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, file)):
                             shutil.copyfile(join(path_dict['server_path'], 'Subjects', subject, session, file),

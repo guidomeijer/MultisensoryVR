@@ -40,8 +40,7 @@ for i, subject in enumerate(subjects['SubjectID']):
         if isfile(join(path_dict['local_data_path'], 'Subjects', subject, ses, 'trials.csv')):
 
             # Load in data
-            trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'),
-                                 index_col=0)
+            trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'))
             wheel_times = np.load(join(data_path, 'Subjects', subject, ses, 'wheel.times.npy'))
             wheel_speed = np.load(join(data_path, 'Subjects', subject, ses, 'wheel.speed.npy'))
 
@@ -52,7 +51,7 @@ for i, subject in enumerate(subjects['SubjectID']):
             # Plot
             all_obj_enters = np.concatenate(
                 (trials['enterObj1'], trials['enterObj2'], trials['enterObj3']))
-            #all_obj_enters = np.sort(all_obj_enters[~np.isnan(all_obj_enters)])
+            # all_obj_enters = np.sort(all_obj_enters[~np.isnan(all_obj_enters)])
             peri_event_trace(wheel_speed, wheel_times, all_obj_enters,
                              event_ids=np.ones(all_obj_enters.shape),
                              t_before=2, t_after=6, ax=axs[j], kwargs={'zorder': 1})
@@ -76,8 +75,7 @@ for i, subject in enumerate(subjects['SubjectID']):
         if isfile(join(path_dict['local_data_path'], 'Subjects', subject, ses, 'trials.csv')):
 
             # Load in data
-            trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'),
-                                 index_col=0)
+            trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'))
             wheel_times = np.load(join(data_path, 'Subjects', subject, ses, 'wheel.times.npy'))
             wheel_speed = np.load(join(data_path, 'Subjects', subject, ses, 'wheel.speed.npy'))
 
@@ -118,10 +116,10 @@ for i, subject in enumerate(subjects['SubjectID']):
         axs = np.concatenate(axs)
 
     for j, ses in enumerate(sessions):
-        if isfile(join(data_path, 'Subjects', subject, ses, 'trials.csv')):
+        if isfile(join(data_path, 'Subjects', subject, ses, 'trials.enterRewardZoneObj1.npy')):
 
             # Load in data
-            reward_times = np.load(join(data_path, 'Subjects', subject, ses, 'reward.times.npy'))
+            trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'))
             wheel_times = np.load(join(data_path, 'Subjects', subject, ses, 'wheel.times.npy'))
             wheel_speed = np.load(join(data_path, 'Subjects', subject, ses, 'wheel.speed.npy'))
 
@@ -130,15 +128,20 @@ for i, subject in enumerate(subjects['SubjectID']):
             wheel_times = wheel_times[::50]
 
             # Plot
-            peri_event_trace(wheel_speed, wheel_times, reward_times,
-                             event_ids=np.ones(reward_times.shape),
+            all_obj_enters = np.concatenate(
+                (trials['enterRewardZoneObj1'], trials['enterRewardZoneObj2'], trials['enterRewardZoneObj3']))
+            all_obj_ids = np.concatenate(
+                (np.ones(trials['enterRewardZoneObj1'].shape),
+                 np.ones(trials['enterRewardZoneObj2'].shape)*2,
+                 np.ones(trials['enterRewardZoneObj3'].shape)*3))
+            peri_event_trace(wheel_speed, wheel_times, all_obj_enters, event_ids=all_obj_ids,
                              t_before=2, t_after=6, ax=axs[j], kwargs={'zorder': 1})
             axs[j].set(ylabel='Speed (cm/s)', xticks=np.arange(-2, 7, 2), ylim=[0, 4],
                        title=f'{ses}', xlabel='')
             axs[j].plot([0, 0], axs[j].get_ylim(), color='grey', ls='--', lw=0.75, zorder=0)
 
     f.suptitle(f'{subjects.iloc[i, 1]} ({subject})')
-    f.text(0.5, 0.04, 'Time from reward delivery (s)', ha='center')
+    f.text(0.5, 0.04, 'Time from reward zone entry (s)', ha='center')
     sns.despine(trim=True)
     plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.8)
-    plt.savefig(join(path_dict['fig_path'], f'{subject}_reward_delivery.jpg'), dpi=600)
+    plt.savefig(join(path_dict['fig_path'], f'{subject}_reward_zone_entry.jpg'), dpi=600)
