@@ -134,8 +134,14 @@ for i, subject in enumerate(subjects['SubjectID']):
                 (np.ones(trials['enterRewardZoneObj1'].shape),
                  np.ones(trials['enterRewardZoneObj2'].shape)*2,
                  np.ones(trials['enterRewardZoneObj3'].shape)*3))
-            peri_event_trace(wheel_speed, wheel_times, all_obj_enters, event_ids=all_obj_ids,
-                             t_before=2, t_after=6, ax=axs[j], kwargs={'zorder': 1})
+            if j+1 == len(sessions):
+                peri_event_trace(wheel_speed, wheel_times, all_obj_enters, event_ids=all_obj_ids,
+                                 color_palette='Set2', event_labels=['1', '2', '3'],
+                                 t_before=2, t_after=6, ax=axs[j], kwargs={'zorder': 1})
+            else:
+                peri_event_trace(wheel_speed, wheel_times, all_obj_enters, event_ids=all_obj_ids,
+                                 color_palette='Set2',
+                                 t_before=2, t_after=6, ax=axs[j], kwargs={'zorder': 1})
             axs[j].set(ylabel='Speed (cm/s)', xticks=np.arange(-2, 7, 2), ylim=[0, 4],
                        title=f'{ses}', xlabel='')
             axs[j].plot([0, 0], axs[j].get_ylim(), color='grey', ls='--', lw=0.75, zorder=0)
