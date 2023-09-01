@@ -12,6 +12,8 @@ import seaborn as sns
 import tkinter as tk
 import matplotlib
 import matplotlib.pyplot as plt
+from brainbox import singlecell
+from scipy.signal import gaussian, convolve
 import json
 import shutil
 import datetime
@@ -131,7 +133,10 @@ def figure_style():
     matplotlib.rcParams['pdf.fonttype'] = 42
     matplotlib.rcParams['ps.fonttype'] = 42
 
-    colors = {}
+    colors = {
+        'obj1': sns.color_palette('Set2')[0],
+        'obj2': sns.color_palette('Set2')[1],
+        'obj3': sns.color_palette('Set2')[2]}
 
     screen_width = tk.Tk().winfo_screenwidth()
     dpi = screen_width / 10
@@ -175,3 +180,263 @@ def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, 
 
     # sns.despine(trim=True)
     # plt.tight_layout()
+
+
+def calculate_peths(
+        spike_times, spike_clusters, cluster_ids, align_times, pre_time=0.2,
+        post_time=0.5, bin_size=0.025, smoothing=0.025, return_fr=True):
+    """
+    From ibllib package    
+    
+    Calcluate peri-event time histograms; return means and standard deviations
+    for each time point across specified clusters
+
+    :param spike_times: spike times (in seconds)
+    :type spike_times: array-like
+    :param spike_clusters: cluster ids corresponding to each event in `spikes`
+    :type spike_clusters: array-like
+    :param cluster_ids: subset of cluster ids for calculating peths
+    :type cluster_ids: array-like
+    :param align_times: times (in seconds) to align peths to
+    :type align_times: array-like
+    :param pre_time: time (in seconds) to precede align times in peth
+    :type pre_time: float
+    :param post_time: time (in seconds) to follow align times in peth
+    :type post_time: float
+    :param bin_size: width of time windows (in seconds) to bin spikes
+    :type bin_size: float
+    :param smoothing: standard deviation (in seconds) of Gaussian kernel for
+        smoothing peths; use `smoothing=0` to skip smoothing
+    :type smoothing: float
+    :param return_fr: `True` to return (estimated) firing rate, `False` to return spike counts
+    :type return_fr: bool
+    :return: peths, binned_spikes
+    :rtype: peths: Bunch({'mean': peth_means, 'std': peth_stds, 'tscale': ts, 'cscale': ids})
+    :rtype: binned_spikes: np.array (n_align_times, n_clusters, n_bins)
+    """
+
+    # initialize containers
+    n_offset = 5 * int(np.ceil(smoothing / bin_size))  # get rid of boundary effects for smoothing
+    n_bins_pre = int(np.ceil(pre_time / bin_size)) + n_offset
+    n_bins_post = int(np.ceil(post_time / bin_size)) + n_offset
+    n_bins = n_bins_pre + n_bins_post
+    binned_spikes = np.zeros(shape=(len(align_times), len(cluster_ids), n_bins))
+
+    # build gaussian kernel if requested
+    if smoothing > 0:
+        w = n_bins - 1 if n_bins % 2 == 0 else n_bins
+        window = gaussian(w, std=smoothing / bin_size)
+        # half (causal) gaussian filter
+        # window[int(np.ceil(w/2)):] = 0
+        window /= np.sum(window)
+        binned_spikes_conv = np.copy(binned_spikes)
+
+    ids = np.unique(cluster_ids)
+
+    # filter spikes outside of the loop
+    idxs = np.bitwise_and(spike_times >= np.min(align_times) - (n_bins_pre + 1) * bin_size,
+                          spike_times <= np.max(align_times) + (n_bins_post + 1) * bin_size)
+    idxs = np.bitwise_and(idxs, np.isin(spike_clusters, cluster_ids))
+    spike_times = spike_times[idxs]
+    spike_clusters = spike_clusters[idxs]
+
+    # compute floating tscale
+    tscale = np.arange(-n_bins_pre, n_bins_post + 1) * bin_size
+    # bin spikes
+    for i, t_0 in enumerate(align_times):
+        # define bin edges
+        ts = tscale + t_0
+        # filter spikes
+        idxs = np.bitwise_and(spike_times >= ts[0], spike_times <= ts[-1])
+        i_spikes = spike_times[idxs]
+        i_clusters = spike_clusters[idxs]
+
+        # bin spikes similar to bincount2D: x = spike times, y = spike clusters
+        xscale = ts
+        xind = (np.floor((i_spikes - np.min(ts)) / bin_size)).astype(np.int64)
+        yscale, yind = np.unique(i_clusters, return_inverse=True)
+        nx, ny = [xscale.size, yscale.size]
+        ind2d = np.ravel_multi_index(np.c_[yind, xind].transpose(), dims=(ny, nx))
+        r = np.bincount(ind2d, minlength=nx * ny, weights=None).reshape(ny, nx)
+
+        # store (ts represent bin edges, so there are one fewer bins)
+        bs_idxs = np.isin(ids, yscale)
+        binned_spikes[i, bs_idxs, :] = r[:, :-1]
+
+        # smooth
+        if smoothing > 0:
+            idxs = np.where(bs_idxs)[0]
+            for j in range(r.shape[0]):
+                binned_spikes_conv[i, idxs[j], :] = convolve(
+                    r[j, :], window, mode='same', method='auto')[:-1]
+
+    # average
+    if smoothing > 0:
+        binned_spikes_ = np.copy(binned_spikes_conv)
+    else:
+        binned_spikes_ = np.copy(binned_spikes)
+    if return_fr:
+        binned_spikes_ /= bin_size
+
+    peth_means = np.mean(binned_spikes_, axis=0)
+    peth_stds = np.std(binned_spikes_, axis=0)
+
+    if smoothing > 0:
+        peth_means = peth_means[:, n_offset:-n_offset]
+        peth_stds = peth_stds[:, n_offset:-n_offset]
+        binned_spikes = binned_spikes[:, :, n_offset:-n_offset]
+        tscale = tscale[n_offset:-n_offset]
+
+    # package output
+    tscale = (tscale[:-1] + tscale[1:]) / 2
+    peths = dict({'means': peth_means, 'stds': peth_stds, 'tscale': tscale, 'cscale': ids})
+    return peths, binned_spikes
+
+
+def peri_multiple_events_time_histogram(
+        spike_times, spike_clusters, events, event_ids, cluster_id,
+        t_before=0.2, t_after=0.5, bin_size=0.025, smoothing=0.025, as_rate=True,
+        include_raster=False, error_bars='sem', ax=None,
+        pethline_kwargs=[{'color': 'blue', 'lw': 2}, {'color': 'red', 'lw': 2}],
+        errbar_kwargs=[{'color': 'blue', 'alpha': 0.5}, {'color': 'red', 'alpha': 0.5}],
+        raster_kwargs=[{'color': 'blue', 'lw': 0.5}, {'color': 'red', 'lw': 0.5}],
+        eventline_kwargs={'color': 'black', 'alpha': 0.5}, **kwargs):
+    """
+    From ibllib package
+    
+    Plot peri-event time histograms, with the meaning firing rate of units centered on a given
+    series of events. Can optionally add a raster underneath the PETH plot of individual spike
+    trains about the events.
+
+    Parameters
+    ----------
+    spike_times : array_like
+        Spike times (in seconds)
+    spike_clusters : array-like
+        Cluster identities for each element of spikes
+    events : array-like
+        Times to align the histogram(s) to
+    event_ids : array-like
+        Identities of events
+    cluster_id : int
+        Identity of the cluster for which to plot a PETH
+
+    t_before : float, optional
+        Time before event to plot (default: 0.2s)
+    t_after : float, optional
+        Time after event to plot (default: 0.5s)
+    bin_size :float, optional
+        Width of bin for histograms (default: 0.025s)
+    smoothing : float, optional
+        Sigma of gaussian smoothing to use in histograms. (default: 0.025s)
+    as_rate : bool, optional
+        Whether to use spike counts or rates in the plot (default: `True`, uses rates)
+    include_raster : bool, optional
+        Whether to put a raster below the PETH of individual spike trains (default: `False`)
+    error_bars : {'std', 'sem', 'none'}, optional
+        Defines which type of error bars to plot. Options are:
+        -- `'std'` for 1 standard deviation
+        -- `'sem'` for standard error of the mean
+        -- `'none'` for only plotting the mean value
+        (default: `'std'`)
+    ax : matplotlib axes, optional
+        If passed, the function will plot on the passed axes. Note: current
+        behavior causes whatever was on the axes to be cleared before plotting!
+        (default: `None`)
+    pethline_kwargs : dict, optional
+        Dict containing line properties to define PETH plot line. Default
+        is a blue line with weight of 2. Needs to have color. See matplotlib plot documentation
+        for more options.
+        (default: `{'color': 'blue', 'lw': 2}`)
+    errbar_kwargs : dict, optional
+        Dict containing fill-between properties to define PETH error bars.
+        Default is a blue fill with 50 percent opacity.. Needs to have color. See matplotlib
+        fill_between documentation for more options.
+        (default: `{'color': 'blue', 'alpha': 0.5}`)
+    eventline_kwargs : dict, optional
+        Dict containing fill-between properties to define line at event.
+        Default is a black line with 50 percent opacity.. Needs to have color. See matplotlib
+        vlines documentation for more options.
+        (default: `{'color': 'black', 'alpha': 0.5}`)
+    raster_kwargs : dict, optional
+        Dict containing properties defining lines in the raster plot.
+        Default is black lines with line width of 0.5. See matplotlib vlines for more options.
+        (default: `{'color': 'black', 'lw': 0.5}`)
+
+    Returns
+    -------
+        ax : matplotlib axes
+            Axes with all of the plots requested.
+    """
+
+    # Check to make sure if we fail, we fail in an informative way
+    if not len(spike_times) == len(spike_clusters):
+        raise ValueError('Spike times and clusters are not of the same shape')
+    if len(events) == 1:
+        raise ValueError('Cannot make a PETH with only one event.')
+    if error_bars not in ('std', 'sem', 'none'):
+        raise ValueError('Invalid error bar type was passed.')
+    if not all(np.isfinite(events)):
+        raise ValueError('There are NaN or inf values in the list of events passed. '
+                         ' Please remove non-finite data points and try again.')
+
+
+    # Construct an axis object if none passed
+    if ax is None:
+        plt.figure()
+        ax = plt.gca()
+    # Plot the curves and add error bars
+    mean_max, bars_max = [], []
+    for i, event_id in enumerate(np.unique(event_ids)):
+        # Compute peths
+        peths, binned_spikes = singlecell.calculate_peths(spike_times, spike_clusters, [cluster_id],
+                                                          events[event_ids == event_id], t_before,
+                                                          t_after, bin_size, smoothing, as_rate)
+        mean = peths.means[0, :]
+        ax.plot(peths.tscale, mean, **pethline_kwargs[i])
+        if error_bars == 'std':
+            bars = peths.stds[0, :]
+        elif error_bars == 'sem':
+            bars = peths.stds[0, :] / np.sqrt(np.sum(event_ids == event_id))
+        else:
+            bars = np.zeros_like(mean)
+        if error_bars != 'none':
+            ax.fill_between(peths.tscale, mean - bars, mean + bars, **errbar_kwargs[i])
+        mean_max.append(mean.max())
+        bars_max.append(bars[mean.argmax()])
+
+    # Plot the event marker line. Extends to 5% higher than max value of means plus any error bar.
+    plot_edge = (np.max(mean_max) + bars_max[np.argmax(mean_max)]) * 1.05
+    ax.vlines(0., 0., plot_edge, **eventline_kwargs)
+    # Set the limits on the axes to t_before and t_after. Either set the ylim to the 0 and max
+    # values of the PETH, or if we want to plot a spike raster below, create an equal amount of
+    # blank space below the zero where the raster will go.
+    ax.set_xlim([-t_before, t_after])
+    ax.set_ylim([-plot_edge if include_raster else 0., plot_edge])
+    # Put y ticks only at min, max, and zero
+    if mean.min() != 0:
+        ax.set_yticks([0, mean.min(), mean.max()])
+    else:
+        ax.set_yticks([0., mean.max()])
+    # Move the x axis line from the bottom of the plotting space to zero if including a raster,
+    # Then plot the raster
+    if include_raster:
+        ax.axhline(0., color='black', lw=0.5)
+        tickheight = plot_edge / len(events)  # How much space per trace
+        tickedges = np.arange(0., -plot_edge - 1e-5, -tickheight)
+        clu_spks = spike_times[spike_clusters == cluster_id]
+        ii = 0
+        for k, event_id in enumerate(np.unique(event_ids)):
+            for i, t in enumerate(events[event_ids == event_id]):
+                idx = np.bitwise_and(clu_spks >= t - t_before, clu_spks <= t + t_after)
+                event_spks = clu_spks[idx]
+                ax.vlines(event_spks - t, tickedges[i + ii + 1], tickedges[i + ii],
+                          **raster_kwargs[k])
+            ii += np.sum(event_ids == event_id)
+        ax.set_ylabel('Firing Rate' if as_rate else 'Number of spikes', y=0.75)
+    else:
+        ax.set_ylabel('Firing Rate' if as_rate else 'Number of spikes')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.set_xlabel('Time (s) after event')
+    return ax
