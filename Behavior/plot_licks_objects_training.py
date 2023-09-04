@@ -46,7 +46,7 @@ for i, subject in enumerate(subjects['SubjectID']):
     
     # Create figure for rewards
     f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7, 3*np.ceil(len(sessions) / 4)),
-                          dpi=dpi, sharey=True, sharex=True)
+                          dpi=dpi)
     if len(sessions) > 4:
         axs = np.concatenate(axs)
 
@@ -58,11 +58,11 @@ for i, subject in enumerate(subjects['SubjectID']):
 
         # Plot
         all_obj_enters = np.concatenate(
-            (trials['enterRewardZoneObj1'], trials['enterRewardZoneObj2'], trials['enterRewardZoneObj3']))
+            (trials['enterObj1'], trials['enterObj2'], trials['enterObj3']))
         all_obj_ids = np.concatenate(
-            (np.ones(trials['enterRewardZoneObj1'].shape),
-             np.ones(trials['enterRewardZoneObj2'].shape)*2,
-             np.ones(trials['enterRewardZoneObj3'].shape)*3))
+            (np.ones(trials['enterObj1'].shape),
+             np.ones(trials['enterObj2'].shape)*2,
+             np.ones(trials['enterObj3'].shape)*3))
         all_obj_ids = all_obj_ids[~np.isnan(all_obj_enters)]
         all_obj_enters = all_obj_enters[~np.isnan(all_obj_enters)] 
         
@@ -81,12 +81,12 @@ for i, subject in enumerate(subjects['SubjectID']):
             eventline_kwargs={'lw': 0}, include_raster=True)
         
         axs[j].set(ylabel='Licks/s', xticks=np.arange(-2, 7, 2), yticks=[0, np.ceil(axs[j].get_ylim()[1])],
-                   title=f'{ses}', xlabel='')
+                   title=f'{ses} ({trials.shape[0]} trials)', xlabel='')
         axs[j].yaxis.set_label_coords(-0.1, 0.75)
         axs[j].plot([0, 0], axs[j].get_ylim(), color='grey', ls='--', lw=0.75, zorder=0)
 
     f.suptitle(f'{subjects.iloc[i, 1]} ({subject})')
-    f.text(0.5, 0.04, 'Time from reward zone entry (s)', ha='center')
+    f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
     plt.subplots_adjust(left=0.1, bottom=0.2, right=0.95, top=0.8)
     plt.savefig(join(path_dict['fig_path'], f'{subject}_reward_zone_entry_licks.jpg'), dpi=600)

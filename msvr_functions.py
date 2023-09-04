@@ -55,49 +55,48 @@ def paths(force_sync=False):
         path_dict = json.load(json_file)
 
     # Synchronize data from the server with the local data folder
-    if isdir(path_dict['server_path']):
 
-        # Create Subjects folder if it doesn't exist
-        if not isdir(join(path_dict['local_data_path'], 'Subjects')):
-            os.mkdir(join(path_dict['local_data_path'], 'Subjects'))
+    # Create Subjects folder if it doesn't exist
+    if not isdir(join(path_dict['local_data_path'], 'Subjects')):
+        os.mkdir(join(path_dict['local_data_path'], 'Subjects'))
 
-        # Read in the time of last sync
-        if isfile(join(path_dict['local_data_path'], 'sync_timestamp.txt')):
-            f = open(join(path_dict['local_data_path'], 'sync_timestamp.txt'), 'r')
-            sync_date = datetime.datetime.strptime(f.read(), '%Y%m%d').date()
+    # Read in the time of last sync
+    if isfile(join(path_dict['local_data_path'], 'sync_timestamp.txt')):
+        f = open(join(path_dict['local_data_path'], 'sync_timestamp.txt'), 'r')
+        sync_date = datetime.datetime.strptime(f.read(), '%Y%m%d').date()
+        f.close()
+    else:
+        # If never been synched set date to yesterday so that it runs the first time
+        sync_date = datetime.date.today() - datetime.timedelta(days=1)
+
+    # Synchronize server with local data once a day
+    if ((datetime.date.today() - sync_date).days > 0) | force_sync:
+        print('Synchronizing data from server with local data folder')
+
+        # Copy data from server to local folder
+        subjects = os.listdir(join(path_dict['server_path'], 'Subjects'))
+        for i, subject in enumerate(subjects):
+            if not isdir(join(path_dict['local_data_path'], 'Subjects', subject)):
+                os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject))
+            sessions = os.listdir(join(path_dict['server_path'], 'Subjects', subject))
+            for j, session in enumerate(sessions):
+                if not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session)):
+                    os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject, session))
+                files = [f for f in os.listdir(join(path_dict['server_path'], 'Subjects', subject, session))
+                         if isfile(join(path_dict['server_path'], 'Subjects', subject, session, f))]
+                if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, files[0])):
+                    print(
+                        f'Copying {join(path_dict["server_path"], "Subjects", subject, session)}')
+                for f, file in enumerate(files):
+                    if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, file)):
+                        shutil.copyfile(join(path_dict['server_path'], 'Subjects', subject, session, file),
+                                        join(path_dict['local_data_path'], 'Subjects', subject, session, file))
+
+        # Update synchronization timestamp
+        with open(join(path_dict['local_data_path'], 'sync_timestamp.txt'), 'w') as f:
+            f.write(datetime.date.today().strftime('%Y%m%d'))
             f.close()
-        else:
-            # If never been synched set date to yesterday so that it runs the first time
-            sync_date = datetime.date.today() - datetime.timedelta(days=1)
-
-        # Synchronize server with local data once a day
-        if ((datetime.date.today() - sync_date).days > 0) | force_sync:
-            print('Synchronizing data from server with local data folder')
-
-            # Copy data from server to local folder
-            subjects = os.listdir(join(path_dict['server_path'], 'Subjects'))
-            for i, subject in enumerate(subjects):
-                if not isdir(join(path_dict['local_data_path'], 'Subjects', subject)):
-                    os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject))
-                sessions = os.listdir(join(path_dict['server_path'], 'Subjects', subject))
-                for j, session in enumerate(sessions):
-                    if not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session)):
-                        os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject, session))
-                    files = [f for f in os.listdir(join(path_dict['server_path'], 'Subjects', subject, session))
-                             if isfile(join(path_dict['server_path'], 'Subjects', subject, session, f))]
-                    if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, files[0])):
-                        print(
-                            f'Copying {join(path_dict["server_path"], "Subjects", subject, session)}')
-                    for f, file in enumerate(files):
-                        if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, file)):
-                            shutil.copyfile(join(path_dict['server_path'], 'Subjects', subject, session, file),
-                                            join(path_dict['local_data_path'], 'Subjects', subject, session, file))
-
-            # Update synchronization timestamp
-            with open(join(path_dict['local_data_path'], 'sync_timestamp.txt'), 'w') as f:
-                f.write(datetime.date.today().strftime('%Y%m%d'))
-                f.close()
-            print('Done')
+        print('Done')
 
     return path_dict
 
