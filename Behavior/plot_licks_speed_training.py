@@ -45,13 +45,11 @@ for i, subject in enumerate(subjects['SubjectID']):
     sessions = np.array(sessions)[~no_lick_ses.astype(int).astype(bool)]
 
     # Create lick figure
-    f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7, 3*np.ceil(len(sessions) / 4)),
-                          dpi=dpi)
+    f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7, 5), dpi=dpi)
     if len(sessions) > 4:
         axs = np.concatenate(axs)
 
     max_y = np.empty(len(sessions))
-    min_y = np.empty(len(sessions))
     for j, ses in enumerate(sessions):
 
         # Load in data
@@ -85,22 +83,21 @@ for i, subject in enumerate(subjects['SubjectID']):
         axs[j].set(ylabel='Licks/s', xticks=np.arange(-2, 7, 2), yticks=[0, np.ceil(axs[j].get_ylim()[1])],
                    title=f'{ses} ({trials.shape[0]} trials)', xlabel='')
         axs[j].yaxis.set_label_coords(-0.1, 0.75)
-        min_y[j] = axs[j].get_ylim()[0]
         max_y[j] = axs[j].get_ylim()[1]
-        
+
     # Place the dotted line now we know the y lim extend
     for j, ses in enumerate(sessions):
         axs[j].plot([0, 0], [0, np.ceil(np.max(max_y))], color='grey', ls='--', lw=0.75, zorder=0)
-        axs[j].set(ylim=[min_y[j], np.max(max_y)], yticks=[0, np.ceil(np.max(max_y))])
 
     f.suptitle(f'{subjects.iloc[i, 1]} ({subject})')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
-    plt.subplots_adjust(left=0.1, bottom=0.2, right=0.95, top=0.8)
+    plt.subplots_adjust(left=0.1, bottom=0.1, right=0.95, top=0.9)
+    # plt.tight_layout()
     plt.savefig(join(path_dict['fig_path'], f'{subject}_reward_zone_entry_licks.jpg'), dpi=600)
 
     # Create speed figure
-    f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7, 3*np.ceil(len(sessions) / 4)),
+    f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7, 1.75*np.ceil(len(sessions) / 4)),
                           dpi=dpi, sharey=True)
     if len(sessions) > 4:
         axs = np.concatenate(axs)
@@ -135,12 +132,12 @@ for i, subject in enumerate(subjects['SubjectID']):
                              t_before=T_BEFORE, t_after=T_AFTER, ax=axs[j], kwargs={'zorder': 1})
         axs[j].set(ylabel='Speed (cm/s)', xticks=np.arange(-2, 7, 2), title=f'{ses}', xlabel='')
         max_y = axs[j].get_ylim()[1]
-        
+
     # Place the dotted line now we know the y lim extend
     for j, ses in enumerate(sessions):
         axs[j].plot([0, 0], [0, np.ceil(np.max(max_y))], color='grey', ls='--', lw=0.75, zorder=0)
         axs[j].set(ylim=[0, np.max(max_y)], yticks=[0, np.ceil(np.max(max_y))])
-        
+
     f.suptitle(f'{subjects.iloc[i, 1]} ({subject})')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)

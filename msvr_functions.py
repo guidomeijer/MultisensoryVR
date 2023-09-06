@@ -161,9 +161,12 @@ def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, 
     time_x = np.arange(-t_before + np.diff(timestamps)[0]/2, t_after + np.diff(timestamps)[0]/2,
                        np.diff(timestamps)[0])
     for i, t in enumerate(event_times[~np.isnan(event_times)]):
+        this_speed = array[(timestamps >= t-t_before) & (timestamps < t+t_after)]
+        if this_speed.shape[0] != time_x.shape[0]:
+            print('Trial time mismatch')
+            continue
         plot_df = pd.concat((plot_df, pd.DataFrame(data={
-            'y': array[(timestamps >= t-t_before) & (timestamps < t+t_after)],
-            'time': time_x, 'event_id': event_ids[i], 'event_nr': i})))
+            'y': this_speed, 'time': time_x, 'event_id': event_ids[i], 'event_nr': i})))
 
     # Plot
     if ind_lines:
@@ -188,7 +191,7 @@ def calculate_peths(
         post_time=0.5, bin_size=0.025, smoothing=0.025, return_fr=True):
     """
     From ibllib package    
-    
+
     Calcluate peri-event time histograms; return means and standard deviations
     for each time point across specified clusters
 
@@ -304,7 +307,7 @@ def peri_multiple_events_time_histogram(
         eventline_kwargs={'color': 'black', 'alpha': 0.5}, **kwargs):
     """
     From ibllib package
-    
+
     Plot peri-event time histograms, with the meaning firing rate of units centered on a given
     series of events. Can optionally add a raster underneath the PETH plot of individual spike
     trains about the events.
@@ -380,7 +383,6 @@ def peri_multiple_events_time_histogram(
     if not all(np.isfinite(events)):
         raise ValueError('There are NaN or inf values in the list of events passed. '
                          ' Please remove non-finite data points and try again.')
-
 
     # Construct an axis object if none passed
     if ax is None:
