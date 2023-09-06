@@ -20,19 +20,21 @@ import datetime
 from os.path import join, realpath, dirname, isfile, split, isdir
 
 
-def paths(force_sync=False):
+def paths(full_sync=False, force_sync=False):
     """
     Load in figure path from paths.json, if this file does not exist it will be generated from
     user input
 
-    Save directory can be either the repository (for small files) or the server for large files
-
-    This function also runs the synchronization between the server and the local data folder
+    This function also runs the synchronization between the server and the local data folder 
+    once a day
 
     Input
     ------------------------
-    save_dir : str
-        'repo' or 'server' for saving in the repository or one cache, respectively
+    full_sync : boolean 
+        TO DO
+        When True also the raw data will be copied to the local drive
+    force_sync : boolean    
+        When True synchronization will be done regardless of how long ago the last sync was    
 
     Output
     ------------------------
