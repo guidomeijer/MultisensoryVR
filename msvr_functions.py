@@ -88,11 +88,21 @@ def paths(full_sync=False, force_sync=False):
                          if isfile(join(path_dict['server_path'], 'Subjects', subject, session, f))]
                 if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, files[0])):
                     print(
-                        f'Copying {join(path_dict["server_path"], "Subjects", subject, session)}')
-                for f, file in enumerate(files):
-                    if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, file)):
-                        shutil.copyfile(join(path_dict['server_path'], 'Subjects', subject, session, file),
-                                        join(path_dict['local_data_path'], 'Subjects', subject, session, file))
+                        f'Copying files {join(path_dict["server_path"], "Subjects", subject, session)}')
+                    for f, file in enumerate(files):
+                        if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, file)):
+                            shutil.copyfile(join(path_dict['server_path'], 'Subjects', subject, session, file),
+                                            join(path_dict['local_data_path'], 'Subjects', subject, session, file))
+                if (not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_video_data'))) & full_sync:
+                    print(
+                        f'Copying raw video data {join(path_dict["server_path"], "Subjects", subject, session)}')
+                    shutil.copytree(join(path_dict['server_path'], 'Subjects', subject, session, 'raw_video_data'),
+                                    join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_video_data'))
+                if (not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_behavior_data'))) & full_sync:
+                    print(
+                        f'Copying raw behavior data {join(path_dict["server_path"], "Subjects", subject, session)}')
+                    shutil.copytree(join(path_dict['server_path'], 'Subjects', subject, session, 'raw_behavior_data'),
+                                    join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_behavior_data'))
 
         # Update synchronization timestamp
         with open(join(path_dict['local_data_path'], 'sync_timestamp.txt'), 'w') as f:
