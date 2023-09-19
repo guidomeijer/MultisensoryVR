@@ -45,9 +45,9 @@ for i, subject in enumerate(subjects['SubjectID']):
             no_lick_ses[j] = 1
     sessions = np.array(sessions)[~no_lick_ses.astype(int).astype(bool)]
     
-    # Select training sessions
+    # Select final task sessions
     sessions = [datetime.datetime.strptime(i, '%Y%m%d').date() for i in sessions]
-    sessions = [k for k in sessions if k < subjects.iloc[i, 3]]
+    sessions = [k for k in sessions if k >= subjects.iloc[i, 3]]
 
     # Create lick figure
     f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7,  2*np.ceil(len(sessions) / 4)),

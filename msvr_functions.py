@@ -20,7 +20,7 @@ import datetime
 from os.path import join, realpath, dirname, isfile, split, isdir
 
 
-def paths(full_sync=False, force_sync=False):
+def paths(sync=True, full_sync=False, force_sync=False):
     """
     Load in figure path from paths.json, if this file does not exist it will be generated from
     user input
@@ -30,8 +30,9 @@ def paths(full_sync=False, force_sync=False):
 
     Input
     ------------------------
+    sync : boolean
+        When True data from the server will be synced with the local disk
     full_sync : boolean 
-        TO DO
         When True also the raw data will be copied to the local drive
     force_sync : boolean    
         When True synchronization will be done regardless of how long ago the last sync was    
@@ -72,43 +73,44 @@ def paths(full_sync=False, force_sync=False):
         sync_date = datetime.date.today() - datetime.timedelta(days=1)
 
     # Synchronize server with local data once a day
-    if ((datetime.date.today() - sync_date).days > 0) | force_sync:
-        print('Synchronizing data from server with local data folder')
-
-        # Copy data from server to local folder
-        subjects = os.listdir(join(path_dict['server_path'], 'Subjects'))
-        for i, subject in enumerate(subjects):
-            if not isdir(join(path_dict['local_data_path'], 'Subjects', subject)):
-                os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject))
-            sessions = os.listdir(join(path_dict['server_path'], 'Subjects', subject))
-            for j, session in enumerate(sessions):
-                if not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session)):
-                    os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject, session))
-                files = [f for f in os.listdir(join(path_dict['server_path'], 'Subjects', subject, session))
-                         if isfile(join(path_dict['server_path'], 'Subjects', subject, session, f))]
-                if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, files[0])):
-                    print(
-                        f'Copying files {join(path_dict["server_path"], "Subjects", subject, session)}')
-                    for f, file in enumerate(files):
-                        if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, file)):
-                            shutil.copyfile(join(path_dict['server_path'], 'Subjects', subject, session, file),
-                                            join(path_dict['local_data_path'], 'Subjects', subject, session, file))
-                if (not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_video_data'))) & full_sync:
-                    print(
-                        f'Copying raw video data {join(path_dict["server_path"], "Subjects", subject, session)}')
-                    shutil.copytree(join(path_dict['server_path'], 'Subjects', subject, session, 'raw_video_data'),
-                                    join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_video_data'))
-                if (not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_behavior_data'))) & full_sync:
-                    print(
-                        f'Copying raw behavior data {join(path_dict["server_path"], "Subjects", subject, session)}')
-                    shutil.copytree(join(path_dict['server_path'], 'Subjects', subject, session, 'raw_behavior_data'),
-                                    join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_behavior_data'))
-
-        # Update synchronization timestamp
-        with open(join(path_dict['local_data_path'], 'sync_timestamp.txt'), 'w') as f:
-            f.write(datetime.date.today().strftime('%Y%m%d'))
-            f.close()
-        print('Done')
+    if sync:
+        if ((datetime.date.today() - sync_date).days > 0) | force_sync:
+            print('Synchronizing data from server with local data folder')
+    
+            # Copy data from server to local folder
+            subjects = os.listdir(join(path_dict['server_path'], 'Subjects'))
+            for i, subject in enumerate(subjects):
+                if not isdir(join(path_dict['local_data_path'], 'Subjects', subject)):
+                    os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject))
+                sessions = os.listdir(join(path_dict['server_path'], 'Subjects', subject))
+                for j, session in enumerate(sessions):
+                    if not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session)):
+                        os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject, session))
+                    files = [f for f in os.listdir(join(path_dict['server_path'], 'Subjects', subject, session))
+                             if isfile(join(path_dict['server_path'], 'Subjects', subject, session, f))]
+                    if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, files[0])):
+                        print(
+                            f'Copying files {join(path_dict["server_path"], "Subjects", subject, session)}')
+                        for f, file in enumerate(files):
+                            if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, file)):
+                                shutil.copyfile(join(path_dict['server_path'], 'Subjects', subject, session, file),
+                                                join(path_dict['local_data_path'], 'Subjects', subject, session, file))
+                    if (not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_video_data'))) & full_sync:
+                        print(
+                            f'Copying raw video data {join(path_dict["server_path"], "Subjects", subject, session)}')
+                        shutil.copytree(join(path_dict['server_path'], 'Subjects', subject, session, 'raw_video_data'),
+                                        join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_video_data'))
+                    if (not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_behavior_data'))) & full_sync:
+                        print(
+                            f'Copying raw behavior data {join(path_dict["server_path"], "Subjects", subject, session)}')
+                        shutil.copytree(join(path_dict['server_path'], 'Subjects', subject, session, 'raw_behavior_data'),
+                                        join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_behavior_data'))
+    
+            # Update synchronization timestamp
+            with open(join(path_dict['local_data_path'], 'sync_timestamp.txt'), 'w') as f:
+                f.write(datetime.date.today().strftime('%Y%m%d'))
+                f.close()
+            print('Done')
 
     return path_dict
 
@@ -155,11 +157,14 @@ def figure_style():
 
 
 def load_subjects():
-    path_dict = paths()
+    path_dict = paths(sync=False)
     subjects = pd.read_csv(join(path_dict['repo_path'], 'subjects.csv'),
                            delimiter=';|,',
                            engine='python')
     subjects['SubjectID'] = subjects['SubjectID'].astype(str)
+    subjects['DateFinalTask'] = subjects['DateFinalTask'].astype(str)
+    subjects['DateFinalTask'] = [datetime.datetime.strptime(i, '%Y%m%d').date() for i
+                                 in subjects['DateFinalTask']]
     return subjects
 
 
