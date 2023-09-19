@@ -44,10 +44,11 @@ for i, subject in enumerate(subjects['SubjectID']):
         if not isfile(join(data_path, 'Subjects', subject, ses, 'lick.times.npy')):
             no_lick_ses[j] = 1
     sessions = np.array(sessions)[~no_lick_ses.astype(int).astype(bool)]
-    
+
     # Select training sessions
-    sessions = [datetime.datetime.strptime(i, '%Y%m%d').date() for i in sessions]
-    sessions = [k for k in sessions if k < subjects.iloc[i, 3]]
+    ses_date = [datetime.datetime.strptime(i, '%Y%m%d').date() for i in sessions]
+    ses_date = [k for k in ses_date if k < subjects.iloc[i, 3]]
+    sessions = [datetime.datetime.strftime(i, '%Y%m%d') for i in ses_date]
 
     # Create lick figure
     f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7,  2*np.ceil(len(sessions) / 4)),
@@ -99,7 +100,10 @@ for i, subject in enumerate(subjects['SubjectID']):
     f.suptitle(f'{subjects.iloc[i, 1]} ({subject})')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
-    plt.subplots_adjust(left=0.1, bottom=0.1, right=0.95, top=0.9, hspace=0.3)
+    if int(np.ceil(len(sessions)/4)) > 1:
+        plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, hspace=0.4)
+    else:
+        plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.9, hspace=0.4)
     # plt.tight_layout()
     plt.savefig(join(path_dict['fig_path'], f'{subject}_reward_zone_entry_licks.jpg'), dpi=600)
 
@@ -148,5 +152,8 @@ for i, subject in enumerate(subjects['SubjectID']):
     f.suptitle(f'{subjects.iloc[i, 1]} ({subject})')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
-    plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, hspace=0.4)
+    if int(np.ceil(len(sessions)/4)) > 1:
+        plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, hspace=0.4)
+    else:
+        plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.9, hspace=0.4)
     plt.savefig(join(path_dict['fig_path'], f'{subject}_object_entry.jpg'), dpi=600)

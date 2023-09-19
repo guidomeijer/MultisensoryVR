@@ -76,7 +76,7 @@ def paths(sync=True, full_sync=False, force_sync=False):
     if sync:
         if ((datetime.date.today() - sync_date).days > 0) | force_sync:
             print('Synchronizing data from server with local data folder')
-    
+
             # Copy data from server to local folder
             subjects = os.listdir(join(path_dict['server_path'], 'Subjects'))
             for i, subject in enumerate(subjects):
@@ -105,7 +105,7 @@ def paths(sync=True, full_sync=False, force_sync=False):
                             f'Copying raw behavior data {join(path_dict["server_path"], "Subjects", subject, session)}')
                         shutil.copytree(join(path_dict['server_path'], 'Subjects', subject, session, 'raw_behavior_data'),
                                         join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_behavior_data'))
-    
+
             # Update synchronization timestamp
             with open(join(path_dict['local_data_path'], 'sync_timestamp.txt'), 'w') as f:
                 f.write(datetime.date.today().strftime('%Y%m%d'))
@@ -149,7 +149,10 @@ def figure_style():
     colors = {
         'obj1': sns.color_palette('Set2')[0],
         'obj2': sns.color_palette('Set2')[1],
-        'obj3': sns.color_palette('Set2')[2]}
+        'obj3': sns.color_palette('Set2')[2],
+        'goal': matplotlib.colors.to_rgb('mediumseagreen'),
+        'no-goal': matplotlib.colors.to_rgb('tomato'),
+        'control': matplotlib.colors.to_rgb('gray')}
 
     screen_width = tk.Tk().winfo_screenwidth()
     dpi = screen_width / 10
