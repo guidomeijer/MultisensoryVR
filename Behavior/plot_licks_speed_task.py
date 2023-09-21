@@ -8,7 +8,6 @@ By Guido Meijer
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.stats import binned_statistic
 import os
 import datetime
 from os.path import join, isfile
@@ -127,13 +126,9 @@ for i, subject in enumerate(subjects['SubjectID']):
 
         # Load in data
         trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'))
-        # PATCH
-        if isfile(join(data_path, 'Subjects', subject, ses, 'wheel.speed.npy')):
-            wheel_times = np.load(join(data_path, 'Subjects', subject, ses, 'wheel.times.npy'))
-            wheel_speed = np.load(join(data_path, 'Subjects', subject, ses, 'wheel.speed.npy'))
-        else:
-            wheel_times = np.load(join(data_path, 'Subjects', subject, ses, 'continuous.times.npy'))
-            wheel_speed = np.load(join(data_path, 'Subjects', subject, ses, 'continuous.wheelSpeed.npy'))
+        wheel_times = np.load(join(data_path, 'Subjects', subject, ses, 'continuous.times.npy'))
+        wheel_speed = np.load(join(data_path, 'Subjects', subject,
+                              ses, 'continuous.wheelSpeed.npy'))
 
         # Downsample wheel speed and convert to cm/s
         wheel_speed = wheel_speed[::50] / 10
