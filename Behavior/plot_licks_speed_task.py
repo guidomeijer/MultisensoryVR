@@ -44,10 +44,13 @@ for i, subject in enumerate(subjects['SubjectID']):
         if not isfile(join(data_path, 'Subjects', subject, ses, 'lick.times.npy')):
             no_lick_ses[j] = 1
     sessions = np.array(sessions)[~no_lick_ses.astype(int).astype(bool)]
-    
+
     # Select final task sessions
-    sessions = [datetime.datetime.strptime(i, '%Y%m%d').date() for i in sessions]
-    sessions = [k for k in sessions if k >= subjects.iloc[i, 3]]
+    ses_date = [datetime.datetime.strptime(i, '%Y%m%d').date() for i in sessions]
+    ses_date = [k for k in ses_date if k >= subjects.iloc[i, 3]]
+    sessions = [datetime.datetime.strftime(i, '%Y%m%d') for i in ses_date]
+    if len(sessions) == 0:
+        continue
 
     # Create lick figure
     f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7,  2*np.ceil(len(sessions) / 4)),
@@ -62,28 +65,34 @@ for i, subject in enumerate(subjects['SubjectID']):
         trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'))
         lick_times = np.load(join(data_path, 'Subjects', subject, ses, 'lick.times.npy'))
 
-        # Plot
-        all_obj_enters = np.concatenate(
-            (trials['enterObj1'], trials['enterObj2'], trials['enterObj3']))
+        # Get timestamps of entry of goal, no-goal and control object sets
+        goal_obj_enters = np.concatenate((
+            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound1Obj"]}'],
+            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound2Obj"]}']))
+        nogoal_obj_enters = np.concatenate((
+            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound2Obj"]}'],
+            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound1Obj"]}']))
+        control_obj_enters = trials[f'enterObj{subjects.loc[i, "ControlObject"]}'].values
+        all_obj_enters = np.concatenate((goal_obj_enters, nogoal_obj_enters, control_obj_enters))
         all_obj_ids = np.concatenate(
-            (np.ones(trials['enterObj1'].shape),
-             np.ones(trials['enterObj2'].shape)*2,
-             np.ones(trials['enterObj3'].shape)*3))
+            (np.ones(goal_obj_enters.shape[0]),
+             np.ones(nogoal_obj_enters.shape[0])*2,
+             np.ones(control_obj_enters.shape[0])*3))
         all_obj_ids = all_obj_ids[~np.isnan(all_obj_enters)]
         all_obj_enters = all_obj_enters[~np.isnan(all_obj_enters)]
 
         peri_multiple_events_time_histogram(
             lick_times, np.ones(lick_times.shape[0]), all_obj_enters, all_obj_ids,
             [1], t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, smoothing=SMOOTHING, ax=axs[j],
-            pethline_kwargs=[{'color': colors['obj1'], 'lw': 1},
-                             {'color': colors['obj2'], 'lw': 1},
-                             {'color': colors['obj3'], 'lw': 1}],
-            errbar_kwargs=[{'color': colors['obj1'], 'alpha': 0.3, 'lw': 0},
-                           {'color': colors['obj2'], 'alpha': 0.3, 'lw': 0},
-                           {'color': colors['obj3'], 'alpha': 0.3, 'lw': 0}],
-            raster_kwargs=[{'color': colors['obj1'], 'lw': 0.5},
-                           {'color': colors['obj2'], 'lw': 0.5},
-                           {'color': colors['obj3'], 'lw': 0.5}],
+            pethline_kwargs=[{'color': colors['goal'], 'lw': 1},
+                             {'color': colors['no-goal'], 'lw': 1},
+                             {'color': colors['control'], 'lw': 1}],
+            errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0},
+                           {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0},
+                           {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
+            raster_kwargs=[{'color': colors['goal'], 'lw': 0.5},
+                           {'color': colors['no-goal'], 'lw': 0.5},
+                           {'color': colors['control'], 'lw': 0.5}],
             eventline_kwargs={'lw': 0}, include_raster=True)
 
         axs[j].set(ylabel='Licks/s', xticks=np.arange(-T_BEFORE, T_AFTER+1, 2),
@@ -99,9 +108,13 @@ for i, subject in enumerate(subjects['SubjectID']):
     f.suptitle(f'{subjects.iloc[i, 1]} ({subject})')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
-    plt.subplots_adjust(left=0.1, bottom=0.1, right=0.95, top=0.9, hspace=0.3)
+    if int(np.ceil(len(sessions)/4)) > 1:
+        plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, hspace=0.4)
+    else:
+        plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.8, hspace=0.4)
+
     # plt.tight_layout()
-    plt.savefig(join(path_dict['fig_path'], f'{subject}_reward_zone_entry_licks.jpg'), dpi=600)
+    plt.savefig(join(path_dict['fig_path'], f'{subject}_task_licks.jpg'), dpi=600)
 
     # Create speed figure
     f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7, 2*np.ceil(len(sessions) / 4)),
@@ -126,23 +139,34 @@ for i, subject in enumerate(subjects['SubjectID']):
         wheel_speed = wheel_speed[::50] / 10
         wheel_times = wheel_times[::50]
 
-        # Plot
-        all_obj_enters = np.concatenate(
-            (trials['enterObj1'], trials['enterObj2'], trials['enterObj3']))
+        # Get timestamps of entry of goal, no-goal and control object sets
+        goal_obj_enters = np.concatenate((
+            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound1Obj"]}'],
+            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound2Obj"]}']))
+        nogoal_obj_enters = np.concatenate((
+            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound2Obj"]}'],
+            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound1Obj"]}']))
+        control_obj_enters = trials[f'enterObj{subjects.loc[i, "ControlObject"]}'].values
+        all_obj_enters = np.concatenate((goal_obj_enters, nogoal_obj_enters, control_obj_enters))
         all_obj_ids = np.concatenate(
-            (np.ones(trials['enterObj1'].shape),
-             np.ones(trials['enterObj2'].shape)*2,
-             np.ones(trials['enterObj3'].shape)*3))
+            (np.ones(goal_obj_enters.shape[0]),
+             np.ones(nogoal_obj_enters.shape[0])*2,
+             np.ones(control_obj_enters.shape[0])*3))
+        all_obj_ids = all_obj_ids[~np.isnan(all_obj_enters)]
+        all_obj_enters = all_obj_enters[~np.isnan(all_obj_enters)]
         if j == 0:
             peri_event_trace(wheel_speed, wheel_times, all_obj_enters,
-                             event_ids=all_obj_ids, color_palette='Set2',
-                             event_labels=['1', '2', '3'],
+                             event_ids=all_obj_ids,
+                             color_palette=[colors['goal'], colors['no-goal'], colors['control']],
+                             event_labels=['Goal', 'Distractor', 'Control'],
                              t_before=T_BEFORE, t_after=T_AFTER, ax=axs[j], kwargs={'zorder': 1})
         else:
             peri_event_trace(wheel_speed, wheel_times, all_obj_enters,
-                             event_ids=all_obj_ids, color_palette='Set2',
+                             event_ids=all_obj_ids,
+                             color_palette=[colors['goal'], colors['no-goal'], colors['control']],
                              t_before=T_BEFORE, t_after=T_AFTER, ax=axs[j], kwargs={'zorder': 1})
-        axs[j].set(ylabel='Speed (cm/s)', xticks=np.arange(-2, 7, 2), title=f'{ses}', xlabel='')
+        axs[j].set(ylabel='Speed (cm/s)', xticks=np.arange(-2, 7, 2),
+                   title=f'{ses} ({trials.shape[0]} trials)', xlabel='')
         max_y = axs[j].get_ylim()[1]
 
     # Place the dotted line now we know the y lim extend
@@ -153,5 +177,9 @@ for i, subject in enumerate(subjects['SubjectID']):
     f.suptitle(f'{subjects.iloc[i, 1]} ({subject})')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
-    plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, hspace=0.4)
-    plt.savefig(join(path_dict['fig_path'], f'{subject}_object_entry.jpg'), dpi=600)
+    if int(np.ceil(len(sessions)/4)) > 1:
+        plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, hspace=0.4)
+    else:
+        plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.8, hspace=0.4)
+
+    plt.savefig(join(path_dict['fig_path'], f'{subject}_task_speed.jpg'), dpi=600)
