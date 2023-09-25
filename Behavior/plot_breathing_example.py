@@ -33,7 +33,7 @@ breathing_filt = butter_bandpass_filter(breathing, 1, 12, int(1/np.diff(timestam
 colors, dpi = figure_style()
 f, ax1 = plt.subplots(figsize=(1.75, 2), dpi=dpi)
 ax1.plot(timestamps[:1000], breathing[:1000])
-ax1.plot(timestamps[:1000], breathing_filt[:1000])
+# ax1.plot(timestamps[:1000], breathing_filt[:1000])
 ax1.set(yticks=[], xlabel='Time (s)')
 
 plt.tight_layout()

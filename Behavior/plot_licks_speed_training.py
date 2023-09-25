@@ -48,6 +48,7 @@ for i, subject in enumerate(subjects['SubjectID']):
     # Select training sessions
     ses_date = [datetime.datetime.strptime(i, '%Y%m%d').date() for i in sessions]
     ses_date = [k for k in ses_date if k < subjects.iloc[i, 3]]
+    ses_date = ses_date[-12:]  # only plot last 12 sessions
     sessions = [datetime.datetime.strftime(i, '%Y%m%d') for i in ses_date]
 
     # Create lick figure
