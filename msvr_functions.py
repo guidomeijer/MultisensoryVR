@@ -66,15 +66,15 @@ def paths(sync=True, full_sync=False, force_sync=False):
     # Read in the time of last sync
     if isfile(join(path_dict['local_data_path'], 'sync_timestamp.txt')):
         f = open(join(path_dict['local_data_path'], 'sync_timestamp.txt'), 'r')
-        sync_date = datetime.datetime.strptime(f.read(), '%Y%m%d').date()
+        sync_time = datetime.datetime.strptime(f.read(), '%Y%m%d_%H%M')
         f.close()
     else:
         # If never been synched set date to yesterday so that it runs the first time
-        sync_date = datetime.date.today() - datetime.timedelta(days=1)
+        sync_time = datetime.datetime.now() - datetime.timedelta(hours=24)
 
     # Synchronize server with local data once a day
     if sync:
-        if ((datetime.date.today() - sync_date).days > 0) | force_sync:
+        if ((datetime.datetime.now() - sync_time).total_seconds() > 12*60*60) | force_sync:
             print('Synchronizing data from server with local data folder')
 
             # Copy data from server to local folder
@@ -108,7 +108,7 @@ def paths(sync=True, full_sync=False, force_sync=False):
 
             # Update synchronization timestamp
             with open(join(path_dict['local_data_path'], 'sync_timestamp.txt'), 'w') as f:
-                f.write(datetime.date.today().strftime('%Y%m%d'))
+                f.write(datetime.datetime.now().strftime('%Y%m%d_%H%M'))
                 f.close()
             print('Done')
 

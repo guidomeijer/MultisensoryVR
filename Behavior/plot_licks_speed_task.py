@@ -17,7 +17,7 @@ from msvr_functions import (load_subjects, paths, peri_event_trace, figure_style
 
 # Settings
 T_BEFORE = 2
-T_AFTER = 4
+T_AFTER = 3
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
 
@@ -94,7 +94,7 @@ for i, subject in enumerate(subjects['SubjectID']):
                            {'color': colors['control'], 'lw': 0.5}],
             eventline_kwargs={'lw': 0}, include_raster=True)
 
-        axs[j].set(ylabel='Licks/s', xticks=np.arange(-T_BEFORE, T_AFTER+1, 2),
+        axs[j].set(ylabel='Licks/s', xticks=np.arange(-T_BEFORE, T_AFTER+1),
                    yticks=[0, np.ceil(axs[j].get_ylim()[1])],
                    title=f'{ses} ({trials.shape[0]} trials)', xlabel='')
         axs[j].yaxis.set_label_coords(-0.1, 0.75)
@@ -160,7 +160,7 @@ for i, subject in enumerate(subjects['SubjectID']):
                              event_ids=all_obj_ids,
                              color_palette=[colors['goal'], colors['no-goal'], colors['control']],
                              t_before=T_BEFORE, t_after=T_AFTER, ax=axs[j], kwargs={'zorder': 1})
-        axs[j].set(ylabel='Speed (cm/s)', xticks=np.arange(-2, 7, 2),
+        axs[j].set(ylabel='Speed (cm/s)', xticks=np.arange(-T_BEFORE, T_AFTER+1),
                    title=f'{ses} ({trials.shape[0]} trials)', xlabel='')
         max_y = axs[j].get_ylim()[1]
 
