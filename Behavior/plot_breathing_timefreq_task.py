@@ -24,15 +24,13 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
 
 
 # Settings
-T_BEFORE = 3.5
-T_AFTER = 4.5
-T_PLOT = [-2, 3]
+T_BEFORE = 4
+T_AFTER = 8
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
 WIN_SIZE = 2  # s
 WIN_SHIFT = 0.05  # s
 FS = 1000  # sampling rate
-FREQ = [5, 10]
 
 # Get subjects
 subjects = load_subjects()
@@ -57,12 +55,14 @@ for i, subject in enumerate(subjects['SubjectID']):
             no_breathing_ses[j] = 1
     sessions = np.array(sessions)[~no_breathing_ses.astype(int).astype(bool)]
 
+    """
     # Select final task sessions
     ses_date = [datetime.datetime.strptime(i, '%Y%m%d').date() for i in sessions]
     ses_date = [k for k in ses_date if k >= subjects.iloc[i, 3]]
     sessions = [datetime.datetime.strftime(i, '%Y%m%d') for i in ses_date]
     if len(sessions) == 0:
         continue
+    """
 
     # Create breathing figure
     f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7,  2*np.ceil(len(sessions) / 4)),
@@ -86,81 +86,42 @@ for i, subject in enumerate(subjects['SubjectID']):
             trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound2Obj"]}'],
             trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound1Obj"]}']))
         control_obj_enters = trials[f'enterObj{subjects.loc[i, "ControlObject"]}'].values
-        goal_obj_enters = np.sort(goal_obj_enters[~np.isnan(goal_obj_enters)])
-        nogoal_obj_enters = np.sort(nogoal_obj_enters[~np.isnan(nogoal_obj_enters)])
-        control_obj_enters = np.sort(control_obj_enters[~np.isnan(control_obj_enters)])
+        all_obj_enters = np.concatenate((goal_obj_enters, nogoal_obj_enters, control_obj_enters))
+        all_obj_ids = np.concatenate(
+            (np.ones(goal_obj_enters.shape[0]),
+             np.ones(nogoal_obj_enters.shape[0])*2,
+             np.ones(control_obj_enters.shape[0])*3))
+        all_obj_ids = all_obj_ids[~np.isnan(all_obj_enters)]
+        all_obj_enters = all_obj_enters[~np.isnan(all_obj_enters)]
 
         # Filter breathing signal
         breathing_filt = butter_bandpass_filter(breathing, 2, 50, 1000, order=1)
 
         # Compute breathing spectogram per trial
-        breathing_df = pd.DataFrame()
         all_spec = []
-        for k, this_onset in enumerate(goal_obj_enters):
+        for k, this_onset in enumerate(all_obj_enters):
             this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps <= this_onset + T_AFTER)
             freq, time, this_spec = spectrogram(breathing_filt[this_ind], fs=FS,
                                                 nperseg=WIN_SIZE*FS,
                                                 noverlap=(WIN_SIZE*FS)-(WIN_SHIFT*FS))
-            all_spec.append(this_spec)
+            all_spec.append(this_spec[freq <= 15, :])
+            freq = freq[freq <= 15]
         all_t_ax = np.array([i.shape[1] for i in all_spec])
         all_spec = [i for (i, v) in zip(all_spec, all_t_ax == time.shape[0]) if v]
         all_spec = np.dstack(all_spec)
-        no_goal = np.mean(all_spec[(freq >= FREQ[0]) & (freq <= FREQ[1]), :, :], axis=0)
         time_ax = time - T_BEFORE
-        this_df = pd.melt(pd.DataFrame(columns=time_ax, data=no_goal.T),
-                          value_name='psd', var_name='time')
-        this_df['object'] = 'Goal'
-        breathing_df = pd.concat((breathing_df, this_df))
-
-        # No goal
-        all_spec = []
-        for k, this_onset in enumerate(nogoal_obj_enters):
-            this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps <= this_onset + T_AFTER)
-            freq, time, this_spec = spectrogram(breathing_filt[this_ind], fs=FS,
-                                                nperseg=WIN_SIZE*FS,
-                                                noverlap=(WIN_SIZE*FS)-(WIN_SHIFT*FS))
-            all_spec.append(this_spec)
-        all_t_ax = np.array([i.shape[1] for i in all_spec])
-        all_spec = [i for (i, v) in zip(all_spec, all_t_ax == time.shape[0]) if v]
-        all_spec = np.dstack(all_spec)
-        no_goal = np.mean(all_spec[(freq >= FREQ[0]) & (freq <= FREQ[1]), :, :], axis=0)
-        time_ax = time - T_BEFORE
-        this_df = pd.melt(pd.DataFrame(columns=time_ax, data=no_goal.T),
-                          value_name='psd', var_name='time')
-        this_df['object'] = 'Distractor'
-        breathing_df = pd.concat((breathing_df, this_df))
-
-        # Control
-        all_spec = []
-        for k, this_onset in enumerate(control_obj_enters):
-            this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps <= this_onset + T_AFTER)
-            freq, time, this_spec = spectrogram(breathing_filt[this_ind], fs=FS,
-                                                nperseg=WIN_SIZE*FS,
-                                                noverlap=(WIN_SIZE*FS)-(WIN_SHIFT*FS))
-            all_spec.append(this_spec)
-        all_t_ax = np.array([i.shape[1] for i in all_spec])
-        all_spec = [i for (i, v) in zip(all_spec, all_t_ax == time.shape[0]) if v]
-        all_spec = np.dstack(all_spec)
-        no_goal = np.mean(all_spec[(freq >= FREQ[0]) & (freq <= FREQ[1]), :, :], axis=0)
-        time_ax = time - T_BEFORE
-        this_df = pd.melt(pd.DataFrame(columns=time_ax, data=no_goal.T),
-                          value_name='psd', var_name='time')
-        this_df['object'] = 'Control'
-        breathing_df = pd.concat((breathing_df, this_df))
 
         # Plot
-        sns.lineplot(data=breathing_df, x='time', y='psd', hue='object', err_kws={'lw': 0},
-                     errorbar='se', ax=axs[j], hue_order=['Goal', 'Distractor', 'Control'],
-                     palette=[colors['goal'], colors['no-goal'], colors['control']])
-        g = axs[j].legend(title='', prop={'size': 5.5})
-        axs[j].set(ylabel='Breathing amplitude (PSD)', xticks=np.arange(T_PLOT[0], T_PLOT[1]+1),
-                   xlim=T_PLOT, yticks=np.arange(2, 11, 2))
-        axs[j].plot([0, 0], axs[j].get_ylim(), color='k', ls='--', lw=0.75)
+        axs[j].imshow(np.mean(all_spec, axis=2), aspect='auto',
+                      extent=[-T_BEFORE, T_AFTER, freq[-1], freq[0]])
+        axs[j].plot([0, 0], axs[j].get_ylim(), color='w', ls='--')
+        axs[j].invert_yaxis()
+        axs[j].set(ylabel='Frequency (Hz)', xticks=np.arange(-T_BEFORE, T_AFTER+1, 2),
+                   yticks=np.arange(0, 16, 5))
 
     f.suptitle(f'{subjects.iloc[i, 1]} ({subject})')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
-
     if int(np.ceil(len(sessions)/4)) > 1:
         plt.subplots_adjust(left=0.08, bottom=0.1, right=0.95, top=0.9, hspace=0.4)
     else:
