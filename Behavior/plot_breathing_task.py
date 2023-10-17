@@ -152,9 +152,16 @@ for i, subject in enumerate(subjects['SubjectID']):
         sns.lineplot(data=breathing_df, x='time', y='psd', hue='object', err_kws={'lw': 0},
                      errorbar='se', ax=axs[j], hue_order=['Goal', 'Distractor', 'Control'],
                      palette=[colors['goal'], colors['no-goal'], colors['control']])
-        g = axs[j].legend(title='', prop={'size': 5.5})
-        axs[j].set(ylabel='Breathing amplitude (PSD)', xticks=np.arange(T_PLOT[0], T_PLOT[1]+1),
-                   xlim=T_PLOT, yticks=np.arange(2, 11, 2))
+
+        if j == 0:
+            axs[j].set(ylabel='Breathing amplitude (PSD)', xticks=np.arange(T_PLOT[0], T_PLOT[1]+1),
+                       xlim=T_PLOT, yticks=np.arange(2, 11, 2), xlabel='', title=ses)
+            g = axs[j].legend(title='', prop={'size': 5.5})
+        else:
+            axs[j].set(xticks=np.arange(T_PLOT[0], T_PLOT[1]+1), xlim=T_PLOT, xlabel='', yticks=[],
+                       title=ses)
+            axs[j].get_yaxis().set_visible(False)
+            axs[j].get_legend().remove()
         axs[j].plot([0, 0], axs[j].get_ylim(), color='k', ls='--', lw=0.75)
 
     f.suptitle(f'{subjects.iloc[i, 1]} ({subject})')

@@ -84,10 +84,13 @@ def paths(sync=True, full_sync=False, force_sync=False):
                     os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject))
                 sessions = os.listdir(join(path_dict['server_path'], 'Subjects', subject))
                 for j, session in enumerate(sessions):
+                    files = [f for f in os.listdir(join(path_dict['server_path'], 'Subjects', subject, session))
+                             if (isfile(join(path_dict['server_path'], 'Subjects', subject, session, f))
+                                 & (f[-4:] != 'flag'))]
+                    if len(files) == 0:
+                        continue
                     if not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session)):
                         os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject, session))
-                    files = [f for f in os.listdir(join(path_dict['server_path'], 'Subjects', subject, session))
-                             if isfile(join(path_dict['server_path'], 'Subjects', subject, session, f))]
                     if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, files[0])):
                         print(
                             f'Copying files {join(path_dict["server_path"], "Subjects", subject, session)}')
@@ -95,11 +98,25 @@ def paths(sync=True, full_sync=False, force_sync=False):
                             if not isfile(join(path_dict['local_data_path'], 'Subjects', subject, session, file)):
                                 shutil.copyfile(join(path_dict['server_path'], 'Subjects', subject, session, file),
                                                 join(path_dict['local_data_path'], 'Subjects', subject, session, file))
+                        if ((isdir(join(path_dict['server_path'], 'Subjects', subject, session, 'probe00')))
+                                & (~isdir(join(path_dict['local_data_path'], 'Subjects', subject, session, 'probe00')))):
+                            shutil.copytree(join(path_dict['server_path'], 'Subjects', subject, session, 'probe00'),
+                                            join(path_dict['local_data_path'], 'Subjects', subject, session, 'probe00'))
+                        if ((isdir(join(path_dict['server_path'], 'Subjects', subject, session, 'probe01')))
+                                & (~isdir(join(path_dict['local_data_path'], 'Subjects', subject, session, 'probe01')))):
+                            shutil.copytree(join(path_dict['server_path'], 'Subjects', subject, session, 'probe01'),
+                                            join(path_dict['local_data_path'], 'Subjects', subject, session, 'probe01'))
                     if (not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_video_data'))) & full_sync:
                         print(
                             f'Copying raw video data {join(path_dict["server_path"], "Subjects", subject, session)}')
                         shutil.copytree(join(path_dict['server_path'], 'Subjects', subject, session, 'raw_video_data'),
                                         join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_video_data'))
+                    if isdir(join(path_dict['server_path'], 'Subjects', subject, session, 'raw_ephys_data')) & full_sync:
+                        if not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_ephys_data')):
+                            print(
+                                f'Copying raw ephys data {join(path_dict["server_path"], "Subjects", subject, session)}')
+                            shutil.copytree(join(path_dict['server_path'], 'Subjects', subject, session, 'raw_ephys_data'),
+                                            join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_ephys_data'))
                     if (not isdir(join(path_dict['local_data_path'], 'Subjects', subject, session, 'raw_behavior_data'))) & full_sync:
                         print(
                             f'Copying raw behavior data {join(path_dict["server_path"], "Subjects", subject, session)}')
@@ -169,6 +186,20 @@ def load_subjects():
     subjects['DateFinalTask'] = [datetime.datetime.strptime(i, '%Y%m%d').date() for i
                                  in subjects['DateFinalTask']]
     return subjects
+
+
+def load_spikes(session_path, probe, only_bc_good=True):
+    spikes = dict()
+    spikes['times'] = np.load(join(session_path, probe, 'spikes.times.npy'))
+    spikes['clusters'] = np.load(join(session_path, probe, 'spikes.clusters.npy'))
+    clusters = dict()
+    clusters['label'] = np.load(join(session_path, probe, 'clusters.bcUnitType.npy'),
+                                allow_pickle=True)
+    if only_bc_good:
+        good_units = np.where(clusters['label'] == 'GOOD')[0]
+        spikes['times'] = spikes['times'][np.isin(spikes['clusters'], good_units)]
+        spikes['clusters'] = spikes['clusters'][np.isin(spikes['clusters'], good_units)]
+    return spikes, clusters
 
 
 def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, t_after=3,
