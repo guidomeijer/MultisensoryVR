@@ -191,6 +191,7 @@ def load_subjects():
 def load_spikes(session_path, probe, only_bc_good=True):
     spikes = dict()
     spikes['times'] = np.load(join(session_path, probe, 'spikes.times.npy'))
+    spikes['distances'] = np.load(join(session_path, probe, 'spikes.distances.npy'))
     spikes['clusters'] = np.load(join(session_path, probe, 'spikes.clusters.npy'))
     clusters = dict()
     clusters['label'] = np.load(join(session_path, probe, 'clusters.bcUnitType.npy'),
@@ -198,6 +199,7 @@ def load_spikes(session_path, probe, only_bc_good=True):
     if only_bc_good:
         good_units = np.where(clusters['label'] == 'GOOD')[0]
         spikes['times'] = spikes['times'][np.isin(spikes['clusters'], good_units)]
+        spikes['distances'] = spikes['distances'][np.isin(spikes['clusters'], good_units)]
         spikes['clusters'] = spikes['clusters'][np.isin(spikes['clusters'], good_units)]
     return spikes, clusters
 
