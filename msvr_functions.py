@@ -188,16 +188,21 @@ def load_subjects():
     return subjects
 
 
-def load_spikes(session_path, probe, only_bc_good=True):
+def load_spikes(session_path, probe, only_good=True):
     spikes = dict()
     spikes['times'] = np.load(join(session_path, probe, 'spikes.times.npy'))
     spikes['distances'] = np.load(join(session_path, probe, 'spikes.distances.npy'))
     spikes['clusters'] = np.load(join(session_path, probe, 'spikes.clusters.npy'))
     clusters = dict()
-    clusters['label'] = np.load(join(session_path, probe, 'clusters.bcUnitType.npy'),
-                                allow_pickle=True)
-    if only_bc_good:
-        good_units = np.where(clusters['label'] == 'GOOD')[0]
+    clusters['bc_label'] = np.load(join(session_path, probe, 'clusters.bcUnitType.npy'),
+                                   allow_pickle=True)
+    clusters['ks_label'] = pd.read_csv(join(session_path, probe, 'cluster_KSLabel.tsv'),
+                                       sep='\t')['KSLabel']
+    if isfile(join(session_path, probe, 'cluster_group.tsv')):
+        clusters['manual_label'] = pd.read_csv(join(session_path, probe, 'cluster_group.tsv'),
+                                               sep='\t')['group']
+    if only_good:
+        good_units = np.where(clusters['manual_label'] == 'good')[0]
         spikes['times'] = spikes['times'][np.isin(spikes['clusters'], good_units)]
         spikes['distances'] = spikes['distances'][np.isin(spikes['clusters'], good_units)]
         spikes['clusters'] = spikes['clusters'][np.isin(spikes['clusters'], good_units)]

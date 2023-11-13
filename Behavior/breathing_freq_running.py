@@ -76,7 +76,7 @@ running_breathing_df['running_bins'] = pd.cut(running_breathing_df['running'], R
 
 # %% Plot
 colors, dpi = figure_style()
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(3.5, 1.75), dpi=dpi)
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(3.5, 1.75), dpi=600)
 
 sns.pointplot(data=running_breathing_df, x='running_bins', y='breathing_freq', ax=ax1,
               errorbar='se', markers='none')
