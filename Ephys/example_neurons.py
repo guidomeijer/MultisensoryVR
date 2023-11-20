@@ -7,15 +7,11 @@ By Guido Meijer
 
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
-import os
-import datetime
-from os.path import join, isfile
+from os.path import join
 import pandas as pd
 from matplotlib.ticker import FormatStrFormatter
 from brainbox.plot import peri_event_time_histogram
-from msvr_functions import (load_subjects, paths, peri_event_trace, figure_style,
-                            peri_multiple_events_time_histogram, load_spikes)
+from msvr_functions import paths, figure_style, load_spikes
 
 # Settings
 SUBJECT = '450409'
@@ -29,7 +25,7 @@ path_dict = paths()
 
 # Load in data
 session_path = join(path_dict['local_data_path'], 'Subjects', f'{SUBJECT}', f'{DATE}')
-spikes, clusters = load_spikes(session_path, PROBE, only_bc_good=False)
+spikes, clusters = load_spikes(session_path, PROBE)
 trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'trials.csv'))
 wheel_time = np.load(join(path_dict['local_data_path'],
                      'Subjects', SUBJECT, DATE, 'continuous.times.npy'))

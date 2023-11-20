@@ -21,6 +21,7 @@ T_BEFORE = 2
 T_AFTER = 4
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
+PLOT_SUBJECTS = ['452505', '452506']
 
 # Get subjects
 subjects = load_subjects()
@@ -33,21 +34,21 @@ data_path = path_dict['local_data_path']
 colors, dpi = figure_style()
 
 # Loop over subjects
-for i, subject in enumerate(subjects['SubjectID']):
+for i, subject in enumerate(PLOT_SUBJECTS):
 
     # List sessions
     sessions = os.listdir(join(data_path, 'Subjects', subject))
 
     # Discard sessions that don't have licks
-    no_lick_ses = np.zeros(len(sessions))
+    lick_ses = np.zeros(len(sessions)).astype(int)
     for j, ses in enumerate(sessions):
-        if not isfile(join(data_path, 'Subjects', subject, ses, 'lick.times.npy')):
-            no_lick_ses[j] = 1
-    sessions = np.array(sessions)[~no_lick_ses.astype(int).astype(bool)]
+        if isfile(join(data_path, 'Subjects', subject, ses, 'lick.times.npy')):
+            lick_ses[j] = 1
+    sessions = np.array(sessions)[lick_ses.astype(bool)]
 
     # Select training sessions
     ses_date = [datetime.datetime.strptime(i, '%Y%m%d').date() for i in sessions]
-    ses_date = [k for k in ses_date if k < subjects.iloc[i, 3]]
+    ses_date = [k for k in ses_date if k < subjects.iloc[i, 3]]  # TO DO
     ses_date = ses_date[-12:]  # only plot last 12 sessions
     sessions = [datetime.datetime.strftime(i, '%Y%m%d') for i in ses_date]
 
