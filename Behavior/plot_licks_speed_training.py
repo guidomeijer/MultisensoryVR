@@ -48,7 +48,8 @@ for i, subject in enumerate(PLOT_SUBJECTS):
 
     # Select training sessions
     ses_date = [datetime.datetime.strptime(i, '%Y%m%d').date() for i in sessions]
-    ses_date = [k for k in ses_date if k < subjects.iloc[i, 3]]  # TO DO
+    ses_date = [k for k in ses_date if k < subjects.loc[subjects['SubjectID'] == subject,
+                                                        'DateFinalTask'].values[0]]
     ses_date = ses_date[-12:]  # only plot last 12 sessions
     sessions = [datetime.datetime.strftime(i, '%Y%m%d') for i in ses_date]
 
@@ -64,6 +65,8 @@ for i, subject in enumerate(PLOT_SUBJECTS):
         # Load in data
         trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'))
         lick_times = np.load(join(data_path, 'Subjects', subject, ses, 'lick.times.npy'))
+        if lick_times.shape[0] == 0:
+            continue
 
         # Plot
         all_obj_enters = np.concatenate(
@@ -99,7 +102,7 @@ for i, subject in enumerate(PLOT_SUBJECTS):
     for j, ses in enumerate(sessions):
         axs[j].plot([0, 0], [0, np.ceil(np.max(max_y))], color='grey', ls='--', lw=0.75, zorder=0)
 
-    f.suptitle(f'{subjects.iloc[i, 1]} ({subject})')
+    f.suptitle(f'{subjects.loc[subjects["SubjectID"] == subject, "Nickname"].values[0]} ({subject})')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
     if int(np.ceil(len(sessions)/4)) > 1:
@@ -152,7 +155,7 @@ for i, subject in enumerate(PLOT_SUBJECTS):
         axs[j].plot([0, 0], [0, np.ceil(np.max(max_y))], color='grey', ls='--', lw=0.75, zorder=0)
         axs[j].set(ylim=[0, np.max(max_y)], yticks=[0, np.ceil(np.max(max_y))])
 
-    f.suptitle(f'{subjects.iloc[i, 1]} ({subject})')
+    f.suptitle(f'{subjects.loc[subjects["SubjectID"] == subject, "Nickname"].values[0]} ({subject})')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
     if int(np.ceil(len(sessions)/4)) > 1:

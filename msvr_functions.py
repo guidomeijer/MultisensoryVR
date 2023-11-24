@@ -214,15 +214,17 @@ def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, 
 
     # Construct dataframe for plotting
     plot_df = pd.DataFrame()
-    time_x = np.arange(-t_before + np.diff(timestamps)[0]/2, t_after + np.diff(timestamps)[0]/2,
-                       np.diff(timestamps)[0])
+    samp_rate = np.round(np.mean(np.diff(timestamps)), 3)
+    time_x = np.arange(0, t_before + t_after, samp_rate)
+    time_x = time_x - time_x[int(t_before * (1/samp_rate))]
     for i, t in enumerate(event_times[~np.isnan(event_times)]):
-        this_speed = array[(timestamps >= t-t_before) & (timestamps < t+t_after)]
-        if this_speed.shape[0] != time_x.shape[0]:
+        zero_point = np.argmin(np.abs(timestamps - t))
+        this_array = array[zero_point - np.sum(time_x < 0) : (zero_point + np.sum(time_x > 0)) + 1]
+        if this_array.shape[0] != time_x.shape[0]:
             print('Trial time mismatch')
             continue
         plot_df = pd.concat((plot_df, pd.DataFrame(data={
-            'y': this_speed, 'time': time_x, 'event_id': event_ids[i], 'event_nr': i})))
+            'y': this_array, 'time': time_x, 'event_id': event_ids[i], 'event_nr': i})))
 
     # Plot
     if ind_lines:
