@@ -152,3 +152,9 @@ for i, subject in enumerate(PLOT_SUBJECTS):
     else:
         plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.9, hspace=0.4)
     plt.savefig(join(path_dict['fig_path'], f'{subject}_pupil_reward.jpg'), dpi=600)
+    
+    """
+    f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+    ax1.plot(timestamps[2200:2800], pupil_size[2200:2800])
+    ax1.set(ylabel='Pupil size (px)', xlabel='Time (s)')
+    """

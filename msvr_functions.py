@@ -9,6 +9,7 @@ import os
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from scipy.signal import butter, filtfilt
 import tkinter as tk
 import matplotlib
 import matplotlib.pyplot as plt
@@ -186,6 +187,12 @@ def load_subjects():
     subjects['DateFinalTask'] = [datetime.datetime.strptime(i, '%Y%m%d').date() for i
                                  in subjects['DateFinalTask']]
     return subjects
+
+
+def bandpass_filter(data, lowcut, highcut, fs, order=5):
+    b, a = butter(order, [lowcut, highcut], fs=fs, btype='band')
+    y = filtfilt(b, a, data)
+    return y
 
 
 def load_spikes(session_path, probe, only_good=True):
