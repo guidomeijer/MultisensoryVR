@@ -7,12 +7,11 @@ import ssm
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import datetime
 from os.path import join
 from scipy.signal import spectrogram
 from sklearn.model_selection import KFold
 import pandas as pd
-from msvr_functions import load_subjects, paths, figure_style, bandpass_filter, bin_signal
+from msvr_functions import paths, figure_style, bandpass_filter, bin_signal
 
 # Example session
 SUBJECT = '452506'
@@ -20,9 +19,10 @@ SESSION = '20231124'
 LICK_DUR = 0.1
 K_FOLDS = 10
 WIN_SIZE = 1  # s for breathing power
-BIN_SIZE = 0.1 # for the other variables
+BIN_SIZE = 0.25 # for the other variables
 FREQ = [5, 10]
-N_STATES = np.arange(2, 21)
+N_STATES_SELECT = np.arange(2, 11)
+N_STATES = 3
 
 # Get paths
 path_dict = paths()
@@ -37,10 +37,13 @@ cont_times = np.load(join(data_path, 'Subjects', SUBJECT, SESSION, 'continuous.t
 wheel_speed = np.load(join(data_path, 'Subjects', SUBJECT, SESSION, 'continuous.wheelSpeed.npy'))
 breathing = np.load(join(data_path, 'Subjects', SUBJECT, SESSION, 'continuous.breathing.npy'))
 
-# Use the first camera timestamp as the start of the other signals
-breathing = breathing[cont_times >= camera_times[0]]
-wheel_speed = wheel_speed[cont_times >= camera_times[0]]
-cont_times = cont_times[cont_times >= camera_times[0]]
+# Match timestamps and video frames for pupil
+pupil_size = pupil_df['width_smooth'].values[:camera_times.shape[0]]
+
+# Use the first and last camera timestamp as the start and end of the other signals
+breathing = breathing[(cont_times >= camera_times[0]) & (cont_times <= camera_times[-1])]
+wheel_speed = wheel_speed[(cont_times >= camera_times[0]) & (cont_times <= camera_times[-1])]
+cont_times = cont_times[(cont_times >= camera_times[0]) & (cont_times <= camera_times[-1])]
 
 # Get sampling rate
 cont_sr = int(np.round(1/np.mean(np.diff(cont_times))))
@@ -67,37 +70,43 @@ spec_time = spec_time[spec_time <= cont_times[-1]]
 
 # Use time binning of breathing spectogram to bin the other variables accordingly
 bin_edges = np.append(spec_time - (BIN_SIZE / 2), spec_time[-1] + (BIN_SIZE / 2))
-wheel_speed_binned = bin_signal(cont_times, wheel_speed, bin_edges)
+running_binned = bin_signal(cont_times, wheel_speed, bin_edges)
 lick_binned = bin_signal(cont_times, lick_cont, bin_edges)
-pupil_binned = bin_signal(pupil_df['width_smooth'], camera_times, bin_edges)
+pupil_binned = bin_signal(camera_times, pupil_size, bin_edges)
 
+# Construct 2D array 
+behav_signals = np.vstack((breathing_power, running_binned, lick_binned, pupil_binned)).T
 
 # Fit HMM
-kf = KFold(n_splits=K_FOLDS, shuffle=False)
-
 # Loop over different number of states
-log_likelihood = np.empty(N_STATES.shape[0])
-for j, s in enumerate(N_STATES):
+kf = KFold(n_splits=K_FOLDS, shuffle=False)
+log_likelihood = np.empty(N_STATES_SELECT.shape[0])
+for j, s in enumerate(N_STATES_SELECT):
     print(f'Starting state {s} of {N_STATES[-1]}')
 
     # Cross validate
-    train_index, test_index = next(kf.split(binned_spikes))
+    train_index, test_index = next(kf.split(behav_signals))
 
     # Fit HMM on training data
-    simple_hmm = ssm.HMM(s, binned_spikes.shape[1], observations='poisson')
-    lls = simple_hmm.fit(binned_spikes[train_index, :], method='em',
+    simple_hmm = ssm.HMM(s, behav_signals.shape[1], observations='gaussian')
+    lls = simple_hmm.fit(behav_signals[train_index, :], method='em',
                          transitions='sticky')
 
     # Get log-likelihood on test data
-    log_likelihood[j] = simple_hmm.log_likelihood(binned_spikes[test_index, :])
+    log_likelihood[j] = simple_hmm.log_likelihood(behav_signals[test_index, :])
 
-
+# Run final HMM
+simple_hmm = ssm.HMM(N_STATES, behav_signals.shape[1], observations='gaussian')
+lls = simple_hmm.fit(behav_signals, method='em', transitions='sticky')
+zhat = simple_hmm.most_likely_states(behav_signals)
 
 # Normalize all traces between 0 and 1 for plotting
-pupil_norm = (pupil_df['width_smooth'] - np.min(pupil_df['width_smooth'])) / np.ptp(pupil_df['width_smooth'])
+pupil_norm = (pupil_size - np.min(pupil_size)) / np.ptp(pupil_size)
 wheel_speed_norm = (wheel_speed - np.min(wheel_speed)) / np.ptp(wheel_speed)
 breathing_norm = (breathing_filt - np.min(breathing_filt)) / np.ptp(breathing_filt)
-wheel_speed_norm = (wheel_speed - np.min(wheel_speed)) / np.ptp(wheel_speed)
+pupil_binned_norm = (pupil_binned - np.min(pupil_binned)) / np.ptp(pupil_binned)
+running_binned_norm = (running_binned - np.min(running_binned)) / np.ptp(running_binned)
+breathing_power_norm = (breathing_power - np.min(breathing_power)) / np.ptp(breathing_power)
 
 # %% Plot all traces
 pupil_norm = pupil_norm[:camera_times.shape[0]]
@@ -113,4 +122,20 @@ plt.gcf().text(0.85, 0.325, 'Breathing', fontsize=7, color='darkorange')
 plt.gcf().text(0.85, 0.42, 'Licking', fontsize=7, color='seagreen')
 plt.gcf().text(0.85, 0.62, 'Pupil', fontsize=7, color='darkmagenta')
 plt.gcf().text(0.85, 0.8, 'Running', fontsize=7, color='royalblue')
+
+f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+ax1.plot(N_STATES_SELECT, log_likelihood, marker='o')
+ax1.set(xlabel='Number of states', ylabel='Log-likelihood', xticks=N_STATES_SELECT)
+
+# %%
+f, ax1 = plt.subplots(figsize=(4, 4), dpi=dpi)
+ax1.imshow(zhat[None,:], aspect='auto', cmap='Set2', 
+          extent=(0, spec_time[-1], -3, 7))
+ax1.plot(spec_time, lick_binned, color='seagreen')
+ax1.plot(spec_time, ((pupil_binned_norm - 0.5)*3) + 2, color='darkmagenta')
+ax1.plot(spec_time, ((breathing_power_norm - 0.5)*5), color='darkorange')
+ax1.plot(spec_time, ((running_binned_norm - 0.5)*3) + 5, color='royalblue')
+
+
+plt.tight_layout()
 
