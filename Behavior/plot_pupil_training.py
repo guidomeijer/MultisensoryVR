@@ -67,7 +67,7 @@ for i, subject in enumerate(PLOT_SUBJECTS):
         trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'))
         pupil_df = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'pupil.csv'))
         timestamps = np.load(join(data_path, 'Subjects', subject, ses, 'camera.times.npy'))
-        
+
         print(pupil_df.shape[0])
         print(timestamps.shape[0])
         

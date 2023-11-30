@@ -9,15 +9,19 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import datetime
 from os.path import join
+from scipy.signal import spectrogram
 from sklearn.model_selection import KFold
 import pandas as pd
-from msvr_functions import load_subjects, paths, figure_style, bandpass_filter
+from msvr_functions import load_subjects, paths, figure_style, bandpass_filter, bin_signal
 
 # Example session
 SUBJECT = '452506'
 SESSION = '20231124'
 LICK_DUR = 0.1
 K_FOLDS = 10
+WIN_SIZE = 1  # s for breathing power
+BIN_SIZE = 0.1 # for the other variables
+FREQ = [5, 10]
 N_STATES = np.arange(2, 21)
 
 # Get paths
@@ -33,6 +37,11 @@ cont_times = np.load(join(data_path, 'Subjects', SUBJECT, SESSION, 'continuous.t
 wheel_speed = np.load(join(data_path, 'Subjects', SUBJECT, SESSION, 'continuous.wheelSpeed.npy'))
 breathing = np.load(join(data_path, 'Subjects', SUBJECT, SESSION, 'continuous.breathing.npy'))
 
+# Use the first camera timestamp as the start of the other signals
+breathing = breathing[cont_times >= camera_times[0]]
+wheel_speed = wheel_speed[cont_times >= camera_times[0]]
+cont_times = cont_times[cont_times >= camera_times[0]]
+
 # Get sampling rate
 cont_sr = int(np.round(1/np.mean(np.diff(cont_times))))
 
@@ -46,7 +55,23 @@ for i, this_lick in enumerate(lick_times):
 # Filter breathing trace
 breathing = breathing - np.mean(breathing)
 breathing_filt = bandpass_filter(breathing, 1, 12, cont_sr, order=1)
-    
+
+# Get breathing power
+freq, spec_time, spec = spectrogram(breathing_filt, fs=cont_sr,
+                                    nperseg=WIN_SIZE*cont_sr,
+                                    noverlap=(WIN_SIZE*cont_sr)-(BIN_SIZE*cont_sr))
+spec_time = spec_time + camera_times[0]
+breathing_power = np.mean(spec[(freq >= FREQ[0]) & (freq <= FREQ[1]), :], axis=0)
+breathing_power = breathing_power[spec_time <= cont_times[-1]]
+spec_time = spec_time[spec_time <= cont_times[-1]]
+
+# Use time binning of breathing spectogram to bin the other variables accordingly
+bin_edges = np.append(spec_time - (BIN_SIZE / 2), spec_time[-1] + (BIN_SIZE / 2))
+wheel_speed_binned = bin_signal(cont_times, wheel_speed, bin_edges)
+lick_binned = bin_signal(cont_times, lick_cont, bin_edges)
+pupil_binned = bin_signal(pupil_df['width_smooth'], camera_times, bin_edges)
+
+
 # Fit HMM
 kf = KFold(n_splits=K_FOLDS, shuffle=False)
 

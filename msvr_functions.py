@@ -195,6 +195,16 @@ def bandpass_filter(data, lowcut, highcut, fs, order=5):
     return y
 
 
+def bin_signal(timestamps, signal, bin_edges):
+    bin_indices = np.digitize(timestamps[(timestamps >= bin_edges[0]) & (timestamps <= bin_edges[-1])],
+                              bins=bin_edges, right=False) - 1
+    bin_sums = np.bincount(
+        bin_indices, weights=signal[(timestamps >= bin_edges[0]) & (timestamps <= bin_edges[-1])])
+    bin_means = np.divide(bin_sums, np.bincount(bin_indices), out=np.zeros_like(bin_sums),
+                          where=np.bincount(bin_indices)!=0)
+    return bin_means
+
+
 def load_spikes(session_path, probe, only_good=True):
     spikes = dict()
     spikes['times'] = np.load(join(session_path, probe, 'spikes.times.npy'))
