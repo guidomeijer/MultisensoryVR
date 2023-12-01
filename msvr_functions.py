@@ -77,7 +77,10 @@ def paths(sync=True, full_sync=False, force_sync=False):
     if sync:
         if ((datetime.datetime.now() - sync_time).total_seconds() > 12*60*60) | force_sync:
             print('Synchronizing data from server with local data folder')
-
+            if not isdir(path_dict['server_path']):
+                print('Server path not found')
+                return path_dict
+            
             # Copy data from server to local folder
             subjects = os.listdir(join(path_dict['server_path'], 'Subjects'))
             for i, subject in enumerate(subjects):
