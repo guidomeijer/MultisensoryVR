@@ -16,10 +16,10 @@ from msvr_functions import (load_subjects, paths, peri_event_trace, figure_style
                             peri_multiple_events_time_histogram)
 
 # Settings
-CM_BEFORE = 20
-CM_AFTER = 50
-BIN_SIZE = 0.2
-SMOOTHING = 0.1
+CM_BEFORE = 5
+CM_AFTER = 15
+BIN_SIZE = 0.5
+SMOOTHING = 0.25
 PLOT_SUBJECTS = ['452505', '452506']
 
 # Get subjects
@@ -67,7 +67,10 @@ for i, subject in enumerate(PLOT_SUBJECTS):
         lick_pos = np.load(join(data_path, 'Subjects', subject, ses, 'lick.positions.npy'))
         
         # Convert to cm
-        lick_pos /= 100
+        lick_pos /= 10
+        trials['enterObj1Pos'] /= 10
+        trials['enterObj2Pos'] /= 10
+        trials['enterObj3Pos'] /= 10
 
         # Get timestamps of entry of goal, no-goal and control object sets
         goal_obj_enters = np.concatenate((
@@ -99,7 +102,7 @@ for i, subject in enumerate(PLOT_SUBJECTS):
                            {'color': colors['control'], 'lw': 0.5}],
             eventline_kwargs={'lw': 0}, include_raster=True)
 
-        axs[j].set(ylabel='Licks/mm', xticks=np.arange(-CM_BEFORE, CM_AFTER+1),
+        axs[j].set(ylabel='Licks/cm', xticks=np.arange(-CM_BEFORE, CM_AFTER+1, 5),
                    yticks=[0, np.ceil(axs[j].get_ylim()[1])],
                    title=f'{ses} ({trials.shape[0]} trials)', xlabel='')
         axs[j].yaxis.set_label_coords(-0.1, 0.75)
