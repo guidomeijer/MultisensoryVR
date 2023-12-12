@@ -29,9 +29,9 @@ path_dict = paths()
 
 # Load in data
 session_path = join(path_dict['local_data_path'], 'Subjects', f'{SUBJECT}', f'{DATE}')
-spikes, clusters = load_spikes(session_path, PROBE, only_manual_good=False)
+spikes, clusters = load_spikes(session_path, PROBE, only_good=False)
 
-print(f'Total of {clusters["manual_label"].shape[0]} neurons')
-print(f'{np.sum(clusters["bc_label"] == "GOOD")} Bombcell good')
+print(f'Total of {clusters["ks_label"].shape[0]} neurons')
 print(f'{np.sum(clusters["ks_label"] == "good")} Kilosort good')
+print(f'{np.sum(clusters["bc_label"] == "GOOD")} Bombcell good')
 print(f'{np.sum(clusters["manual_label"] == "good")} manually annotated good')

@@ -32,6 +32,7 @@ WIN_SIZE = 2  # s
 WIN_SHIFT = 0.05  # s
 FS = 1000  # sampling rate
 FREQ = [5, 10]
+PLOT_SUBJECTS = ['452505', '452506']
 
 # Get subjects
 subjects = load_subjects()
@@ -44,7 +45,7 @@ data_path = path_dict['local_data_path']
 colors, dpi = figure_style()
 
 # Loop over subjects
-for i, subject in enumerate(subjects['SubjectID']):
+for i, subject in enumerate(PLOT_SUBJECTS):
 
     # List sessions
     sessions = os.listdir(join(data_path, 'Subjects', subject))
@@ -56,9 +57,11 @@ for i, subject in enumerate(subjects['SubjectID']):
             no_breathing_ses[j] = 1
     sessions = np.array(sessions)[~no_breathing_ses.astype(int).astype(bool)]
 
-    # Select final task sessions
+    # Select training sessions
     ses_date = [datetime.datetime.strptime(i, '%Y%m%d').date() for i in sessions]
-    ses_date = [k for k in ses_date if k >= subjects.iloc[i, 3]]
+    ses_date = [k for k in ses_date if k < subjects.loc[subjects['SubjectID'] == subject,
+                                                        'DateFinalTask'].values[0]]
+    ses_date = ses_date[-12:]  # only plot last 12 sessions
     sessions = [datetime.datetime.strftime(i, '%Y%m%d') for i in ses_date]
     if len(sessions) == 0:
         continue
@@ -77,25 +80,13 @@ for i, subject in enumerate(subjects['SubjectID']):
         timestamps = np.load(join(data_path, 'Subjects', subject, ses, 'continuous.times.npy'))
         breathing = np.load(join(data_path, 'Subjects', subject, ses, 'continuous.breathing.npy'))
 
-        # Get timestamps of entry of goal, no-goal and control object sets
-        goal_obj_enters = np.concatenate((
-            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound1Obj"]}'],
-            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound2Obj"]}']))
-        nogoal_obj_enters = np.concatenate((
-            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound2Obj"]}'],
-            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound1Obj"]}']))
-        control_obj_enters = trials[f'enterObj{subjects.loc[i, "ControlObject"]}'].values
-        goal_obj_enters = np.sort(goal_obj_enters[~np.isnan(goal_obj_enters)])
-        nogoal_obj_enters = np.sort(nogoal_obj_enters[~np.isnan(nogoal_obj_enters)])
-        control_obj_enters = np.sort(control_obj_enters[~np.isnan(control_obj_enters)])
-
         # Filter breathing signal
         breathing_filt = butter_bandpass_filter(breathing, 2, 50, 1000, order=1)
 
         # Compute breathing spectogram per trial
         breathing_df = pd.DataFrame()
         all_spec = []
-        for k, this_onset in enumerate(goal_obj_enters):
+        for k, this_onset in enumerate(trials['enterObj1']):
             this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps <= this_onset + T_AFTER)
             freq, time, this_spec = spectrogram(breathing_filt[this_ind], fs=FS,
                                                 nperseg=WIN_SIZE*FS,
@@ -108,12 +99,12 @@ for i, subject in enumerate(subjects['SubjectID']):
         time_ax = time - T_BEFORE
         this_df = pd.melt(pd.DataFrame(columns=time_ax, data=no_goal.T),
                           value_name='psd', var_name='time')
-        this_df['object'] = 'Goal'
+        this_df['object'] = '1'
         breathing_df = pd.concat((breathing_df, this_df))
-
-        # No goal
+        
+        # object 2
         all_spec = []
-        for k, this_onset in enumerate(nogoal_obj_enters):
+        for k, this_onset in enumerate(trials['enterObj2']):
             this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps <= this_onset + T_AFTER)
             freq, time, this_spec = spectrogram(breathing_filt[this_ind], fs=FS,
                                                 nperseg=WIN_SIZE*FS,
@@ -126,12 +117,12 @@ for i, subject in enumerate(subjects['SubjectID']):
         time_ax = time - T_BEFORE
         this_df = pd.melt(pd.DataFrame(columns=time_ax, data=no_goal.T),
                           value_name='psd', var_name='time')
-        this_df['object'] = 'Distractor'
+        this_df['object'] = '2'
         breathing_df = pd.concat((breathing_df, this_df))
-
-        # Control
+        
+        # object 3
         all_spec = []
-        for k, this_onset in enumerate(control_obj_enters):
+        for k, this_onset in enumerate(trials['enterObj3']):
             this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps <= this_onset + T_AFTER)
             freq, time, this_spec = spectrogram(breathing_filt[this_ind], fs=FS,
                                                 nperseg=WIN_SIZE*FS,
@@ -144,13 +135,13 @@ for i, subject in enumerate(subjects['SubjectID']):
         time_ax = time - T_BEFORE
         this_df = pd.melt(pd.DataFrame(columns=time_ax, data=no_goal.T),
                           value_name='psd', var_name='time')
-        this_df['object'] = 'Control'
+        this_df['object'] = '3'
         breathing_df = pd.concat((breathing_df, this_df))
 
         # Plot
         sns.lineplot(data=breathing_df, x='time', y='psd', hue='object', err_kws={'lw': 0},
-                     errorbar='se', ax=axs[j], hue_order=['Goal', 'Distractor', 'Control'],
-                     palette=[colors['goal'], colors['no-goal'], colors['control']])
+                     errorbar='se', ax=axs[j], hue_order=['1', '2', '3'],
+                     palette=[colors['obj1'], colors['obj2'], colors['obj3']])
 
         if j == 0:
             axs[j].set(ylabel='Breathing amplitude (PSD)', xticks=np.arange(T_PLOT[0], T_PLOT[1]+1),
@@ -173,4 +164,4 @@ for i, subject in enumerate(subjects['SubjectID']):
         plt.subplots_adjust(left=0.08, bottom=0.2, right=0.95, top=0.8, hspace=0.4)
 
     # plt.tight_layout()
-    plt.savefig(join(path_dict['fig_path'], f'{subject}_task_breathing.jpg'), dpi=600)
+    plt.savefig(join(path_dict['fig_path'], f'{subject}_training_breathing.jpg'), dpi=600)
