@@ -71,11 +71,11 @@ for i, subject in enumerate(PLOT_SUBJECTS):
 
         # Get timestamps of entry of goal, no-goal and control object sets
         goal_obj_enters = np.concatenate((
-            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound1Obj"]}'],
-            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound2Obj"]}']))
+            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound1Obj"]}Pos'],
+            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound2Obj"]}Pos']))
         nogoal_obj_enters = np.concatenate((
-            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound2Obj"]}'],
-            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound1Obj"]}']))
+            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound2Obj"]}Pos'],
+            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound1Obj"]}Pos']))
         control_obj_enters = trials[f'enterObj{subjects.loc[i, "ControlObject"]}'].values
         all_obj_enters = np.concatenate((goal_obj_enters, nogoal_obj_enters, control_obj_enters))
         all_obj_ids = np.concatenate(
