@@ -32,6 +32,7 @@ WIN_SIZE = 2  # s
 WIN_SHIFT = 0.05  # s
 FS = 1000  # sampling rate
 FREQ = [5, 10]
+PLOT_SUBJECTS = ['452505', '452506']
 
 # Get subjects
 subjects = load_subjects()
@@ -44,7 +45,7 @@ data_path = path_dict['local_data_path']
 colors, dpi = figure_style()
 
 # Loop over subjects
-for i, subject in enumerate(subjects['SubjectID']):
+for i, subject in enumerate(PLOT_SUBJECTS):
 
     # List sessions
     sessions = os.listdir(join(data_path, 'Subjects', subject))
@@ -57,9 +58,9 @@ for i, subject in enumerate(subjects['SubjectID']):
     sessions = np.array(sessions)[~no_breathing_ses.astype(int).astype(bool)]
 
     # Select final task sessions
-    ses_date = [datetime.datetime.strptime(i, '%Y%m%d').date() for i in sessions]
-    ses_date = [k for k in ses_date if k >= subjects.iloc[i, 3]]
-    sessions = [datetime.datetime.strftime(i, '%Y%m%d') for i in ses_date]
+    ses_date = np.array([datetime.datetime.strptime(i[:8], '%Y%m%d').date() for i in sessions])
+    sessions = sessions[ses_date >= subjects.loc[subjects['SubjectID'] == subject,
+                                                 'DateFinalTask'].values[0]]
     if len(sessions) == 0:
         continue
 
@@ -76,6 +77,12 @@ for i, subject in enumerate(subjects['SubjectID']):
         trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'))
         timestamps = np.load(join(data_path, 'Subjects', subject, ses, 'continuous.times.npy'))
         breathing = np.load(join(data_path, 'Subjects', subject, ses, 'continuous.breathing.npy'))
+        
+        # Sometimes there is a one sample difference between timestamps and breathing
+        if timestamps.shape[0] > breathing.shape[0]:
+            timestamps = timestamps[:breathing.shape[0]]
+        elif timestamps.shape[0] < breathing.shape[0]:
+            breathing = breathing[:timestamps.shape[0]]
 
         # Get timestamps of entry of goal, no-goal and control object sets
         goal_obj_enters = np.concatenate((

@@ -19,7 +19,7 @@ from msvr_functions import (load_subjects, paths, peri_event_trace, figure_style
 CM_BEFORE = 5
 CM_AFTER = 15
 BIN_SIZE = 0.5
-SMOOTHING = 0.25
+SMOOTHING = 0.5
 PLOT_SUBJECTS = ['452505', '452506']
 
 # Get subjects
@@ -46,10 +46,9 @@ for i, subject in enumerate(PLOT_SUBJECTS):
     sessions = np.array(sessions)[~no_lick_ses.astype(int).astype(bool)]
 
     # Select final task sessions
-    ses_date = [datetime.datetime.strptime(i, '%Y%m%d').date() for i in sessions]
-    ses_date = [k for k in ses_date if k >= subjects.loc[subjects['SubjectID'] == subject,
-                                                        'DateFinalTask'].values[0]]
-    sessions = [datetime.datetime.strftime(i, '%Y%m%d') for i in ses_date]
+    ses_date = np.array([datetime.datetime.strptime(i[:8], '%Y%m%d').date() for i in sessions])
+    sessions = sessions[ses_date >= subjects.loc[subjects['SubjectID'] == subject,
+                                                 'DateFinalTask'].values[0]]
     if len(sessions) == 0:
         continue
 
