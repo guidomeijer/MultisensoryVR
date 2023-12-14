@@ -47,7 +47,7 @@ for i, subject in enumerate(PLOT_SUBJECTS):
     sessions = np.array(sessions)[lick_ses.astype(bool)]
 
     # Select training sessions
-    ses_date = [datetime.datetime.strptime(i, '%Y%m%d').date() for i in sessions]
+    ses_date = [datetime.datetime.strptime(i[:8], '%Y%m%d').date() for i in sessions]
     ses_date = [k for k in ses_date if k < subjects.loc[subjects['SubjectID'] == subject,
                                                         'DateFinalTask'].values[0]]
     ses_date = ses_date[-12:]  # only plot last 12 sessions
