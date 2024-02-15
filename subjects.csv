@@ -1,5 +1,8 @@
-﻿SubjectID;Nickname;Include;DateFinalTask;Sound1Obj;Sound2Obj;ControlObject;Ephys;EphysSessions
-450408;Frankie;1;20230918;1;2;3;0;
-450409;Benjy;1;20250101;1;2;3;1;20231012
-452505;Will;1;20231205;1;2;3;;
-452506;Hamlet;1;20231205;1;2;3;;
+﻿SubjectID;Include;DateFinalTask;Sound1Obj;Sound2Obj;ControlObject;Ephys;EphysSessions
+450408;1;20230918;1;2;3;0;
+450409;1;20250101;1;2;3;1;20231012
+452505;1;20231205;1;2;3;;
+452506;1;20231205;1;2;3;;
+459601;1;20250101;1;2;3;;
+459602;1;20250101;1;2;3;;
+459603;1;20250101;1;2;3;;

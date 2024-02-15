@@ -21,7 +21,8 @@ T_BEFORE = 2
 T_AFTER = 4
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
-PLOT_SUBJECTS = ['452505', '452506']
+MIN_LICKS = 10
+PLOT_SUBJECTS = ['459601', '459602', '459603']
 
 # Get subjects
 subjects = load_subjects()
@@ -48,8 +49,10 @@ for i, subject in enumerate(PLOT_SUBJECTS):
 
     # Select training sessions
     ses_date = np.array([datetime.datetime.strptime(i[:8], '%Y%m%d').date() for i in sessions])
-    sessions = sessions[ses_date >= subjects.loc[subjects['SubjectID'] == subject,
+    sessions = sessions[ses_date < subjects.loc[subjects['SubjectID'] == subject,
                                                  'DateFinalTask'].values[0]]
+    if len(sessions) == 0:
+        continue
 
     # Create lick figure
     f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7,  2*np.ceil(len(sessions) / 4)),
@@ -63,7 +66,7 @@ for i, subject in enumerate(PLOT_SUBJECTS):
         # Load in data
         trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'))
         lick_times = np.load(join(data_path, 'Subjects', subject, ses, 'lick.times.npy'))
-        if lick_times.shape[0] == 0:
+        if lick_times.shape[0] < MIN_LICKS:
             continue
 
         # Plot
@@ -100,13 +103,13 @@ for i, subject in enumerate(PLOT_SUBJECTS):
     for j, ses in enumerate(sessions):
         axs[j].plot([0, 0], [0, np.ceil(np.max(max_y))], color='grey', ls='--', lw=0.75, zorder=0)
 
-    f.suptitle(f'{subjects.loc[subjects["SubjectID"] == subject, "Nickname"].values[0]} ({subject})')
+    f.suptitle(f'{subject}')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
     if int(np.ceil(len(sessions)/4)) > 1:
-        plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, hspace=0.4)
+        plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.85, hspace=0.4)
     else:
-        plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.9, hspace=0.4)
+        plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.85, hspace=0.4)
     # plt.tight_layout()
     plt.savefig(join(path_dict['fig_path'], f'{subject}_reward_zone_entry_licks.jpg'), dpi=600)
 
@@ -153,11 +156,11 @@ for i, subject in enumerate(PLOT_SUBJECTS):
         axs[j].plot([0, 0], [0, np.ceil(np.max(max_y))], color='grey', ls='--', lw=0.75, zorder=0)
         axs[j].set(ylim=[0, np.max(max_y)], yticks=[0, np.ceil(np.max(max_y))])
 
-    f.suptitle(f'{subjects.loc[subjects["SubjectID"] == subject, "Nickname"].values[0]} ({subject})')
+    f.suptitle(f'{subject}')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
     if int(np.ceil(len(sessions)/4)) > 1:
-        plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, hspace=0.4)
+        plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.85, hspace=0.4)
     else:
-        plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.9, hspace=0.4)
+        plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.85, hspace=0.4)
     plt.savefig(join(path_dict['fig_path'], f'{subject}_object_entry.jpg'), dpi=600)

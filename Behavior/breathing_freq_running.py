@@ -88,7 +88,7 @@ ax2.set(ylim=[20, 80], ylabel='Breathing amplitude (PSD)', xlabel='Running speed
 
 plt.tight_layout()
 sns.despine(trim=True)
-
+plt.savefig(join(path_dict['fig_path'], 'breathing_freq_running.jpg'), dpi=600)
 
 """
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(3.5, 1.75), dpi=dpi)
