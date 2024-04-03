@@ -8,7 +8,6 @@ By Guido Meijer
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.stats import binned_statistic
 import os
 import datetime
 from os.path import join, isfile
@@ -18,11 +17,11 @@ from msvr_functions import (load_subjects, paths, peri_event_trace, figure_style
 
 # Settings
 T_BEFORE = 2
-T_AFTER = 4
+T_AFTER = 2
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
 MIN_LICKS = 10
-PLOT_SUBJECTS = ['459601', '459602', '459603']
+PLOT_SUBJECTS = ['459601', '459603']
 
 # Get subjects
 subjects = load_subjects()
@@ -53,6 +52,8 @@ for i, subject in enumerate(PLOT_SUBJECTS):
                                                  'DateFinalTask'].values[0]]
     if len(sessions) == 0:
         continue
+    if len(sessions) > 12:
+        sessions = sessions[-12:]
 
     # Create lick figure
     f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7,  2*np.ceil(len(sessions) / 4)),
@@ -107,11 +108,11 @@ for i, subject in enumerate(PLOT_SUBJECTS):
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
     if int(np.ceil(len(sessions)/4)) > 1:
-        plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.85, hspace=0.4)
+        plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, hspace=0.4)
     else:
-        plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.85, hspace=0.4)
+        plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.9, hspace=0.4)
     # plt.tight_layout()
-    plt.savefig(join(path_dict['fig_path'], f'{subject}_reward_zone_entry_licks.jpg'), dpi=600)
+    plt.savefig(join(path_dict['fig_path'], 'Behavior', f'{subject}_reward_zone_entry_licks.jpg'), dpi=600)
 
     # Create speed figure
     f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7, 2*np.ceil(len(sessions) / 4)),
@@ -160,7 +161,7 @@ for i, subject in enumerate(PLOT_SUBJECTS):
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
     if int(np.ceil(len(sessions)/4)) > 1:
-        plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.85, hspace=0.4)
+        plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, hspace=0.4)
     else:
-        plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.85, hspace=0.4)
-    plt.savefig(join(path_dict['fig_path'], f'{subject}_object_entry.jpg'), dpi=600)
+        plt.subplots_adjust(left=0.05, bottom=0.2, right=0.95, top=0.9, hspace=0.4)
+    plt.savefig(join(path_dict['fig_path'], 'Behavior', f'{subject}_object_entry.jpg'), dpi=600)

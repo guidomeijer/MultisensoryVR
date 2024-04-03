@@ -9,9 +9,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from os.path import join
 import pandas as pd
+import seaborn as sns
 from matplotlib.ticker import FormatStrFormatter
 from brainbox.plot import peri_event_time_histogram
-from msvr_functions import paths, figure_style, load_spikes
+from msvr_functions import paths, figure_style, load_neural_data
+#colors, dpi = figure_style()
 
 # Settings
 SUBJECT = '450409'
@@ -23,11 +25,15 @@ path_dict = paths()
 
 # Load in data
 session_path = join(path_dict['local_data_path'], 'Subjects', f'{SUBJECT}', f'{DATE}')
-spikes, clusters = load_spikes(session_path, PROBE)
-trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'trials.csv'))
+spikes, clusters, channels = load_neural_data(session_path, PROBE, only_good=False)
 
 
+f, ax = plt.subplots()
+#a = np.diff(spikes['times'][np.where(np.diff(spikes['samples']) > (0.007 * 30_000))]) / 2.18689567
+a = np.diff(spikes['times'][np.where(np.diff(spikes['samples']) > (0.007 * 30_000))]) / (65600 / 30000)
+ax.hist(a, bins=500)
 
-spike_times = np.load(r'example_data\spike_times_example.npy')
-ii_spike_times = np.load(r'example_data\ii_spike_times_example.npy')
-epoch_labels = np.load(r'example_data\epoch_labels_example.npy')
+#ax.hist(a, bins=20, range=[0, 5])
+ax.set(ylabel='Count of spike times > 7 ms', xlabel='Kilosort batch', xlim=[0, 5])
+sns.despine(trim=False)
+plt.tight_layout()
