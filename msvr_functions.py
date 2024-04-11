@@ -226,6 +226,9 @@ def load_neural_data(session_path, probe, histology=True, only_good=True):
     spikes['amps'] = np.load(join(session_path, probe, 'spikes.amps.npy'))
     spikes['depths'] = np.load(join(session_path, probe, 'spikes.depths.npy'))
     spikes['samples'] = np.load(join(session_path, probe, 'spikes.samples.npy'))
+    if isfile(join(session_path, probe, 'spikes.distances.npy')):
+        spikes['distances'] = np.load(join(session_path, probe, 'spikes.distances.npy'))
+        
     
     # Load in cluster data
     clusters = dict()
@@ -240,6 +243,9 @@ def load_neural_data(session_path, probe, histology=True, only_good=True):
                                        allow_pickle=True)
     clusters['ks_label'] = pd.read_csv(join(session_path, probe, 'cluster_KSLabel.tsv'),
                                        sep='\t')['KSLabel']
+    if isfile(join(session_path, probe, 'cluster_IBLLabel.tsv')):
+        clusters['ibl_label'] = pd.read_csv(join(session_path, probe, 'cluster_IBLLabel.tsv'),
+                                            sep='\t')['ibl_label']
     if isfile(join(session_path, probe, 'cluster_group.tsv')):
         clusters['manual_label'] = pd.read_csv(join(session_path, probe, 'cluster_group.tsv'),
                                                sep='\t')['group']

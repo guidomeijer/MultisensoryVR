@@ -10,7 +10,7 @@ from os.path import join
 import numpy as np
 from glob import glob
 
-DATA_FOLDER = 'U:\\guido\\Subjects'
+DATA_FOLDER = 'D:\\MultisensoryVR\\Subjects'
 
 # Search for spikesort_me.flag
 print('Looking for extract_me.flag..')
