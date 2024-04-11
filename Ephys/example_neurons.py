@@ -84,6 +84,7 @@ for i, neuron_id in enumerate(np.unique(spikes['clusters'])):
     plt.tight_layout()
     plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', 'RewardDelivery',
                 f'{SUBJECT}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'))
+    plt.close(f)
 
     # Plot spatial firing
     spike_times = spikes['times'][spikes['clusters'] == neuron_id]
@@ -109,24 +110,4 @@ for i, neuron_id in enumerate(np.unique(spikes['clusters'])):
     
     plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', 'PlaceActivity',
                 f'{SUBJECT}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'))
-    
-    # Plot spatial firing PSTH
-    f, ax = plt.subplots(figsize=(2, 2.5), dpi=600)
-    peri_event_time_histogram(spike_dist / 10, np.ones(spike_dist.shape), trial_start_dist / 10, [1],
-                              include_raster=True, error_bars='sem', ax=ax,
-                              t_before=0, t_after=30, smoothing=0.5, bin_size=0.1,
-                              pethline_kwargs={'color': 'black', 'lw': 1},
-                              errbar_kwargs={'color': 'black', 'alpha': 0.3, 'lw': 0},
-                              raster_kwargs={'color': 'black', 'lw': 0.3},
-                              eventline_kwargs={'lw': 0})
-    
-    ax.plot([-2, -2], [0, 1], color='k', lw=0.75, clip_on=False)
-    ax.text(-2, 1/2, '1 sp cm$^{-1}$', ha='right', va='center', rotation=90)
-    ax.text(-2, ax.get_ylim()[0] / 2, f'{trial_start_dist.shape[0]} trials',
-            ha='right', va='center', rotation=90)
-    ax.spines[['left']].set_visible(False)
-    ax.set(xlabel='Distance (cm)', xticks=[0, 10, 20, 30], ylabel='', yticks=[])
-    plt.tight_layout()
-    
-    plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', 'SoundActivity',
-                f'{SUBJECT}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'))
+    plt.close(f)
