@@ -51,7 +51,7 @@ for root, directory, files in os.walk(SERVER_PATH):
         # Convert video from .h264 to .mp4
         print('\nConvert video to mp4')
         mp4_local_path = join(local_folder_path, split(h264_server_path)[1][:-5] + '.mp4')
-        subprocess.call(['ffmpeg', '-i', h264_local_path, '-codec', 'copy', '-n', mp4_local_path])
+        subprocess.call(['ffmpeg', '-i', h264_local_path, mp4_local_path])
         
         # Extract a single frame from the video
         subprocess.call(['ffmpeg', '-ss', '00:10:00', '-i', mp4_local_path,
@@ -125,22 +125,24 @@ for root, directory, files in os.walk(SERVER_PATH):
             # Save pupil tracking to disk
             eye_df.to_csv(join(local_folder_path, 'pupil.csv'), index=False)
         
+        """
         # Compress video
         print('\nCompressing video')
         compr_local_path = mp4_local_path[:-4] + '_compressed.mp4'
         subprocess.call(['ffmpeg', '-i', mp4_local_path, '-vcodec', 'libx265', '-crf', '20', '-n',
                          compr_local_path])
+        """
         
         # Copy results to server
         print('\nCopying results to server')
         shutil.copy(eye_local_path, join(root, 'raw_video_data', split(eye_local_path)[1]))
-        shutil.copy(compr_local_path, join(root, 'raw_video_data', split(compr_local_path)[1]))
+        shutil.copy(mp4_local_path, join(root, 'raw_video_data', split(mp4_local_path)[1]))
         shutil.copy(label_local_path,
                     join(root, 'raw_video_data', split(mp4_local_path)[1][:-4] + '_labeled.mp4'))
         shutil.copy(join(local_folder_path, 'pupil.csv'), join(root, 'pupil.csv'))
         
         # Delete original uncompressed video from server
-        if isfile(join(root, 'raw_video_data', split(compr_local_path)[1])):
+        if isfile(join(root, 'raw_video_data', split(mp4_local_path)[1])):
             os.remove(h264_server_path)
                     
         # Create delete_me.flag to flag for future deletion
