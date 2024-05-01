@@ -38,6 +38,9 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         if len(data_file) > 1:
             print(f'Multiple behavioral log files found in {join(root, "raw_behavior_data")}')
             continue
+        if isdir(join(root, 'raw_ephys_data')) and not isfile(join(root, 'raw_ephys_data', '_spikeglx_sync.times.npy')):
+            print('Run ephys pipeline before behavioral extraction')
+            continue
 
         # Unpack log file
         data = create_bp_structure(data_file[0])
@@ -55,9 +58,6 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         # If this is an ephys session, synchronize timestamps with ephys
         if isdir(join(root, 'raw_ephys_data')):
             print('Ephys session detected, synchronizing timestamps with nidq')
-            if not isfile(join(root, 'raw_ephys_data', '_spikeglx_sync.times.npy')):
-                print('Run ephys pipeline before behavioral extraction')
-                continue
 
             # Load in nidq sync pulses
             sync_times = np.load(join(root, 'raw_ephys_data', '_spikeglx_sync.times.npy'))
@@ -271,7 +271,7 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         camera_times = time_s[compute_onsets(data['digitalIn'][:, 11])]
 
         # Get wheel distance
-        wheel_distance = data['longVar'][:, 1].astype(float)
+        wheel_distance = data['longVar'][:, 1].astype(int)
 
         # Calculate speed
         dist_filt = gaussian_filter1d(wheel_distance, 100)  # smooth wheel distance

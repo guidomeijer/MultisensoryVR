@@ -107,7 +107,7 @@ for i, neuron_id in enumerate(np.unique(spikes['clusters'])):
     ax.spines[['left']].set_visible(False)
     ax.set(xlabel='Distance (cm)', xticks=[0, 50, 100, 150], ylabel='', yticks=[])
     plt.tight_layout()
-    
+    asd
     plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', 'PlaceActivity',
                 f'{SUBJECT}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'))
     plt.close(f)

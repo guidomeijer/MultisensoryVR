@@ -292,12 +292,15 @@ def load_neural_data(session_path, probe, histology=True, only_good=True):
         spikes['times'] = spikes['times'][np.isin(spikes['clusters'], good_units)]
         spikes['amps'] = spikes['amps'][np.isin(spikes['clusters'], good_units)]
         spikes['depths'] = spikes['depths'][np.isin(spikes['clusters'], good_units)]
+        if 'distances' in spikes.keys():
+            spikes['distances'] = spikes['distances'][np.isin(spikes['clusters'], good_units)]
         spikes['clusters'] = spikes['clusters'][np.isin(spikes['clusters'], good_units)]
         if histology:
             clusters['acronym'] = clusters['acronym'][good_units]
         clusters['depths'] = clusters['depths'][good_units]
         clusters['amps'] = clusters['amps'][good_units]
         clusters['cluster_id'] = clusters['cluster_id'][good_units]
+            
     
     return spikes, clusters, channels
 
