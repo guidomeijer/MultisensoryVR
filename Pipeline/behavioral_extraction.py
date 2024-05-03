@@ -152,23 +152,23 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
 
         # Pre-allocate trial arrays
         env_end = np.empty(env_start.shape[0]-1)
-        surprise_time = np.zeros(env_start.shape[0]-1).astype(bool)
+        surprise_time = np.empty(env_start.shape[0]-1)
         
-        obj1_appear = np.zeros(env_start.shape[0]-1).astype(bool)
-        obj2_appear = np.zeros(env_start.shape[0]-1).astype(bool)
-        obj3_appear = np.zeros(env_start.shape[0]-1).astype(bool)
+        obj1_appear = np.empty(env_start.shape[0]-1)
+        obj2_appear = np.empty(env_start.shape[0]-1)
+        obj3_appear = np.empty(env_start.shape[0]-1)
         
-        obj1_enter = np.zeros(env_start.shape[0]-1).astype(bool)
-        obj2_enter = np.zeros(env_start.shape[0]-1).astype(bool)
-        obj3_enter = np.zeros(env_start.shape[0]-1).astype(bool)
-        obj4_enter = np.zeros(env_start.shape[0]-1).astype(bool)
-        obj5_enter = np.zeros(env_start.shape[0]-1).astype(bool)
+        obj1_enter = np.empty(env_start.shape[0]-1)
+        obj2_enter = np.empty(env_start.shape[0]-1)
+        obj3_enter = np.empty(env_start.shape[0]-1)
+        obj4_enter = np.empty(env_start.shape[0]-1)
+        obj5_enter = np.empty(env_start.shape[0]-1)
         
-        obj1_exit = np.zeros(env_start.shape[0]-1).astype(bool)
-        obj2_exit = np.zeros(env_start.shape[0]-1).astype(bool)
-        obj3_exit = np.zeros(env_start.shape[0]-1).astype(bool)
-        obj4_exit = np.zeros(env_start.shape[0]-1).astype(bool)
-        obj5_exit = np.zeros(env_start.shape[0]-1).astype(bool)
+        obj1_exit = np.empty(env_start.shape[0]-1)
+        obj2_exit = np.empty(env_start.shape[0]-1)
+        obj3_exit = np.empty(env_start.shape[0]-1)
+        obj4_exit = np.empty(env_start.shape[0]-1)
+        obj5_exit = np.empty(env_start.shape[0]-1)
         
         obj1_rewards = np.zeros(env_start.shape[0]-1).astype(int)
         obj2_rewards = np.zeros(env_start.shape[0]-1).astype(int)
