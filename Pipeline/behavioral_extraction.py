@@ -99,7 +99,7 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
             continue
             
         # Extract trial onsets
-        if compute_onsets(data['digitalIn'][:, 8])[0] < compute_onsets(data['digitalIn'][:, 12])[0]:
+        if compute_onsets(data['digitalIn'][:, 4])[0] < compute_offsets(data['digitalIn'][:, 12])[0]:
             # Missed the first environment TTL so first trial starts at 0 s
             env_start = np.concatenate(([0], time_s[compute_offsets(data['digitalIn'][:, 12])]))
         else:
