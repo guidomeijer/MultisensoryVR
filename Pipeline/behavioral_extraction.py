@@ -208,8 +208,8 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
                                               & (all_obj4_enter < env_start[i+1])]
             if len(these_obj4_enter) > 0:
                 obj4_enter[i] = these_obj4_enter[0]
-            these_obj5_enter = all_obj3_enter[(all_obj5_enter > ts)
-                                              & (all_obj3_enter < env_start[i+1])]
+            these_obj5_enter = all_obj5_enter[(all_obj5_enter > ts)
+                                              & (all_obj5_enter < env_start[i+1])]
             if len(these_obj5_enter) > 0:
                 obj5_enter[i] = these_obj5_enter[0]
             
