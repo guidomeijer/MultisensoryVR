@@ -21,7 +21,7 @@ T_AFTER = 2
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
 MIN_LICKS = 10
-PLOT_SUBJECTS = ['459601', '459603']
+PLOT_SUBJECTS = ['462910', '462911']
 
 # Get subjects
 subjects = load_subjects()
