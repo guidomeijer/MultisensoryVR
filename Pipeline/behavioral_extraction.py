@@ -281,12 +281,15 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         # Get camera timestamps
         camera_times = time_s[compute_onsets(data['digitalIn'][:, 11])]
 
-        # Get wheel distance
-        wheel_distance = data['longVar'][:, 1].astype(int)
+        # Get wheel distance (has to be floats for the smoothing step)
+        wheel_distance = data['longVar'][:, 1].astype(float)
 
         # Calculate speed
         dist_filt = gaussian_filter1d(wheel_distance, 100)  # smooth wheel distance
         speed = np.abs(np.diff(dist_filt)) / np.diff(time_s)[0]
+
+        # Convert back to int
+        wheel_distance = wheel_distance.astype(int)
 
         # Get lick times
         lick_times = time_s[compute_onsets(data['digitalOut'][:, 5])]

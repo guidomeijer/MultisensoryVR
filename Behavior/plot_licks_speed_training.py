@@ -21,13 +21,13 @@ T_AFTER = 2
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
 MIN_LICKS = 10
-PLOT_SUBJECTS = ['462910', '462911']
+PLOT_SUBJECTS = ['462910']
 
 # Get subjects
 subjects = load_subjects()
 
 # Get paths
-path_dict = paths()
+path_dict = paths(sync=False)
 data_path = path_dict['local_data_path']
 
 # Set figure style

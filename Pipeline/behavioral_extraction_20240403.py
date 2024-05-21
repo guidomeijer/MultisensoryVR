@@ -271,7 +271,7 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         camera_times = time_s[compute_onsets(data['digitalIn'][:, 11])]
 
         # Get wheel distance
-        wheel_distance = data['longVar'][:, 1].astype(int)
+        wheel_distance = data['longVar'][:, 1].astype(float)
 
         # Calculate speed
         dist_filt = gaussian_filter1d(wheel_distance, 100)  # smooth wheel distance
