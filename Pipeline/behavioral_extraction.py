@@ -91,7 +91,7 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
 
             # Ephys is the main clock so shift the totalsync timestamps accordingly
             time_s = time_s + time_shift
-
+            
         # Check if there are trials
         if len(compute_onsets(data['digitalIn'][:, 12])) == 0:
             print('No trials found, deleting extraction flag')
@@ -311,6 +311,19 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         obj2_enter_pos = [wheel_distance[np.argmin(np.abs(time_s - i))] for i in obj2_enter]
         obj3_enter_pos = [wheel_distance[np.argmin(np.abs(time_s - i))] for i in obj3_enter]
             
+        # Get spike positions
+        probe_dirs = glob(join(root, 'probe*'))
+        if len(probe_dirs) > 0:
+            print('Converting spike times into spike positions..')
+            for this_probe in probe_dirs:
+                
+                # Find for each spike its corresponding distance
+                spike_times = np.load(join(this_probe, 'spikes.times.npy'))
+                indices = np.searchsorted(time_s, spike_times, side='right') - 1
+                indices = np.clip(indices, 0, wheel_distance.shape[0] - 1)
+                spike_dist = wheel_distance[indices]
+                np.save(join(this_probe), 'spikes.distances.npy', spike_dist)
+        
         # Save extracted events as ONE files
         np.save(join(root, 'continuous.wheelDistance.npy'), wheel_distance[:-1])
         np.save(join(root, 'continuous.wheelSpeed.npy'), speed)

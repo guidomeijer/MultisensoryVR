@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 import datetime
-from os.path import join, isfile
+from os.path import join, isfile, isdir
 import pandas as pd
 from matplotlib.ticker import FormatStrFormatter
 from brainbox.plot import peri_event_time_histogram
@@ -64,28 +64,6 @@ dist_time = np.concatenate(dist_time)
 colors, dpi = figure_style()
 for i, neuron_id in enumerate(np.unique(spikes['clusters'])):
 
-    # Plot reward timing PSTH
-    f, ax = plt.subplots(figsize=(2, 2.5), dpi=600)
-    try:
-        peri_event_time_histogram(spikes['times'], spikes['clusters'], reward_times, neuron_id,
-                                  include_raster=True, error_bars='sem', ax=ax,
-                                  t_before=T_BEFORE, t_after=T_AFTER,
-                                  pethline_kwargs={'color': 'black', 'lw': 1},
-                                  errbar_kwargs={'color': 'black', 'alpha': 0.3, 'lw': 0},
-                                  raster_kwargs={'color': 'black', 'lw': 0.3},
-                                  eventline_kwargs={'lw': 0})
-    except:
-        continue
-    ax.set(ylabel='Firing rate (spks/s)', xlabel='Time from reward delivery (s)',
-           yticks=[np.round(ax.get_ylim()[1])], xticks=[-0.5, 0, 0.5, 1],
-           ylim=[ax.get_ylim()[0], np.round(ax.get_ylim()[1])])
-    # ax.plot([0, 1], [0, 0], lw=2.5, color='royalblue')
-    ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
-    plt.tight_layout()
-    plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', 'RewardDelivery',
-                f'{SUBJECT}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'))
-    plt.close(f)
-
     # Plot spatial firing
     spike_times = spikes['times'][spikes['clusters'] == neuron_id]
     spike_dist = spikes['distances'][spikes['clusters'] == neuron_id]
@@ -107,7 +85,16 @@ for i, neuron_id in enumerate(np.unique(spikes['clusters'])):
     ax.spines[['left']].set_visible(False)
     ax.set(xlabel='Distance (cm)', xticks=[0, 50, 100, 150], ylabel='', yticks=[])
     plt.tight_layout()
-    asd
+    
+    if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', 'PlaceActivity',
+                f'{SUBJECT}')):
+        os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', 'PlaceActivity',
+                      f'{SUBJECT}'))
+    if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', 'PlaceActivity',
+                f'{SUBJECT}', f'{DATE}')):
+        os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', 'PlaceActivity',
+                      f'{SUBJECT}', f'{DATE}'))
+    
     plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', 'PlaceActivity',
-                f'{SUBJECT}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'))
+                f'{SUBJECT}', f'{DATE}', f'{PROBE}_neuron{neuron_id}.jpg'))
     plt.close(f)
