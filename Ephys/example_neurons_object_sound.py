@@ -19,7 +19,7 @@ DATE = '20240315'
 PROBE = 'probe00'
 T_BEFORE = 1
 T_AFTER = 2
-NEURON_ID = 392  # Specify the ID of the neuron you want to plot
+NEURON_ID = 312  # Specify the ID of the neuron you want to plot
 BIN_SIZE = 0.025
 SMOOTHING = 0.1
 colors = {'goal': 'green', 'no-goal': 'red', 'control': 'gray'}
@@ -105,7 +105,7 @@ axes[0].set(yticks=[0, y_max_use], xticks=[-1, 0, 0.5, 1, 2], xlabel='Time (s)')
 peri_multiple_events_time_histogram(
     spike_times, np.ones(spike_times.shape[0]), all_obj_enters_sound2, all_obj_ids_sound2,
     [1], t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, ax=axes[1],
-    smoothing=SMOOTHING,
+    smoothing=SMOOTHING, ylim=y_max_use,
     pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
     errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
