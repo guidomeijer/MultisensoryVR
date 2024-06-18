@@ -32,7 +32,7 @@ WIN_SIZE = 2  # s
 WIN_SHIFT = 0.05  # s
 FS = 1000  # sampling rate
 FREQ = [5, 10]
-PLOT_SUBJECTS = ['452505', '452506']
+PLOT_SUBJECTS = ['459601']
 
 # Get subjects
 subjects = load_subjects()
@@ -170,7 +170,7 @@ for i, subject in enumerate(PLOT_SUBJECTS):
             axs[j].get_legend().remove()
         axs[j].plot([0, 0], axs[j].get_ylim(), color='k', ls='--', lw=0.75)
 
-    f.suptitle(f'{subjects.loc[subjects["SubjectID"] == subject, "Nickname"].values[0]} ({subject})')
+    f.suptitle(f'{subject}')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
 

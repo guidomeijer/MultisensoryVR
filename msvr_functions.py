@@ -470,7 +470,7 @@ def calculate_peths(
 def peri_multiple_events_time_histogram(
         spike_times, spike_clusters, events, event_ids, cluster_id,
         t_before=0.2, t_after=0.5, bin_size=0.025, smoothing=0.025, as_rate=True,
-        include_raster=False, error_bars='sem', ax=None,
+        include_raster=False, error_bars='sem', ax=None, ylim=None,
         pethline_kwargs=[{'color': 'blue', 'lw': 2}, {'color': 'red', 'lw': 2}],
         errbar_kwargs=[{'color': 'blue', 'alpha': 0.5}, {'color': 'red', 'alpha': 0.5}],
         raster_kwargs=[{'color': 'blue', 'lw': 0.5}, {'color': 'red', 'lw': 0.5}],
@@ -517,6 +517,8 @@ def peri_multiple_events_time_histogram(
         If passed, the function will plot on the passed axes. Note: current
         behavior causes whatever was on the axes to be cleared before plotting!
         (default: `None`)
+    ylim : float, optional
+        Set the limit of the y-axis, if None the max of the PSTH will be used
     pethline_kwargs : dict, optional
         Dict containing line properties to define PETH plot line. Default
         is a blue line with weight of 2. Needs to have color. See matplotlib plot documentation
@@ -579,7 +581,8 @@ def peri_multiple_events_time_histogram(
         bars_max.append(bars[mean.argmax()])
 
     # Plot the event marker line. Extends to 5% higher than max value of means plus any error bar.
-    plot_edge = (np.max(mean_max) + bars_max[np.argmax(mean_max)]) * 1.05
+    #plot_edge = (np.max(mean_max) + bars_max[np.argmax(mean_max)]) * 1.05
+    plot_edge = 2
     ax.vlines(0., 0., plot_edge, **eventline_kwargs)
     # Set the limits on the axes to t_before and t_after. Either set the ylim to the 0 and max
     # values of the PETH, or if we want to plot a spike raster below, create an equal amount of

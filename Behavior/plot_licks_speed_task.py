@@ -20,7 +20,10 @@ T_BEFORE = 2
 T_AFTER = 3
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
-PLOT_SUBJECTS = ['459601']
+#PLOT_SUBJECTS = ['450408', '450409', '452505', '452506', '459601', '459602',
+#                 '459603']
+
+PLOT_SUBJECTS = ['459603']
 
 # Get subjects
 subjects = load_subjects()
@@ -64,6 +67,8 @@ for i, subject in enumerate(PLOT_SUBJECTS):
         # Load in data
         trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'))
         lick_times = np.load(join(data_path, 'Subjects', subject, ses, 'lick.times.npy'))
+        if lick_times.shape[0] < 100:
+            continue
 
         # Get timestamps of entry of goal, no-goal and control object sets
         goal_obj_enters = np.concatenate((
