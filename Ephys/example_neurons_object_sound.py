@@ -55,13 +55,38 @@ all_obj_ids_sound2 = np.concatenate((np.ones(goal_obj_enters_sound2.shape[0]),
 
 
 # %% Plot neurons for sound 1 and sound 2
+
+# First get y limits of both plots
+f, (ax1, ax2) = plt.subplots(1, 2)
+peri_multiple_events_time_histogram(
+    spike_times, np.ones(spike_times.shape[0]), all_obj_enters_sound1, all_obj_ids_sound1,
+    [1], t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, ax=ax1,
+    pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
+    errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
+    raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
+    smoothing = SMOOTHING, include_raster=True
+    )
+_, y_max_1 = ax1.get_ylim()
+peri_multiple_events_time_histogram(
+    spike_times, np.ones(spike_times.shape[0]), all_obj_enters_sound2, all_obj_ids_sound2,
+    [1], t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, ax=ax2,
+    pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
+    errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
+    raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
+    smoothing=SMOOTHING, include_raster=True
+    )
+_, y_max_2 = ax2.get_ylim()
+plt.close(f)
+y_max_use = np.ceil(np.max([y_max_1, y_max_2]))
+
+# Now plot figure
 fig, axes = plt.subplots(1, 2, figsize=(3, 2), dpi=dpi, sharex=True, sharey=False)
 
 # Plot for sound 1
 peri_multiple_events_time_histogram(
     spike_times, np.ones(spike_times.shape[0]), all_obj_enters_sound1, all_obj_ids_sound1,
     [1], t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, ax=axes[0],
-    smoothing = SMOOTHING,
+    smoothing = SMOOTHING, ylim=y_max_use,
     pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
     errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
@@ -73,21 +98,14 @@ axes[0].yaxis.set_label_coords(-0.15, 0.75)
 axes[0].yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
 # Calculate the y-axis range and adjust the plot for sound 1
-y_min, y_max = axes[0].get_ylim()
-y_range = y_max - y_min
-line_length = 0.5 * y_range
-axes[0].plot([0, 0], [-line_length, line_length], color='r', linestyle='--', lw=0.5, clip_on=False, alpha=0.5)
-axes[0].set(xlabel='Time (s)')
-
-if y_max > 1:
-    axes[0].set(yticks=[0, np.round(y_max)], xticks=[-1, 0, 1, 2], ylim=[y_min, np.round(y_max)])
-    axes[0].yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+axes[0].plot([0, 0], axes[0].get_ylim(), color='r', linestyle='--', lw=0.5, clip_on=False, alpha=0.5)
+axes[0].set(yticks=[0, y_max_use], xticks=[-1, 0, 0.5, 1, 2], xlabel='Time (s)')
 
 # Plot for sound 2
 peri_multiple_events_time_histogram(
     spike_times, np.ones(spike_times.shape[0]), all_obj_enters_sound2, all_obj_ids_sound2,
     [1], t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, ax=axes[1],
-    ylim=y_max, smoothing=SMOOTHING,
+    smoothing=SMOOTHING,
     pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
     errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
@@ -96,10 +114,12 @@ peri_multiple_events_time_histogram(
 axes[1].set_title('Sound 2', fontsize=8)
 axes[1].yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
-# Calculate the y-axis range and adjust the plot for sound 2
-y_min_2, y_max_2 = axes[1].get_ylim()
-axes[1].plot([0, 0], [y_min_2, y_max_2], color='r', linestyle='--', lw=0.5, clip_on=False, alpha=0.5)
-axes[1].set(yticks=[0, np.round(y_max)], xlabel='Time (s)', ylabel='')
+# Calculate the y-axis range and adjust the plot for sound 1
+axes[1].plot([0, 0], axes[0].get_ylim(), color='r', linestyle='--', lw=0.5, clip_on=False, alpha=0.5)
+axes[1].set(xlabel='Time (s)', ylabel='')
+
+axes[1].set(yticks=[0, np.round(y_max_use)], xticks=[-1, 0, 1, 2])
+axes[1].yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
 # Adjust layout and save figure
 plt.tight_layout()
