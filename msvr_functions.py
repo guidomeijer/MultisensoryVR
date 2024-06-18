@@ -581,8 +581,10 @@ def peri_multiple_events_time_histogram(
         bars_max.append(bars[mean.argmax()])
 
     # Plot the event marker line. Extends to 5% higher than max value of means plus any error bar.
-    #plot_edge = (np.max(mean_max) + bars_max[np.argmax(mean_max)]) * 1.05
-    plot_edge = 2
+    if ylim is None:
+        plot_edge = (np.max(mean_max) + bars_max[np.argmax(mean_max)]) * 1.05
+    else:
+        plot_edge = ylim
     ax.vlines(0., 0., plot_edge, **eventline_kwargs)
     # Set the limits on the axes to t_before and t_after. Either set the ylim to the 0 and max
     # values of the PETH, or if we want to plot a spike raster below, create an equal amount of
