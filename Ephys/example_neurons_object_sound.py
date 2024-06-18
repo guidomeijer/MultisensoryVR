@@ -19,7 +19,7 @@ DATE = '20240315'
 PROBE = 'probe00'
 T_BEFORE = 1
 T_AFTER = 2
-NEURON_ID = 297  # Specify the ID of the neuron you want to plot
+NEURON_ID = 392  # Specify the ID of the neuron you want to plot
 BIN_SIZE = 0.025
 SMOOTHING = 0.1
 colors = {'goal': 'green', 'no-goal': 'red', 'control': 'gray'}
@@ -94,7 +94,7 @@ peri_multiple_events_time_histogram(
 )
 axes[0].set_title('Sound 1', fontsize=8)
 axes[0].set(ylabel='Firing rate (spks/s)')
-axes[0].yaxis.set_label_coords(-0.15, 0.75)
+axes[0].yaxis.set_label_coords(-0.2, 0.75)
 axes[0].yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
 # Calculate the y-axis range and adjust the plot for sound 1
@@ -115,7 +115,7 @@ axes[1].set_title('Sound 2', fontsize=8)
 axes[1].yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
 # Calculate the y-axis range and adjust the plot for sound 1
-axes[1].plot([0, 0], axes[0].get_ylim(), color='r', linestyle='--', lw=0.5, clip_on=False, alpha=0.5)
+axes[1].plot([0, 0], [axes[1].get_ylim()[0], y_max_use], color='r', linestyle='--', lw=0.5, clip_on=False, alpha=0.5)
 axes[1].set(xlabel='Time (s)', ylabel='')
 
 axes[1].set(yticks=[0, np.round(y_max_use)], xticks=[-1, 0, 1, 2])
