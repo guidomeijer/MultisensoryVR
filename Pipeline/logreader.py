@@ -109,7 +109,7 @@ def unpack_data_packet(dp, DataPacketStruct, DataPacket):
     return up
 
 
-def create_bp_structure(bp):
+def create_bp_structure(bp, data_type='16in-8out'):
     '''
     Decode the log file and create a VR channel data structure.
 
@@ -131,64 +131,144 @@ def create_bp_structure(bp):
     '''
 
     print('Decoding log file')
-    # Format package
-    DataPacketDesc = {'type': 'B',
-                      'size': 'B',
-                      'crc16': 'H',
-                      'packetID': 'I',
-                      'us_start': 'I',
-                      'us_end': 'I',
-                      'analog': '8H',
-                      'states': '8l',
-                      'digitalIn': 'H',
-                      'digitalOut': 'B',
-                      'padding': 'x'}
-
-    DataPacket = namedtuple('DataPacket', DataPacketDesc.keys())
-    DataPacketStruct = '<' + ''.join(DataPacketDesc.values())
-    DataPacketSize = struct.calcsize(DataPacketStruct)
-
-    # package with non-digital data
-    dtype_no_digital = [
-        ('type', np.uint8),
-        ('size', np.uint8),
-        ('crc16', np.uint16),
-        ('packetID', np.uint32),
-        ('us_start', np.uint32),
-        ('us_end', np.uint32),
-        ('analog', np.uint16, (8, )),
-        ('states', np.uint32, (8, ))]
-
-    # DigitalIn and DigitalOut
-    dtype_w_digital = dtype_no_digital + \
-        [('digital_in', np.uint16, (16, )), ('digital_out', np.uint8, (8, ))]
-
-    # Creating array with all the data (differenciation digital/non digital)
-    np_DataPacketType_noDigital = np.dtype(dtype_no_digital)
-    np_DataPacketType_withDigital = np.dtype(dtype_w_digital)
-    # Unpack the data as done on the teensy commander code
-    num_lines = count_lines(bp)
-    log_duration = num_lines/1000/60
-
-    # Decode and create new dataset
-    data = np.zeros(num_lines, dtype=np_DataPacketType_withDigital)
-    non_digital_names = list(np_DataPacketType_noDigital.names)
-
-    with open(bp, 'rb') as bf:
-        for nline, line in enumerate(tqdm(bf, total=num_lines)):
-            bl = cobs.decode(base64.b64decode(line[:-1])[:-1])
-            dp = unpack_data_packet(bl, DataPacketStruct, DataPacket)
-
-            data[non_digital_names][nline] = np.frombuffer(
-                bl[:-4], dtype=np_DataPacketType_noDigital)
-            digital_arr = np.frombuffer(bl[-4:], dtype=np.uint8)
-            data[nline]['digital_in'] = np.hstack(
-                [np.unpackbits(digital_arr[1]), np.unpackbits(digital_arr[0])])
-            data[nline]['digital_out'] = np.unpackbits(
-                np.array(digital_arr[2], dtype=np.uint8))
+    if data_type == '16in-8out':
+        # Format package
+        DataPacketDesc = {'type': 'B',
+                          'size': 'B',
+                          'crc16': 'H',
+                          'packetID': 'I',
+                          'us_start': 'I',
+                          'us_end': 'I',
+                          'analog': '8H',
+                          'states': '8l',
+                          'digitalIn': 'H',
+                          'digitalOut': 'B',
+                          'padding': 'x'}
+    
+        DataPacket = namedtuple('DataPacket', DataPacketDesc.keys())
+        DataPacketStruct = '<' + ''.join(DataPacketDesc.values())
+        DataPacketSize = struct.calcsize(DataPacketStruct)
+    
+        # package with non-digital data
+        dtype_no_digital = [
+            ('type', np.uint8),
+            ('size', np.uint8),
+            ('crc16', np.uint16),
+            ('packetID', np.uint32),
+            ('us_start', np.uint32),
+            ('us_end', np.uint32),
+            ('analog', np.uint16, (8, )),
+            ('states', np.uint32, (8, ))]
+    
+        # DigitalIn and DigitalOut
+        dtype_w_digital = dtype_no_digital + \
+            [('digital_in', np.uint16, (16, )), ('digital_out', np.uint8, (8, ))]
+    
+        # Creating array with all the data (differenciation digital/non digital)
+        np_DataPacketType_noDigital = np.dtype(dtype_no_digital)
+        np_DataPacketType_withDigital = np.dtype(dtype_w_digital)
+        
+        # Unpack the data as done on the teensy commander code
+        num_lines = count_lines(bp)
+    
+        # Decode and create new dataset
+        data = np.zeros(num_lines, dtype=np_DataPacketType_withDigital)
+        non_digital_names = list(np_DataPacketType_noDigital.names)
+    
+        with open(bp, 'rb') as bf:
+            for nline, line in enumerate(tqdm(bf, total=num_lines)):
+                try:
+                    bl = cobs.decode(base64.b64decode(line[:-1])[:-1])
+                    dp = unpack_data_packet(bl, DataPacketStruct, DataPacket)
+                    data[non_digital_names][nline] = np.frombuffer(
+                        bl[:-4], dtype=np_DataPacketType_noDigital)
+                    digital_arr = np.frombuffer(bl[-4:], dtype=np.uint8)
+                    data[nline]['digital_in'] = np.hstack(
+                        [np.unpackbits(digital_arr[1]), np.unpackbits(digital_arr[0])])
+                    data[nline]['digital_out'] = np.unpackbits(
+                        np.array(digital_arr[2], dtype=np.uint8))
+                except Exception as err:
+                    print(f'Error: {err}')
+                    continue
+            
         # Check for packetID jumps
-    jumps = np.unique(np.diff(data['packetID']))
-    decoded = {"analog": data['analog'], "digitalIn": data['digital_in'][:, ::-1], "digitalOut": data['digital_out'][:, ::-1],
-               "startTS": data['us_start'], "transmitTS": data['us_end'], "longVar": data['states'], "packetNums": data['packetID']}
+        jumps = np.unique(np.diff(data['packetID']))
+        
+        decoded = {
+            "analog": data['analog'],
+            "digitalIn": data['digital_in'][:, ::-1],
+            "digitalOut": data['digital_out'][:, ::-1],
+            "startTS": data['us_start'],
+            "transmitTS": data['us_end'],
+            "longVar": data['states'],
+            "packetNums": data['packetID']}
+
+    elif data_type == '16in-16out':
+        DataPacketDesc = {'type': 'B',
+                          'size': 'B',
+                          'crc16': 'H',
+                          'packetID': 'I',
+                          'us_start': 'I',
+                          'us_end': 'I',
+                          'analog': '8H',
+                          'states': '8l',
+                          'digitalIn': '2H',
+                          'digitalOut': '3B',
+                          'padding': 'x'}
+
+        DataPacket = namedtuple('DataPacket', DataPacketDesc.keys())
+        DataPacketStruct = '<' + ''.join(DataPacketDesc.values())
+        DataPacketSize = struct.calcsize(DataPacketStruct)
+        
+        # package with non-digital data
+        dtype_no_digital = [
+             ('type', np.uint8),
+             ('size', np.uint8),
+             ('crc16', np.uint16),
+             ('packetID', np.uint32),
+             ('us_start', np.uint32),
+             ('us_end', np.uint32),
+             ('analog', np.uint16, (8, )),
+             ('states', np.uint32, (8, ))]
+        
+        # DigitalIn and DigitalOut
+        dtype_w_digital = dtype_no_digital + [('digital_in', np.uint16, (16, )),
+                                              ('digital_out', np.uint16, (16, ))]
+        
+        # Creating arrat with all the data (differenciation digital/non digital)
+        np_DataPacketType_noDigital = np.dtype(dtype_no_digital)
+        np_DataPacketType_withDigital = np.dtype(dtype_w_digital)
+           
+        # Decode and create new dataset
+        num_lines = count_lines(bp)
+        data = np.zeros(num_lines, dtype=np_DataPacketType_withDigital)
+        print(len(data))
+        non_digital_names = list(np_DataPacketType_noDigital.names)
+        
+        with open(bp, 'rb') as bf:
+            for nline, line in enumerate(tqdm(bf, total=num_lines)):
+                bl = cobs.decode(base64.b64decode(line[:-1])[:-1])
+                dp = unpack_data_packet(bl, DataPacketStruct, DataPacket)
+                data[non_digital_names][nline] = np.frombuffer(bl[:-8],
+                                                               dtype=np_DataPacketType_noDigital)
+                digital_arr = np.frombuffer(bl[-8:], dtype=np.uint8)
+                data[nline]['digital_in'] = np.hstack([np.unpackbits(digital_arr[1]),
+                                                       np.unpackbits(digital_arr[0])])
+                data[nline]['digital_out'] = np.hstack([np.unpackbits(digital_arr[3]),
+                                                        np.unpackbits(digital_arr[2])])
+        
+        #Check for packetID jumps
+        jumps = np.unique(np.diff(data['packetID']))
+         
+        # assert(len(jumps) and jumps[0] == 1)
+        data['digital_in']=np.flip(data['digital_in'], 1)
+        data['digital_out']=np.flip(data['digital_out'], 1)
+        decoded = {"analog":data['analog'],
+                   "digitalIn":data['digital_in'],
+                   "digitalOut":data['digital_out'],
+                   "startTS":data['us_start'],
+                   "transmitTS":data['us_end'],
+                   "longVar":data['states'],
+                   "packetNums":data['packetID']}       
 
     return decoded

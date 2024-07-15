@@ -192,6 +192,119 @@ def load_subjects():
     return subjects
 
 
+def load_neural_data(session_path, probe, histology=True, only_good=True):
+    """
+    Helper function to read in the spike sorting output from the Power Pixels pipeline.
+
+    Parameters
+    ----------
+    session_path : str
+        Full path to the top-level folder of the session.
+    probe : str
+        Name of the probe to load in.
+    histology : bool, optional
+        Whether to load the channel location and brain regions from the output of the alignment GUI.
+        If False, no brain regions will be provided. The default is True.
+    only_good : bool, optional
+        Whether to only load in neurons that have been manually labelled in Phy.
+        The default is True.
+
+    Returns
+    -------
+    spikes : dict
+        A dictionary containing data per spike
+    clusters : dict
+        A dictionary containing data per cluster (i.e. neuron)
+    channels : dict
+        A dictionary containing data per channel 
+    """
+    
+    # Load in spiking data
+    spikes = dict()
+    spikes['times'] = np.load(join(session_path, probe, 'spikes.times.npy'))
+    spikes['clusters'] = np.load(join(session_path, probe, 'spikes.clusters.npy'))
+    spikes['amps'] = np.load(join(session_path, probe, 'spikes.amps.npy'))
+    spikes['depths'] = np.load(join(session_path, probe, 'spikes.depths.npy'))
+    spikes['samples'] = np.load(join(session_path, probe, 'spikes.samples.npy'))
+    if isfile(join(session_path, probe, 'spikes.distances.npy')):
+        spikes['distances'] = np.load(join(session_path, probe, 'spikes.distances.npy'))
+        
+    
+    # Load in cluster data
+    clusters = dict()
+    clusters['channels'] = np.load(join(session_path, probe, 'clusters.channels.npy'))
+    clusters['depths'] = np.load(join(session_path, probe, 'clusters.depths.npy'))
+    clusters['amps'] = np.load(join(session_path, probe, 'clusters.amps.npy'))
+    clusters['cluster_id'] = np.arange(clusters['channels'].shape[0])
+    
+    # Add cluster qc metrics
+    if isfile(join(session_path, probe, 'clusters.bcUnitType.npy')):
+        clusters['bc_label'] = np.load(join(session_path, probe, 'clusters.bcUnitType.npy'),
+                                       allow_pickle=True)
+    clusters['ks_label'] = pd.read_csv(join(session_path, probe, 'cluster_KSLabel.tsv'),
+                                       sep='\t')['KSLabel']
+    if isfile(join(session_path, probe, 'cluster_IBLLabel.tsv')):
+        clusters['ibl_label'] = pd.read_csv(join(session_path, probe, 'cluster_IBLLabel.tsv'),
+                                            sep='\t')['ibl_label']
+    if isfile(join(session_path, probe, 'cluster_group.tsv')):
+        clusters['manual_label'] = pd.read_csv(join(session_path, probe, 'cluster_group.tsv'),
+                                               sep='\t')['group']
+    # Load in channel data
+    channels = dict()
+    if histology:
+        if not isfile(join(session_path, probe, 'channel_locations.json')):
+            raise Exception('No aligned channel locations found! Set histology to False to load data without brain regions.')
+        
+        # Load in alignment GUI output
+        f = open(join(session_path, probe, 'channel_locations.json'))
+        channel_locations = json.load(f)
+        f.close()
+        
+        # Add channel information to channel dict        
+        brain_region, brain_region_id, x, y, z = [], [], [], [], []
+        for i, this_ch in enumerate(channel_locations.keys()):
+            if this_ch[:7] != 'channel':
+                continue
+            brain_region.append(channel_locations[this_ch]['brain_region'])
+            brain_region_id.append(channel_locations[this_ch]['brain_region_id'])
+            x.append(channel_locations[this_ch]['x'])
+            y.append(channel_locations[this_ch]['y'])
+            z.append(channel_locations[this_ch]['z'])
+        channels['acronym'] = np.array(brain_region)
+        channels['atlas_id'] = np.array(brain_region_id)
+        channels['x'] = np.array(x)
+        channels['y'] = np.array(y)
+        channels['z'] = np.array(z)
+        
+        # Use the channel location to infer the brain regions of the clusters
+        clusters['acronym'] = channels['acronym'][clusters['channels']]
+            
+    # Load in the local coordinates of the probe
+    local_coordinates = np.load(join(session_path, probe, 'channels.localCoordinates.npy'))  
+    channels['lateral_um'] = local_coordinates[:, 0]
+    channels['axial_um'] = local_coordinates[:, 1]
+        
+    # Only keep the neurons that are manually labeled as good
+    if only_good:
+        if 'manual_label' not in clusters.keys():
+            raise Exception('No manual cluster labels found! Set only_good to False to load all neurons.')
+        good_units = np.where(clusters['manual_label'] == 'good')[0]
+        spikes['times'] = spikes['times'][np.isin(spikes['clusters'], good_units)]
+        spikes['amps'] = spikes['amps'][np.isin(spikes['clusters'], good_units)]
+        spikes['depths'] = spikes['depths'][np.isin(spikes['clusters'], good_units)]
+        if 'distances' in spikes.keys():
+            spikes['distances'] = spikes['distances'][np.isin(spikes['clusters'], good_units)]
+        spikes['clusters'] = spikes['clusters'][np.isin(spikes['clusters'], good_units)]
+        if histology:
+            clusters['acronym'] = clusters['acronym'][good_units]
+        clusters['depths'] = clusters['depths'][good_units]
+        clusters['amps'] = clusters['amps'][good_units]
+        clusters['cluster_id'] = clusters['cluster_id'][good_units]
+            
+    
+    return spikes, clusters, channels
+
+
 def bandpass_filter(data, lowcut, highcut, fs, order=5):
     b, a = butter(order, [lowcut, highcut], fs=fs, btype='band')
     y = filtfilt(b, a, data)
@@ -206,30 +319,6 @@ def bin_signal(timestamps, signal, bin_edges):
     bin_means = np.divide(bin_sums, np.bincount(bin_indices), out=np.zeros_like(bin_sums),
                           where=np.bincount(bin_indices)!=0)
     return bin_means
-
-
-def load_spikes(session_path, probe, only_good=True):
-    spikes = dict()
-    spikes['times'] = np.load(join(session_path, probe, 'spikes.times.npy'))
-    spikes['clusters'] = np.load(join(session_path, probe, 'spikes.clusters.npy'))
-    if isfile(join(session_path, probe, 'spikes.distances.npy')):
-        spikes['distances'] = np.load(join(session_path, probe, 'spikes.distances.npy'))
-    clusters = dict()
-    if isfile(join(session_path, probe, 'clusters.bcUnitType.npy')):
-        clusters['bc_label'] = np.load(join(session_path, probe, 'clusters.bcUnitType.npy'),
-                                       allow_pickle=True)
-    clusters['ks_label'] = pd.read_csv(join(session_path, probe, 'cluster_KSLabel.tsv'),
-                                       sep='\t')['KSLabel']
-    if isfile(join(session_path, probe, 'cluster_group.tsv')):
-        clusters['manual_label'] = pd.read_csv(join(session_path, probe, 'cluster_group.tsv'),
-                                               sep='\t')['group']
-    if only_good:
-        good_units = np.where(clusters['manual_label'] == 'good')[0]
-        spikes['times'] = spikes['times'][np.isin(spikes['clusters'], good_units)]
-        spikes['clusters'] = spikes['clusters'][np.isin(spikes['clusters'], good_units)]
-        if isfile(join(session_path, probe, 'spikes.distances.npy')):
-            spikes['distances'] = spikes['distances'][np.isin(spikes['clusters'], good_units)]
-    return spikes, clusters
 
 
 def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, t_after=3,
@@ -381,7 +470,7 @@ def calculate_peths(
 def peri_multiple_events_time_histogram(
         spike_times, spike_clusters, events, event_ids, cluster_id,
         t_before=0.2, t_after=0.5, bin_size=0.025, smoothing=0.025, as_rate=True,
-        include_raster=False, error_bars='sem', ax=None,
+        include_raster=False, error_bars='sem', ax=None, ylim=None,
         pethline_kwargs=[{'color': 'blue', 'lw': 2}, {'color': 'red', 'lw': 2}],
         errbar_kwargs=[{'color': 'blue', 'alpha': 0.5}, {'color': 'red', 'alpha': 0.5}],
         raster_kwargs=[{'color': 'blue', 'lw': 0.5}, {'color': 'red', 'lw': 0.5}],
@@ -428,6 +517,8 @@ def peri_multiple_events_time_histogram(
         If passed, the function will plot on the passed axes. Note: current
         behavior causes whatever was on the axes to be cleared before plotting!
         (default: `None`)
+    ylim : float, optional
+        Set the limit of the y-axis, if None the max of the PSTH will be used
     pethline_kwargs : dict, optional
         Dict containing line properties to define PETH plot line. Default
         is a blue line with weight of 2. Needs to have color. See matplotlib plot documentation
@@ -490,7 +581,10 @@ def peri_multiple_events_time_histogram(
         bars_max.append(bars[mean.argmax()])
 
     # Plot the event marker line. Extends to 5% higher than max value of means plus any error bar.
-    plot_edge = (np.max(mean_max) + bars_max[np.argmax(mean_max)]) * 1.05
+    if ylim is None:
+        plot_edge = (np.max(mean_max) + bars_max[np.argmax(mean_max)]) * 1.05
+    else:
+        plot_edge = ylim
     ax.vlines(0., 0., plot_edge, **eventline_kwargs)
     # Set the limits on the axes to t_before and t_after. Either set the ylim to the 0 and max
     # values of the PETH, or if we want to plot a spike raster below, create an equal amount of
