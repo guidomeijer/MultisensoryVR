@@ -20,16 +20,13 @@ T_BEFORE = 2
 T_AFTER = 3
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
-#PLOT_SUBJECTS = ['450408', '450409', '452505', '452506', '459601', '459602',
-#                 '459603']
-
-PLOT_SUBJECTS = ['459603']
+PLOT_SUBJECTS = ['462910', '462911']
 
 # Get subjects
 subjects = load_subjects()
 
 # Get paths
-path_dict = paths()
+path_dict = paths(force_sync=True)
 data_path = path_dict['local_data_path']
 
 # Set figure style

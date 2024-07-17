@@ -32,10 +32,6 @@ data_path = path_dict['local_data_path']
 
 # Set figure style
 colors, dpi = figure_style()
-# Set font sizes
-plt.rcParams.update({'font.size': 12})  # Global font size
-label_fontsize = 7
-tick_fontsize = 7
 
 # Load session data
 session_path = join(data_path, 'Subjects', SUBJECT, SESSION)
@@ -79,9 +75,8 @@ ax.set(ylabel='Speed (cm/s)', xticks=np.arange(-T_BEFORE, T_AFTER + 1),
        title='Running speed', xlabel='Time from object entry (s)')
 
 # Customize font sizes
-ax.set_xlabel('Time from object entry (s)', fontsize=label_fontsize)
-ax.set_ylabel('Speed (cm/s)', fontsize=label_fontsize)
-ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
+ax.set_xlabel('Time from object entry (s)')
+ax.set_ylabel('Speed (cm/s)')
 
 # Add a vertical line at time = 0
 max_y = ax.get_ylim()[1]

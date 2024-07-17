@@ -136,21 +136,21 @@ def paths(sync=True, full_sync=False, force_sync=False):
     return path_dict
 
 
-def figure_style():
+def figure_style(font_size=7):
     """
     Set style for plotting figures
     """
     sns.set(style="ticks", context="paper",
             font="Arial",
-            rc={"font.size": 7,
-                "figure.titlesize": 7,
-                "axes.titlesize": 7,
-                "axes.labelsize": 7,
+            rc={"font.size": font_size,
+                "figure.titlesize": font_size,
+                "axes.titlesize": font_size,
+                "axes.labelsize": font_size,
                 "axes.linewidth": 0.5,
                 "lines.linewidth": 1,
                 "lines.markersize": 3,
-                "xtick.labelsize": 7,
-                "ytick.labelsize": 7,
+                "xtick.labelsize": font_size,
+                "ytick.labelsize": font_size,
                 "savefig.transparent": True,
                 "xtick.major.size": 2.5,
                 "ytick.major.size": 2.5,
@@ -160,8 +160,8 @@ def figure_style():
                 "ytick.minor.size": 2,
                 "xtick.minor.width": 0.5,
                 "ytick.minor.width": 0.5,
-                'legend.fontsize': 7,
-                'legend.title_fontsize': 7,
+                'legend.fontsize': font_size,
+                'legend.title_fontsize': font_size,
                 'legend.frameon': False,
                 })
     matplotlib.rcParams['pdf.fonttype'] = 42

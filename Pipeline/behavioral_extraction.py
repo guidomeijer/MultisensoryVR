@@ -15,7 +15,7 @@ from itertools import chain
 from logreader import create_bp_structure, compute_onsets, compute_offsets
 from msvr_functions import paths
 
-USE_SERVER = False
+USE_SERVER = True
 
 # Get paths
 path_dict = paths(sync=USE_SERVER)
@@ -31,19 +31,24 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
     if 'extract_me.flag' in files:
         print(f'\nFound extract_me.flag in {root}')
 
-        data_file = glob(join(root, 'raw_behavior_data', '*.b64'))
-        if len(data_file) == 0:
+        data_files = glob(join(root, 'raw_behavior_data', '*.b64'))
+        if len(data_files) == 0:
             print(f'No behavioral data found in {join(root, "raw_behavior_data")}')
             continue
-        if len(data_file) > 1:
+        if len(data_files) > 1:
             print(f'Multiple behavioral log files found in {join(root, "raw_behavior_data")}')
-            continue
+            file_sizes = np.empty(len(data_files))
+            for ii, this_file in enumerate(data_files):
+                file_sizes[ii] = os.stat(this_file).st_size
+            data_file = data_files[np.argmax(file_sizes)]
+        elif len(data_files) == 1:
+            data_file = data_files[0]            
         if isdir(join(root, 'raw_ephys_data')) and not isfile(join(root, 'raw_ephys_data', '_spikeglx_sync.times.npy')):
             print('Run ephys pipeline before behavioral extraction')
             continue
 
         # Unpack log file
-        data = create_bp_structure(data_file[0])
+        data = create_bp_structure(data_file)
         
         # Get timestamps in seconds relative to first timestamp
         time_s = (data['startTS'] - data['startTS'][0]) / 1000000

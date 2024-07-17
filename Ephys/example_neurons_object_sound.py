@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 from os.path import join
 import pandas as pd
 from matplotlib.ticker import FormatStrFormatter
-from msvr_functions import (paths, peri_multiple_events_time_histogram, load_neural_data)
+from msvr_functions import (paths, peri_multiple_events_time_histogram,
+                            load_neural_data, figure_style)
 
 # Settings
 SUBJECT = '459602'
@@ -23,7 +24,6 @@ NEURON_ID = 312  # Specify the ID of the neuron you want to plot
 BIN_SIZE = 0.025
 SMOOTHING = 0.1
 colors = {'goal': 'green', 'no-goal': 'red', 'control': 'gray'}
-dpi = 300
 
 # Load in data
 path_dict = paths(sync=False)
@@ -55,6 +55,7 @@ all_obj_ids_sound2 = np.concatenate((np.ones(goal_obj_enters_sound2.shape[0]),
 
 
 # %% Plot neurons for sound 1 and sound 2
+_, dpi = figure_style(font_size=9)
 
 # First get y limits of both plots
 f, (ax1, ax2) = plt.subplots(1, 2)
@@ -92,14 +93,12 @@ peri_multiple_events_time_histogram(
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True
 )
-axes[0].set_title('Sound 1', fontsize=8)
+axes[0].set_title('Sound 1')
 axes[0].set(ylabel='Firing rate (spks/s)')
 axes[0].yaxis.set_label_coords(-0.2, 0.75)
 axes[0].yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
-
-# Calculate the y-axis range and adjust the plot for sound 1
 axes[0].plot([0, 0], axes[0].get_ylim(), color='r', linestyle='--', lw=0.5, clip_on=False, alpha=0.5)
-axes[0].set(yticks=[0, y_max_use], xticks=[-1, 0, 0.5, 1, 2], xlabel='Time (s)')
+axes[0].set(yticks=[0, y_max_use], xticks=[-1, 0, 0.5, 1, 2], xlabel=' ')
 
 # Plot for sound 2
 peri_multiple_events_time_histogram(
@@ -111,15 +110,14 @@ peri_multiple_events_time_histogram(
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True
 )
-axes[1].set_title('Sound 2', fontsize=8)
+axes[1].set_title('Sound 2')
 axes[1].yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
-
-# Calculate the y-axis range and adjust the plot for sound 1
 axes[1].plot([0, 0], [axes[1].get_ylim()[0], y_max_use], color='r', linestyle='--', lw=0.5, clip_on=False, alpha=0.5)
-axes[1].set(xlabel='Time (s)', ylabel='')
-
+axes[1].set(xlabel='', ylabel='')
 axes[1].set(yticks=[0, np.round(y_max_use)], xticks=[-1, 0, 1, 2])
 axes[1].yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+
+fig.text(0.5, 0.06, 'Time from object entry (s)', ha='center')
 
 # Adjust layout and save figure
 plt.tight_layout()
