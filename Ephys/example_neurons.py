@@ -18,9 +18,9 @@ from msvr_functions import (load_subjects, paths, peri_event_trace, figure_style
                             peri_multiple_events_time_histogram, load_neural_data)
 
 # Settings
-SUBJECT = '459602'
-DATE = '20240318'
-PROBE = 'probe00'
+SUBJECT = '459601'
+DATE = '20240411'
+PROBE = 'probe01'
 T_BEFORE = 0.5
 T_AFTER = 1
 

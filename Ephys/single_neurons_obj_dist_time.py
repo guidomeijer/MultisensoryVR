@@ -29,13 +29,14 @@ DIST_BEFORE = 20
 DIST_AFTER = 20
 DIST_BIN_SIZE = 0.5
 DIST_SMOOTHING = 0.5
+MIN_FR = 0.1
 
 # Get paths
 path_dict = paths()
 
 # Load in data
 session_path = join(path_dict['local_data_path'], 'Subjects', f'{SUBJECT}', f'{DATE}')
-spikes, clusters, channels = load_neural_data(session_path, PROBE, histology=False, only_good=True)
+spikes, clusters, channels = load_neural_data(session_path, PROBE, histology=True, only_good=False)
 trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'trials.csv'))
 subjects = load_subjects()
 
@@ -75,6 +76,9 @@ all_obj_times_ids = all_obj_times_ids[sort_idx]
 # Plot neurons
 colors, dpi = figure_style()
 for i, neuron_id in enumerate(np.unique(spikes['clusters'])):
+    if np.sum(spikes['clusters'] == neuron_id) / spikes['times'][-1] < 0.1:
+        continue
+    
     print(f'Plotting neuron {i} of {np.unique(spikes["clusters"]).shape[0]}')
     
     # Plot object entry 
@@ -126,7 +130,7 @@ for i, neuron_id in enumerate(np.unique(spikes['clusters'])):
         ax2.plot([0, 0], ax2.get_ylim(), lw=0.5, color='grey', ls='--')
         
         plt.tight_layout()
-        plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', 'ObjectEntry',
+        plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'ObjectEntry',
                     f'{SUBJECT}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'))
         plt.close(f)
     except:
@@ -157,8 +161,9 @@ for i, neuron_id in enumerate(np.unique(spikes['clusters'])):
     # ax.plot([0, 1], [0, 0], lw=2.5, color='royalblue')
     ax1.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
     
+    plt.suptitle(clusters['acronym'][clusters['cluster_id'] == neuron_id][0])
     plt.tight_layout()
-    plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', 'SoundStart',
+    plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'SoundStart',
                 f'{SUBJECT}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'))
     plt.close(f)
     

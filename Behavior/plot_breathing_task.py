@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 import datetime
-from scipy.signal import spectrogram, butter, filtfilt
+from scipy.signal import spectrogram, butter, filtfilt, hilbert
 from os.path import join, isfile
 import pandas as pd
 from msvr_functions import load_subjects, paths, figure_style
@@ -23,23 +23,22 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
 
 
 # Settings
-T_BEFORE = 3.5
-T_AFTER = 4.5
-T_PLOT = [-2, 3]
-Y_LIM = [4, 8]
-BIN_SIZE = 0.2
-SMOOTHING = 0.1
-WIN_SIZE = 2  # s
-WIN_SHIFT = 0.05  # s
+T_BEFORE = 1.5
+T_AFTER = 1.5
+T_PLOT = [-1, 1]
+Y_LIM = [2, 16]
+WIN_SIZE = 0.25  # s
+WIN_SHIFT = 0.01  # s
 FS = 1000  # sampling rate
 FREQ = [5, 10]
+TIME_AX = np.linspace(-T_BEFORE, T_AFTER, num=int((T_BEFORE + T_AFTER) * FS))
 PLOT_SUBJECTS = ['462910', '462911']
 
 # Get subjects
 subjects = load_subjects()
 
 # Get paths
-path_dict = paths()
+path_dict = paths(force_sync=False)
 data_path = path_dict['local_data_path']
 
 # Set figure style
@@ -99,47 +98,59 @@ for i, subject in enumerate(PLOT_SUBJECTS):
         control_obj_enters = np.sort(control_obj_enters[~np.isnan(control_obj_enters)])
 
         # Filter breathing signal
-        breathing_filt = butter_bandpass_filter(breathing, 2, 50, 1000, order=1)
+        breathing_filt = butter_bandpass_filter(breathing, FREQ[0], FREQ[1], 1000, order=1)
 
         # Compute breathing spectogram per trial
         sniffing_df = pd.DataFrame()
-        all_freq = []
+        all_amp = []
         for k, this_onset in enumerate(goal_obj_enters):
-            this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps <= this_onset + T_AFTER)
-            freq, time, this_spec = spectrogram(breathing_filt[this_ind], fs=FS,
-                                                nperseg=WIN_SIZE*FS,
-                                                noverlap=(WIN_SIZE*FS)-(WIN_SHIFT*FS))
-            all_freq.append(freq[np.argmax(this_spec, axis=0)])
-        time_ax = time - T_BEFORE
-        this_df = pd.melt(pd.DataFrame(columns=time_ax, data=np.vstack(all_freq)),
+            this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps < this_onset + T_AFTER)
+            if np.sum(this_ind) == TIME_AX.shape[0] + 1:
+                this_ind = (timestamps > this_onset - T_BEFORE) & (timestamps < this_onset + T_AFTER)
+            elif np.sum(this_ind) == TIME_AX.shape[0] - 1:
+                this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps <= this_onset + T_AFTER)
+            elif np.sum(this_ind) != TIME_AX.shape[0]:
+                continue
+            analytic_signal = hilbert(breathing_filt[this_ind])
+            amplitude_envelope = np.abs(analytic_signal)
+            all_amp.append(amplitude_envelope)
+        this_df = pd.melt(pd.DataFrame(columns=TIME_AX, data=np.vstack(all_amp)),
                           value_name='freq', var_name='time')
         this_df['object'] = 'Goal'
         sniffing_df = pd.concat((sniffing_df, this_df))
         
         # No goal
-        all_freq = []
+        all_amp = []
         for k, this_onset in enumerate(nogoal_obj_enters):
-            this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps <= this_onset + T_AFTER)
-            freq, time, this_spec = spectrogram(breathing_filt[this_ind], fs=FS,
-                                                nperseg=WIN_SIZE*FS,
-                                                noverlap=(WIN_SIZE*FS)-(WIN_SHIFT*FS))
-            all_freq.append(freq[np.argmax(this_spec, axis=0)])
-        time_ax = time - T_BEFORE
-        this_df = pd.melt(pd.DataFrame(columns=time_ax, data=np.vstack(all_freq)),
+            this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps < this_onset + T_AFTER)
+            if np.sum(this_ind) == TIME_AX.shape[0] + 1:
+                this_ind = (timestamps > this_onset - T_BEFORE) & (timestamps < this_onset + T_AFTER)
+            elif np.sum(this_ind) == TIME_AX.shape[0] - 1:
+                this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps <= this_onset + T_AFTER)
+            elif np.sum(this_ind) != TIME_AX.shape[0]:
+                continue
+            analytic_signal = hilbert(breathing_filt[this_ind])
+            amplitude_envelope = np.abs(analytic_signal)
+            all_amp.append(amplitude_envelope)
+        this_df = pd.melt(pd.DataFrame(columns=TIME_AX, data=np.vstack(all_amp)),
                           value_name='freq', var_name='time')
         this_df['object'] = 'Distractor'
         sniffing_df = pd.concat((sniffing_df, this_df))
 
         # Control
-        all_freq = []
+        all_amp = []
         for k, this_onset in enumerate(control_obj_enters):
-            this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps <= this_onset + T_AFTER)
-            freq, time, this_spec = spectrogram(breathing_filt[this_ind], fs=FS,
-                                                nperseg=WIN_SIZE*FS,
-                                                noverlap=(WIN_SIZE*FS)-(WIN_SHIFT*FS))
-            all_freq.append(freq[np.argmax(this_spec, axis=0)])
-        time_ax = time - T_BEFORE
-        this_df = pd.melt(pd.DataFrame(columns=time_ax, data=np.vstack(all_freq)),
+            this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps < this_onset + T_AFTER)
+            if np.sum(this_ind) == TIME_AX.shape[0] + 1:
+                this_ind = (timestamps > this_onset - T_BEFORE) & (timestamps < this_onset + T_AFTER)
+            elif np.sum(this_ind) == TIME_AX.shape[0] - 1:
+                this_ind = (timestamps >= this_onset - T_BEFORE) & (timestamps <= this_onset + T_AFTER)
+            elif np.sum(this_ind) != TIME_AX.shape[0]:
+                continue
+            analytic_signal = hilbert(breathing_filt[this_ind])
+            amplitude_envelope = np.abs(analytic_signal)
+            all_amp.append(amplitude_envelope)
+        this_df = pd.melt(pd.DataFrame(columns=TIME_AX, data=np.vstack(all_amp)),
                           value_name='freq', var_name='time')
         this_df['object'] = 'Control'
         sniffing_df = pd.concat((sniffing_df, this_df))
@@ -150,12 +161,12 @@ for i, subject in enumerate(PLOT_SUBJECTS):
                      palette=[colors['goal'], colors['no-goal'], colors['control']])
 
         if np.mod(j, 4) == 0:
-            axs[j].set(ylabel='Sniffing frequency (Hz)', xticks=np.arange(T_PLOT[0], T_PLOT[1]+1),
+            axs[j].set(ylabel='Sniffing amplitude (mV)', xticks=np.arange(T_PLOT[0], T_PLOT[1]+1, 0.25),
                        xlim=T_PLOT, yticks=np.arange(Y_LIM[0], Y_LIM[1]+1, 2), xlabel='',
                        title=ses, ylim=Y_LIM)
             g = axs[j].legend(title='', prop={'size': 5.5})
         else:
-            axs[j].set(xticks=np.arange(T_PLOT[0], T_PLOT[1]+1), xlim=T_PLOT, xlabel='', yticks=[],
+            axs[j].set(xticks=np.arange(T_PLOT[0], T_PLOT[1]+1, 0.5), xlim=T_PLOT, xlabel='', yticks=[],
                        title=ses, ylim=Y_LIM)
             axs[j].get_yaxis().set_visible(False)
             axs[j].get_legend().remove()

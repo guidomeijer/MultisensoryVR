@@ -30,9 +30,10 @@ path_dict = paths(sync=False)
 
 # Load in data
 session_path = join(path_dict['local_data_path'], 'Subjects', f'{SUBJECT}', f'{DATE}')
-spikes, clusters, channels = load_neural_data(session_path, PROBE, histology=False, only_good=True)
+spikes, clusters, channels = load_neural_data(session_path, PROBE, histology=True, only_good=True)
 trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'trials.csv'))
 spike_times = spikes['times'][spikes['clusters'] == NEURON_ID]
+clusters['acronym'][clusters['cluster_id'] == NEURON_ID]
 
 # Get timestamps of entry of goal, no-goal, and control object sets for sound 1
 goal_obj_enters_sound1 = trials.loc[trials['soundId'] == 1, 'enterObj1'].dropna().values
