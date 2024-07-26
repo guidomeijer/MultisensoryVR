@@ -14,7 +14,8 @@ import tkinter as tk
 import matplotlib
 import matplotlib.pyplot as plt
 from brainbox import singlecell
-from scipy.signal import gaussian, convolve
+from scipy.signal import convolve
+from scipy.signal.windows import gaussian
 import json
 import shutil
 import datetime
