@@ -283,16 +283,21 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
                               raster_kwargs=[{'color': colors['sound1'], 'lw': 0.5},
                                              {'color': colors['sound2'], 'lw': 0.5}],
                               eventline_kwargs={'lw': 0}, include_raster=True)
-    ax1.set(ylabel='Firing rate (spks/s)', yticks=[0, np.ceil(ax1.get_ylim()[1])],
+    y_max = ax1.get_ylim()[1]
+    if y_max > 1:
+        y_max = int(np.ceil(y_max))
+    else:
+        y_max = np.round(y_max, decimals=1)
+    ax1.set(ylabel='Firing rate (spks/s)', yticks=[0, y_max],
+            yticklabels=[0, y_max],
             xlabel='Distance from environment entry (cm)', title=region)
     ax1.yaxis.set_label_coords(-0.15, 0.75)
-    ax1.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
     
     plt.tight_layout()
     plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'EnvironmentSound',
                      f'{region}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'), dpi=300)
     
-    plt.close(f)
+    #plt.close(f)
     
     
     
