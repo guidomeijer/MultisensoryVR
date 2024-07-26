@@ -126,7 +126,7 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
         region = clusters['acronym'][clusters['cluster_id'] == neuron_id][0]
         region = region.replace('/', '-')
     else:
-        region = 'Neuron ' + neuron_id
+        region = 'root'
     
     # %% Plot object entries for sound 1 and sound 2
     
