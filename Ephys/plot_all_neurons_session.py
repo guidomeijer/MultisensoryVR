@@ -294,7 +294,7 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
         y_max = int(np.ceil(y_max))
     else:
         y_max = np.round(y_max + 0.1, decimals=1) 
-    ax1.set(ylabel='Firing rate (spks/s)', yticks=[0, y_max],
+    ax1.set(ylabel='Firing rate (spks/cm)', yticks=[0, y_max],
             yticklabels=[0, y_max],
             xlabel='Distance from environment entry (cm)', title=region)
     ax1.yaxis.set_label_coords(-0.175, 0.75)
