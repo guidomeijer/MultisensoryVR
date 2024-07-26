@@ -287,17 +287,17 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
     if y_max > 1:
         y_max = int(np.ceil(y_max))
     else:
-        y_max = np.round(y_max, decimals=1)
+        y_max = np.round(y_max + 0.1, decimals=1) 
     ax1.set(ylabel='Firing rate (spks/s)', yticks=[0, y_max],
             yticklabels=[0, y_max],
             xlabel='Distance from environment entry (cm)', title=region)
-    ax1.yaxis.set_label_coords(-0.15, 0.75)
+    ax1.yaxis.set_label_coords(-0.175, 0.75)
     
     plt.tight_layout()
     plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'EnvironmentSound',
                      f'{region}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'), dpi=300)
     
-    #plt.close(f)
+    plt.close(f)
     
     
     
