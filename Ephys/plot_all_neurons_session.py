@@ -19,11 +19,21 @@ from msvr_functions import (paths, peri_multiple_events_time_histogram,
 SUBJECT = '459601'
 DATE = '20240411'
 PROBE = 'probe00'
-T_BEFORE = 1
-T_AFTER = 2
-BIN_SIZE = 0.025
-SMOOTHING = 0.1
+MIN_SPEED = 50  # mm/s
 MIN_FR = 1
+
+# Time
+T_BEFORE = 1  # s
+T_AFTER = 2
+T_BIN_SIZE = 0.025
+T_SMOOTHING = 0.1
+
+# Distance
+D_BEFORE = 10  # cm
+D_AFTER = 160
+D_BIN_SIZE = 1
+D_SMOOTHING = 2
+
 colors, dpi = figure_style()
 
 # Initialize
@@ -34,6 +44,17 @@ subjects = load_subjects()
 session_path = join(path_dict['local_data_path'], 'Subjects', f'{SUBJECT}', f'{DATE}')
 spikes, clusters, channels = load_neural_data(session_path, PROBE, histology=True, only_good=False)
 trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'trials.csv'))
+wheel_speed = np.load(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'continuous.wheelSpeed.npy'))
+wheel_dist = np.load(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'continuous.wheelDistance.npy'))
+wheel_times = np.load(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'continuous.times.npy'))
+
+# Set minimum speed for distance activity
+wheel_speed
+
+
+good_dist = wheel_dist[wheel_speed > MIN_SPEED]
+spikes_dist = spikes['distances'][np.isin(spikes['distances'], good_dist)]
+clusters_dist = spikes['clusters'][np.isin(spikes['distances'], good_dist)]
 
 # %% Prepare data
 
@@ -91,10 +112,15 @@ if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'SoundT
     os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'SoundTarget'))
 if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'ObjectSound')):
     os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'ObjectSound'))
+if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'EnvironmentSound')):
+    os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'EnvironmentSound'))
 
 for i, neuron_id in enumerate(clusters['cluster_id']):
     if np.sum(spikes['clusters'] == neuron_id) / spikes['times'][-1] < MIN_FR:
         continue
+    
+    region = clusters['acronym'][clusters['cluster_id'] == neuron_id][0]
+    region = region.replace('/', '-')
     
     # %% Plot object entries for sound 1 and sound 2
     
@@ -102,20 +128,20 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
     f, (ax1, ax2) = plt.subplots(1, 2)
     peri_multiple_events_time_histogram(
         spikes['times'], spikes['clusters'], all_obj_enters_sound1, all_obj_ids_sound1, [neuron_id],
-        t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, ax=ax1,
+        t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax1,
         pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
         errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
         raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
-        smoothing = SMOOTHING, include_raster=True
+        smoothing = T_SMOOTHING, include_raster=True
         )
     _, y_max_1 = ax1.get_ylim()
     peri_multiple_events_time_histogram(
         spikes['times'], spikes['clusters'], all_obj_enters_sound2, all_obj_ids_sound2, [neuron_id],
-        t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, ax=ax2,
+        t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax2,
         pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
         errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
         raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
-        smoothing=SMOOTHING, include_raster=True
+        smoothing=T_SMOOTHING, include_raster=True
         )
     _, y_max_2 = ax2.get_ylim()
     plt.close(f)
@@ -127,8 +153,8 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
     # Plot for sound 1
     peri_multiple_events_time_histogram(
         spikes['times'], spikes['clusters'], all_obj_enters_sound1, all_obj_ids_sound1,
-        [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, ax=axes[0],
-        smoothing = SMOOTHING, ylim=y_max_use,
+        [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=axes[0],
+        smoothing = T_SMOOTHING, ylim=y_max_use,
         pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
         errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
         raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
@@ -144,8 +170,8 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
     # Plot for sound 2
     peri_multiple_events_time_histogram(
         spikes['times'], spikes['clusters'], all_obj_enters_sound2, all_obj_ids_sound2,
-        [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, ax=axes[1],
-        smoothing=SMOOTHING, ylim=y_max_use,
+        [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=axes[1],
+        smoothing=T_SMOOTHING, ylim=y_max_use,
         pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
         errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
         raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
@@ -161,8 +187,6 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
     fig.text(0.5, 0.06, 'Time from object entry (s)', ha='center')
     
     # Adjust layout and save figure
-    region = clusters['acronym'][clusters['cluster_id'] == neuron_id][0]
-    region = region.replace('/', '-')
     plt.suptitle(region)
     plt.tight_layout()
     plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'SoundTarget',
@@ -184,8 +208,8 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
         
     peri_multiple_events_time_histogram(
         spikes['times'], spikes['clusters'], all_obj1_enters, all_obj1_ids,
-        [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, ax=ax1,
-        smoothing = SMOOTHING, ylim=y_max_use,
+        [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax1,
+        smoothing = T_SMOOTHING, ylim=y_max_use,
         pethline_kwargs=[{'color': color_1, 'lw': 1}, {'color': color_2, 'lw': 1}],
         errbar_kwargs=[{'color': color_1, 'alpha': 0.3, 'lw': 0}, {'color': color_2, 'alpha': 0.3, 'lw': 0}],
         raster_kwargs=[{'color': color_1, 'lw': 0.5}, {'color': color_2, 'lw': 0.5}],
@@ -207,8 +231,8 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
         
     peri_multiple_events_time_histogram(
         spikes['times'], spikes['clusters'], all_obj2_enters, all_obj2_ids,
-        [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, ax=ax2,
-        smoothing = SMOOTHING, ylim=y_max_use,
+        [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax2,
+        smoothing = T_SMOOTHING, ylim=y_max_use,
         pethline_kwargs=[{'color': color_1, 'lw': 1}, {'color': color_2, 'lw': 1}],
         errbar_kwargs=[{'color': color_1, 'alpha': 0.3, 'lw': 0}, {'color': color_2, 'alpha': 0.3, 'lw': 0}],
         raster_kwargs=[{'color': color_1, 'lw': 0.5}, {'color': color_2, 'lw': 0.5}],
@@ -228,8 +252,8 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
         
     peri_multiple_events_time_histogram(
         spikes['times'], spikes['clusters'], all_obj3_enters, all_obj3_ids,
-        [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, ax=ax3,
-        smoothing = SMOOTHING, ylim=y_max_use,
+        [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax3,
+        smoothing = T_SMOOTHING, ylim=y_max_use,
         pethline_kwargs=[{'color': color_1, 'lw': 1}, {'color': color_2, 'lw': 1}],
         errbar_kwargs=[{'color': color_1, 'alpha': 0.3, 'lw': 0}, {'color': color_2, 'alpha': 0.3, 'lw': 0}],
         raster_kwargs=[{'color': color_1, 'lw': 0.5}, {'color': color_2, 'lw': 0.5}],
@@ -238,13 +262,38 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
     ax3.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
     
     f.text(0.5, 0.05, 'Time from object entry (s)', ha='center')
-    region = clusters['acronym'][clusters['cluster_id'] == neuron_id][0]
-    region = region.replace('/', '-')
     plt.suptitle(region)
     plt.subplots_adjust(bottom=0.2, top=0.8)
     plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'ObjectSound',
                      f'{region}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'), dpi=300)
     plt.close(f)
+    
+    # %% Plot activity over entire environment split by sound
+    
+    f, ax1 = plt.subplots(1, 1, figsize=(2, 2), dpi=dpi)
+    
+    peri_multiple_events_time_histogram(spikes_dist / 10, clusters_dist,
+                              trials['enterEnvPos'] / 10, trials['soundId'], [neuron_id],
+                              t_before=D_BEFORE, t_after=D_AFTER, bin_size=D_BIN_SIZE, 
+                              smoothing=D_SMOOTHING, ax=ax1,
+                              pethline_kwargs=[{'color': colors['sound1'], 'lw': 1},
+                                               {'color': colors['sound2'], 'lw': 1}],
+                              errbar_kwargs=[{'color': colors['sound1'], 'alpha': 0.3, 'lw': 0},
+                                             {'color': colors['sound2'], 'alpha': 0.3, 'lw': 0}],
+                              raster_kwargs=[{'color': colors['sound1'], 'lw': 0.5},
+                                             {'color': colors['sound2'], 'lw': 0.5}],
+                              eventline_kwargs={'lw': 0}, include_raster=True)
+    ax1.set(ylabel='Firing rate (spks/s)', yticks=[0, np.ceil(ax1.get_ylim()[1])],
+            xlabel='Distance from environment entry (cm)', title=region)
+    ax1.yaxis.set_label_coords(-0.15, 0.75)
+    ax1.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+    
+    plt.tight_layout()
+    plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'EnvironmentSound',
+                     f'{region}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'), dpi=300)
+    asd
+    #plt.close(f)
+    
     
     
     

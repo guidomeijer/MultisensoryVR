@@ -9,12 +9,13 @@ import os
 from os.path import join
 import numpy as np
 from glob import glob
+from msvr_functions import paths
 
-DATA_FOLDER = 'D:\\MultisensoryVR\\Subjects'
+path_dict = paths(sync=False)
 
 # Search for spikesort_me.flag
 print('Looking for extract_me.flag..')
-for root, directory, files in os.walk(DATA_FOLDER):
+for root, directory, files in os.walk(path_dict['local_data_path']):
     if 'spikeposition_me.flag' in files:
         print(f'\nFound spikeposition_me.flag in {root}')
 

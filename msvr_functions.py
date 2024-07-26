@@ -174,7 +174,9 @@ def figure_style(font_size=7):
         'obj3': sns.color_palette('Set2')[2],
         'goal': matplotlib.colors.to_rgb('mediumseagreen'),
         'no-goal': matplotlib.colors.to_rgb('tomato'),
-        'control': matplotlib.colors.to_rgb('gray')}
+        'control': matplotlib.colors.to_rgb('gray'),
+        'sound1': matplotlib.colors.to_rgb('goldenrod'),
+        'sound2': matplotlib.colors.to_rgb('darkorchid')}
 
     screen_width = tk.Tk().winfo_screenwidth()
     dpi = screen_width / 10

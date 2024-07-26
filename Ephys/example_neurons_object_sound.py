@@ -24,6 +24,7 @@ NEURON_ID = 312  # Specify the ID of the neuron you want to plot
 BIN_SIZE = 0.025
 SMOOTHING = 0.1
 colors = {'goal': 'green', 'no-goal': 'red', 'control': 'gray'}
+_, dpi = figure_style()
 
 # Load in data
 path_dict = paths(sync=False)
@@ -56,7 +57,7 @@ all_obj_ids_sound2 = np.concatenate((np.ones(goal_obj_enters_sound2.shape[0]),
 
 
 # %% Plot neurons for sound 1 and sound 2
-_, dpi = figure_style(font_size=9)
+
 
 # First get y limits of both plots
 f, (ax1, ax2) = plt.subplots(1, 2)
@@ -124,4 +125,3 @@ fig.text(0.5, 0.06, 'Time from object entry (s)', ha='center')
 plt.tight_layout()
 plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', 'ObjectSound',
                  f'{SUBJECT}_{DATE}_{PROBE}_neuron{NEURON_ID}.pdf'))
-plt.show()
