@@ -19,6 +19,7 @@ from msvr_functions import (paths, peri_multiple_events_time_histogram,
 SUBJECT = '459601'
 DATE = '20240411'
 PROBE = 'probe00'
+HISTOLOGY = False
 MIN_SPEED = 50  # mm/s
 MIN_FR = 1
 
@@ -118,9 +119,14 @@ if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'Enviro
 for i, neuron_id in enumerate(clusters['cluster_id']):
     if np.sum(spikes['clusters'] == neuron_id) / spikes['times'][-1] < MIN_FR:
         continue
+    print(f'Plotting neuron {i} of {clusters["cluster_id"].shape[0]}')
     
-    region = clusters['acronym'][clusters['cluster_id'] == neuron_id][0]
-    region = region.replace('/', '-')
+    if HISTOLOGY:
+        # Get region
+        region = clusters['acronym'][clusters['cluster_id'] == neuron_id][0]
+        region = region.replace('/', '-')
+    else:
+        region = 'Neuron ' + neuron_id
     
     # %% Plot object entries for sound 1 and sound 2
     
