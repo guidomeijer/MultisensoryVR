@@ -48,13 +48,13 @@ wheel_speed = np.load(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DA
 wheel_dist = np.load(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'continuous.wheelDistance.npy'))
 wheel_times = np.load(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'continuous.times.npy'))
 
-# Set minimum speed for distance activity
-wheel_speed
-
-
-good_dist = wheel_dist[wheel_speed > MIN_SPEED]
-spikes_dist = spikes['distances'][np.isin(spikes['distances'], good_dist)]
-clusters_dist = spikes['clusters'][np.isin(spikes['distances'], good_dist)]
+# For the distance plots, set a speed threshold
+# Find for each spike its corresponding speed
+indices = np.searchsorted(wheel_times, spikes['times'], side='right') - 1
+indices = np.clip(indices, 0, wheel_dist.shape[0] - 1)
+spike_speed = wheel_speed[indices]
+spikes_dist = spikes['distances'][spike_speed >= MIN_SPEED]
+clusters_dist = spikes['clusters'][spike_speed >= MIN_SPEED]
 
 # %% Prepare data
 
@@ -291,8 +291,8 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
     plt.tight_layout()
     plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'EnvironmentSound',
                      f'{region}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'), dpi=300)
-    asd
-    #plt.close(f)
+    
+    plt.close(f)
     
     
     
