@@ -18,9 +18,9 @@ from msvr_functions import (load_subjects, paths, peri_event_trace, figure_style
                             peri_multiple_events_time_histogram, load_neural_data)
 
 # Settings
-SUBJECT = '459601'
-DATE = '20240411'
-PROBE = 'probe01'
+SUBJECT = '459602'
+DATE = '20240315'
+PROBE = 'probe00'
 T_BEFORE = 0.5
 T_AFTER = 1
 
@@ -29,7 +29,7 @@ path_dict = paths(sync=False)
 
 # Load in data
 session_path = join(path_dict['local_data_path'], 'Subjects', f'{SUBJECT}', f'{DATE}')
-spikes, clusters, channels = load_neural_data(session_path, PROBE, histology=False, only_good=True)
+spikes, clusters, channels = load_neural_data(session_path, PROBE, histology=True, only_good=False)
 trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'trials.csv'))
 wheel_time = np.load(join(path_dict['local_data_path'],
                      'Subjects', SUBJECT, DATE, 'continuous.times.npy'))
@@ -79,26 +79,23 @@ for i, neuron_id in enumerate(np.unique(spikes['clusters'])):
     spike_dist = spikes['distances'][spikes['clusters'] == neuron_id]
 
     # Plot spatial firing PSTH
-    try:
-        f, ax = plt.subplots(figsize=(2, 2.5), dpi=600)
-        peri_event_time_histogram(spike_dist / 10, np.ones(spike_dist.shape), trial_start_dist / 10, [1],
-                                  include_raster=True, error_bars='sem', ax=ax,
-                                  t_before=0, t_after=150, smoothing=2, bin_size=1,
-                                  pethline_kwargs={'color': 'black', 'lw': 1},
-                                  errbar_kwargs={'color': 'black', 'alpha': 0.3, 'lw': 0},
-                                  raster_kwargs={'color': 'black', 'lw': 0.3},
-                                  eventline_kwargs={'lw': 0})
-        
-        ax.plot([-2, -2], [0, 1], color='k', lw=0.75, clip_on=False)
-        ax.text(-2, 1/2, '1 sp cm$^{-1}$', ha='right', va='center', rotation=90)
-        ax.text(-2, ax.get_ylim()[0] / 2, f'{trial_start_dist.shape[0]} trials',
-                ha='right', va='center', rotation=90)
-        ax.spines[['left']].set_visible(False)
-        ax.set(xlabel='Distance (cm)', xticks=[0, 50, 100, 150], ylabel='', yticks=[])
-        plt.tight_layout()
+    f, ax = plt.subplots(figsize=(2, 2.5), dpi=600)
+    peri_event_time_histogram(spike_dist / 10, np.ones(spike_dist.shape), trial_start_dist / 10, [1],
+                              include_raster=True, error_bars='sem', ax=ax,
+                              t_before=0, t_after=150, smoothing=2, bin_size=1,
+                              pethline_kwargs={'color': 'black', 'lw': 1},
+                              errbar_kwargs={'color': 'black', 'alpha': 0.3, 'lw': 0},
+                              raster_kwargs={'color': 'black', 'lw': 0.3},
+                              eventline_kwargs={'lw': 0})
+    
+    ax.plot([-2, -2], [0, 1], color='k', lw=0.75, clip_on=False)
+    ax.text(-2, 1/2, '1 sp cm$^{-1}$', ha='right', va='center', rotation=90)
+    ax.text(-2, ax.get_ylim()[0] / 2, f'{trial_start_dist.shape[0]} trials',
+            ha='right', va='center', rotation=90)
+    ax.spines[['left']].set_visible(False)
+    ax.set(xlabel='Distance (cm)', xticks=[0, 50, 100, 150], ylabel='', yticks=[])
+    plt.tight_layout()
 
-        plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', 'PlaceActivity',
-                    f'{SUBJECT}', f'{DATE}', f'{PROBE}_neuron{neuron_id}.jpg'))
-        plt.close(f)
-    except:
-        continue
+    plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}' 'PlaceActivity',
+                f'{SUBJECT}', f'{DATE}', f'{PROBE}_neuron{neuron_id}.jpg'))
+    plt.close(f)

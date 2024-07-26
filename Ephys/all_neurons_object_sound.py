@@ -15,14 +15,14 @@ from msvr_functions import (paths, peri_multiple_events_time_histogram,
                             load_neural_data, figure_style)
 
 # Settings
-SUBJECT = '459602'
-DATE = '20240315'
+SUBJECT = '459601'
+DATE = '20240411'
 PROBE = 'probe00'
 T_BEFORE = 1
 T_AFTER = 2
 BIN_SIZE = 0.025
 SMOOTHING = 0.1
-MIN_FR = 0.1
+MIN_FR = 1
 colors = {'goal': 'green', 'no-goal': 'red', 'control': 'gray'}
 
 # Load in data
@@ -54,7 +54,7 @@ all_obj_ids_sound2 = np.concatenate((np.ones(goal_obj_enters_sound2.shape[0]),
 
 # %%
 for i, neuron_id in enumerate(clusters['cluster_id']):
-    if np.sum(spikes['clusters'] == neuron_id) / spikes['times'][-1] < 0.1:
+    if np.sum(spikes['clusters'] == neuron_id) / spikes['times'][-1] < MIN_FR:
         continue
     
     # Plot neurons for sound 1 and sound 2
@@ -123,8 +123,10 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
     fig.text(0.5, 0.06, 'Time from object entry (s)', ha='center')
     
     # Adjust layout and save figure
-    plt.suptitle(clusters['acronym'][clusters['cluster_id'] == neuron_id][0])
+    region = clusters['acronym'][clusters['cluster_id'] == neuron_id][0]
+    region = region.replace('/', '-')
+    plt.suptitle(region)
     plt.tight_layout()
     plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'ObjectSound',
-                     f'{SUBJECT}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'), dpi=150)
+                     f'{region}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'), dpi=300)
     plt.close(fig)
