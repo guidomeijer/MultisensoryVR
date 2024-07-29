@@ -19,7 +19,7 @@ from msvr_functions import (paths, peri_multiple_events_time_histogram,
 SUBJECT = '459601'
 DATE = '20240411'
 PROBE = 'probe00'
-HISTOLOGY = False
+HISTOLOGY = True
 MIN_SPEED = 50  # mm/s
 MIN_FR = 1
 
@@ -43,7 +43,7 @@ subjects = load_subjects()
 
 # Load in data
 session_path = join(path_dict['local_data_path'], 'Subjects', f'{SUBJECT}', f'{DATE}')
-spikes, clusters, channels = load_neural_data(session_path, PROBE, histology=True, only_good=False)
+spikes, clusters, channels = load_neural_data(session_path, PROBE, histology=True, only_good=True)
 trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'trials.csv'))
 wheel_speed = np.load(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'continuous.wheelSpeed.npy'))
 wheel_dist = np.load(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'continuous.wheelDistance.npy'))
@@ -275,6 +275,7 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
     plt.close(f)
     
     # %% Plot activity over entire environment split by sound
+    sound_colors = [colors['sound1'], colors['sound2'], colors['control']]
     
     f, ax1 = plt.subplots(1, 1, figsize=(2, 2), dpi=dpi)
     
@@ -294,16 +295,25 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
         y_max = int(np.ceil(y_max))
     else:
         y_max = np.round(y_max + 0.1, decimals=1) 
+        
     ax1.set(ylabel='Firing rate (spks/cm)', yticks=[0, y_max],
             yticklabels=[0, y_max],
             xlabel='Distance from environment entry (cm)', title=region)
     ax1.yaxis.set_label_coords(-0.175, 0.75)
+    """
+    ax1.plot([47.5, 47.5], ax1.get_ylim(), color=sound_colors[obj1_goal_sound-1],
+             linestyle='--', lw=0.5, clip_on=False, alpha=0.5)
+    ax1.plot([47.5, 47.5], ax1.get_ylim(), color=sound_colors[obj1_goal_sound-1],
+             linestyle='--', lw=0.5, clip_on=False, alpha=0.5)
+    ax1.plot([47.5, 47.5], ax1.get_ylim(), color=sound_colors[obj1_goal_sound-1],
+             linestyle='--', lw=0.5, clip_on=False, alpha=0.5)
+    """
     
     plt.tight_layout()
     plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{SUBJECT}', 'EnvironmentSound',
                      f'{region}_{DATE}_{PROBE}_neuron{neuron_id}.jpg'), dpi=300)
     
-    plt.close(f)
+    #plt.close(f)
     
     
     
