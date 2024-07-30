@@ -14,8 +14,7 @@ from sklearn.metrics import mean_squared_error, make_scorer
 from sklearn.model_selection import KFold
 from brainbox.population.decode import get_spike_counts_in_bins
 from brainbox.plot import peri_event_time_histogram
-from brainbox.singlecell import calculate_peths
-from msvr_functions import (paths, peri_multiple_events_time_histogram,
+from msvr_functions import (paths, peri_multiple_events_time_histogram, 
                             load_neural_data, figure_style, load_subjects)
 
 # Settings
@@ -25,6 +24,7 @@ PROBE = 'probe00'
 T_BEFORE = 1  # s
 T_AFTER = 2
 BIN_SIZE = 0.1
+SMOOTHING = 0.05
 STEP_SIZE = 0.01
 MIN_SPIKES = 10
 
@@ -123,6 +123,14 @@ for i, bin_center in enumerate(t_centers):
                 'p_object': p_object, 'p_sound': p_sound, 'p_goal': p_goal,
                 'allen_acronym': clusters['acronym'][clusters['cluster_id'] == neuron_id][0]})))
     
-    
+# %% Plot
+for n, neuron_id in enumerate(np.unique(glm_df['neuron_id'])):
+    this_df = glm_df[glm_df['neuron_id'] == neuron_id]
+    if any(this_df['p_object'] < 0.05):
+        f, ax1 = plt.subplots(1, 1, figsize=(1.75, 1.75), dpi=dpi)
+        ax1.plot(this_df['time'], this_df['coef_goal'])
+        ax1.plot(this_df['time'], this_df['coef_object'])
+        ax1.plot(this_df['time'], this_df['coef_sound'])
+        asd
 
 
