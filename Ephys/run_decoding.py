@@ -51,10 +51,10 @@ obj3_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 3)
 rew_obj1_df = pd.DataFrame(data={'times': trials[f'enterObj{sound1_obj}'],
                                  'object': 1, 'sound': trials['soundId'],
                                  'goal': (trials['soundId'] == obj1_goal_sound).astype(int)})
-rew_obj2_df = pd.DataFrame(data={'times': trials[f'enterObj{sound1_obj}'],
+rew_obj2_df = pd.DataFrame(data={'times': trials[f'enterObj{sound2_obj}'],
                                  'object': 2, 'sound': trials['soundId'],
                                  'goal': (trials['soundId'] == obj2_goal_sound).astype(int)})
-control_obj_df = pd.DataFrame(data={'times': trials[f'enterObj{sound1_obj}'],
+control_obj_df = pd.DataFrame(data={'times': trials[f'enterObj{control_obj}'],
                                     'object': 3, 'sound': trials['soundId'],
                                     'goal': (trials['soundId'] == obj3_goal_sound).astype(int)})
 all_obj_df = pd.concat((rew_obj1_df, rew_obj2_df, control_obj_df))
@@ -93,7 +93,6 @@ for i, bin_center in enumerate(t_centers):
             # Decode goal vs distractor
             accuracy_obj[obj-1], _, _ = classify(region_counts, trial_labels, random_forest, 
                                                  cross_validation=kfold_cv)
-            
             
             # Do decoding for all shuffles, use parallel processing
             results = Parallel(n_jobs=-1)(
