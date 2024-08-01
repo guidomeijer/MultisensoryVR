@@ -14,7 +14,7 @@ from sklearn.metrics import mean_squared_error, make_scorer
 from sklearn.model_selection import KFold
 from brainbox.population.decode import get_spike_counts_in_bins
 from brainbox.plot import peri_event_time_histogram
-from msvr_functions import (paths, peri_multiple_events_time_histogram, 
+from msvr_functions import (paths, peri_multiple_events_time_histogram, calculate_peths,
                             load_neural_data, figure_style, load_subjects)
 
 # Settings
@@ -23,25 +23,15 @@ DATE = '20240411'
 PROBE = 'probe00'
 T_BEFORE = 1  # s
 T_AFTER = 2
-BIN_SIZE = 0.1
-SMOOTHING = 0.05
-STEP_SIZE = 0.01
+BIN_SIZE = 0.05
+SMOOTHING = 0.1
 MIN_SPIKES = 10
-
-# Create time array
-t_centers = np.arange(-T_BEFORE + (BIN_SIZE/2), T_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
 
 # Initialize
 path_dict = paths(sync=False)
 subjects = load_subjects()
 kf = KFold(n_splits=5, shuffle=True, random_state=42)
-
-# Function to predict firing rates with a GLM
-def fit_poisson_regression(X_train, y_train, X_test):
-    X_train = sm.add_constant(X_train)
-    X_test = sm.add_constant(X_test)
-    model = sm.GLM(y_train, X_train, family=sm.families.Poisson()).fit()
-    return model, model.predict(X_test)
+colors, dpi = figure_style()
 
 # Load in data
 session_path = join(path_dict['local_data_path'], 'Subjects', f'{SUBJECT}', f'{DATE}')
@@ -66,71 +56,84 @@ obj3_df = pd.DataFrame(data={'times': trials['enterObj3'], 'object': 3, 'sound':
                              'goal': (trials['soundId'] == obj3_goal_sound).astype(int)})
 all_obj_df = pd.concat((obj1_df, obj2_df, obj3_df))
 all_obj_df = all_obj_df.sort_values(by='times').reset_index(drop=True)
-X = all_obj_df[['object', 'sound', 'goal']]  # for GLM fit
+
+# Prepare data for GLM
+X = all_obj_df[['object', 'sound', 'goal']]  
+X = sm.add_constant(X)  # Add a constant for the intercept
 
 # %% Loop over time bins
 glm_df = pd.DataFrame()
+
+peths, binned_spikes = calculate_peths(spikes['times'], spikes['clusters'],
+                                       np.unique(spikes['clusters']), all_obj_df['times'],
+                                       pre_time=T_BEFORE, post_time=T_AFTER,
+                                       bin_size=BIN_SIZE, smoothing=SMOOTHING)
+t_centers = peths['tscale']
+
 for i, bin_center in enumerate(t_centers):
     print(f'Timebin {np.round(bin_center, 2)} ({i} of {len(t_centers)})')
-    
-    # Get spike counts per trial for all neurons during this time bin
-    these_intervals = np.vstack((all_obj_df['times'] + (bin_center - (BIN_SIZE/2)),
-                                 all_obj_df['times'] + (bin_center + (BIN_SIZE/2)))).T
-    spike_counts, neuron_ids = get_spike_counts_in_bins(spikes['times'], spikes['clusters'],
-                                                        these_intervals)
-    
+       
     # Loop over neurons
-    for n, neuron_id in enumerate(neuron_ids):
-        if np.sum(spike_counts[n, :]) >= MIN_SPIKES:
+    for n, neuron_id in enumerate(np.unique(spikes['clusters'])):
+        
+        if np.sum(binned_spikes[:, n, i]) < 0.5:
             
-            # Fit the model using cross-validation
-            y = spike_counts[n, :]            
-            pseudo_r2_scores = []
-            p_values, coeffs = {col: [] for col in X.columns}, {col: [] for col in X.columns}
-            for train_index, test_index in kf.split(X):
-                X_train, X_test = X.iloc[train_index], X.iloc[test_index]
-                y_train, y_test = y[train_index], y[test_index]
+             glm_df = pd.concat((glm_df, pd.DataFrame(index=[glm_df.shape[0]], data={
+                 'neuron_id': neuron_id,
+                 'allen_acronym': clusters['acronym'][clusters['cluster_id'] == neuron_id][0],
+                 'time': bin_center,
+                 'coef_object': np.nan,
+                 'coef_sound': np.nan,
+                 'coef_goal': np.nan,
+                 'p_object': np.nan,
+                 'p_sound': np.nan,
+                 'p_goal': np.nan
+                 })))
+         
+        else:
             
-                # Fit the model and predict on the test set
-                model, y_pred = fit_poisson_regression(X_train, y_train, X_test)
-            
-                # Calculate the null deviance and residual deviance
-                null_model = sm.GLM(y_train, np.ones((len(y_train), 1)), family=sm.families.Poisson()).fit()
-                null_deviance = null_model.deviance
-                residual_deviance = model.deviance
-            
-                # Calculate pseudo R^2
-                pseudo_r2 = 1 - (residual_deviance / null_deviance)
-                pseudo_r2_scores.append(pseudo_r2)
+            try:
+                # Fit the GLM model with a Poisson regression
+                glm_model = sm.GLM(binned_spikes[:, n, i], X, family=sm.families.Poisson()).fit()
+            except Exception:
+                glm_df = pd.concat((glm_df, pd.DataFrame(index=[glm_df.shape[0]], data={
+                    'neuron_id': neuron_id,
+                    'allen_acronym': clusters['acronym'][clusters['cluster_id'] == neuron_id][0],
+                    'time': bin_center,
+                    'coef_object': np.nan,
+                    'coef_sound': np.nan,
+                    'coef_goal': np.nan,
+                    'p_object': np.nan,
+                    'p_sound': np.nan,
+                    'p_goal': np.nan
+                    })))
                 
-                for col in X.columns:
-                    p_values[col].append(model.pvalues[col])
-                    coeffs[col].append(model.params[col])
-                
-            # Get means over folds
-            p_object = np.mean(p_values['object'])
-            p_sound = np.mean(p_values['sound'])
-            p_goal = np.mean(p_values['goal'])
-            pseudo_r2 = np.mean(pseudo_r2_scores)
-            coef_object = np.mean(coeffs['object'])
-            coef_sound = np.mean(coeffs['sound'])
-            coef_goal = np.mean(coeffs['goal'])
-            
-            # Add to dataframe
             glm_df = pd.concat((glm_df, pd.DataFrame(index=[glm_df.shape[0]], data={
-                'neuron_id': neuron_id, 'time': bin_center, 'pseudo_R2': pseudo_r2,
-                'coef_object': coef_object, 'coef_sound': coef_sound, 'coef_goal': coef_goal, 
-                'p_object': p_object, 'p_sound': p_sound, 'p_goal': p_goal,
-                'allen_acronym': clusters['acronym'][clusters['cluster_id'] == neuron_id][0]})))
-    
+                'neuron_id': neuron_id,
+                'allen_acronym': clusters['acronym'][clusters['cluster_id'] == neuron_id][0],
+                'time': bin_center,
+                'coef_object': glm_model.params['object'],
+                'coef_sound': glm_model.params['sound'],
+                'coef_goal': glm_model.params['goal'], 
+                'p_object': glm_model.pvalues['object'],
+                'p_sound': glm_model.pvalues['sound'],
+                'p_goal': glm_model.pvalues['goal']
+                })))
+                        
+# Save to disk
+glm_df.to_csv(join(path_dict['save_path'], 'glm_results.csv'), index=False)
+
+"""            
 # %% Plot
 for n, neuron_id in enumerate(np.unique(glm_df['neuron_id'])):
+    
+    neuron_id = 311
     this_df = glm_df[glm_df['neuron_id'] == neuron_id]
-    if any(this_df['p_object'] < 0.05):
-        f, ax1 = plt.subplots(1, 1, figsize=(1.75, 1.75), dpi=dpi)
-        ax1.plot(this_df['time'], this_df['coef_goal'])
-        ax1.plot(this_df['time'], this_df['coef_object'])
-        ax1.plot(this_df['time'], this_df['coef_sound'])
-        asd
+
+    f, ax1 = plt.subplots(1, 1, figsize=(1.75, 1.75), dpi=dpi)
+    ax1.plot(this_df['time'], np.abs(this_df['coef_goal']))
+    ax1.plot(this_df['time'], np.abs(this_df['coef_object']))
+    ax1.plot(this_df['time'], np.abs(this_df['coef_sound']))
+"""
 
 

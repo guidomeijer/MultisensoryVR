@@ -20,9 +20,11 @@ import json
 import shutil
 import datetime
 from os.path import join, realpath, dirname, isfile, split, isdir
+from iblutil.numerical import ismember
+from iblatlas.atlas import BrainRegions
 
 
-def paths(sync=True, full_sync=False, force_sync=False):
+def paths(sync=False, full_sync=False, force_sync=False):
     """
     Load in figure path from paths.json, if this file does not exist it will be generated from
     user input
@@ -195,7 +197,7 @@ def load_subjects():
     return subjects
 
 
-def load_neural_data(session_path, probe, histology=True, only_good=True):
+def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr=0.05):
     """
     Helper function to read in the spike sorting output from the Power Pixels pipeline.
 
@@ -211,6 +213,9 @@ def load_neural_data(session_path, probe, histology=True, only_good=True):
     only_good : bool, optional
         Whether to only load in neurons that have been manually labelled in Phy.
         The default is True.
+    min_fr : float, optional
+        Only return neurons with a firing rate of minimally this value in spikes/s over the entire 
+        recording
 
     Returns
     -------
@@ -232,7 +237,6 @@ def load_neural_data(session_path, probe, histology=True, only_good=True):
     if isfile(join(session_path, probe, 'spikes.distances.npy')):
         spikes['distances'] = np.load(join(session_path, probe, 'spikes.distances.npy'))
         
-    
     # Load in cluster data
     clusters = dict()
     clusters['channels'] = np.load(join(session_path, probe, 'clusters.channels.npy'))
@@ -252,6 +256,11 @@ def load_neural_data(session_path, probe, histology=True, only_good=True):
     if isfile(join(session_path, probe, 'cluster_group.tsv')):
         clusters['manual_label'] = pd.read_csv(join(session_path, probe, 'cluster_group.tsv'),
                                                sep='\t')['group']
+        
+    # Add neuron firing rates
+    clusters['firing_rate'] =  np.array([spikes['times'][spikes['clusters'] == i].shape[0]
+                                         / spikes['times'][-1] for i in clusters['cluster_id']])
+    
     # Load in channel data
     channels = dict()
     if histology:
@@ -281,31 +290,83 @@ def load_neural_data(session_path, probe, histology=True, only_good=True):
         
         # Use the channel location to infer the brain regions of the clusters
         clusters['acronym'] = channels['acronym'][clusters['channels']]
+        clusters['region'] = combine_regions(clusters['acronym'], abbreviate=True,
+                                             brainregions=BrainRegions())
+        clusters['full_region'] = combine_regions(clusters['acronym'], abbreviate=False,
+                                                  brainregions=BrainRegions())
             
     # Load in the local coordinates of the probe
     local_coordinates = np.load(join(session_path, probe, 'channels.localCoordinates.npy'))  
     channels['lateral_um'] = local_coordinates[:, 0]
     channels['axial_um'] = local_coordinates[:, 1]
         
-    # Only keep the neurons that are manually labeled as good
-    if only_good:
+    # Exclude neurons that are not labelled good or with firing rates which are too low
+    select_units = np.ones(clusters['cluster_id'].shape[0]).astype(bool)
+    select_units[np.where(clusters['firing_rate'] < min_fr)[0]] = False
+    if only_good:     
         if 'manual_label' not in clusters.keys():
             raise Exception('No manual cluster labels found! Set only_good to False to load all neurons.')
-        good_units = np.where(clusters['manual_label'] == 'good')[0]
-        spikes['times'] = spikes['times'][np.isin(spikes['clusters'], good_units)]
-        spikes['amps'] = spikes['amps'][np.isin(spikes['clusters'], good_units)]
-        spikes['depths'] = spikes['depths'][np.isin(spikes['clusters'], good_units)]
-        if 'distances' in spikes.keys():
-            spikes['distances'] = spikes['distances'][np.isin(spikes['clusters'], good_units)]
-        spikes['clusters'] = spikes['clusters'][np.isin(spikes['clusters'], good_units)]
-        if histology:
-            clusters['acronym'] = clusters['acronym'][good_units]
-        clusters['depths'] = clusters['depths'][good_units]
-        clusters['amps'] = clusters['amps'][good_units]
-        clusters['cluster_id'] = clusters['cluster_id'][good_units]
-            
+        select_units[np.where(clusters['manual_label'] != 'good')[0]] = False
+    keep_units = clusters['cluster_id'][select_units]
+    spikes['times'] = spikes['times'][np.isin(spikes['clusters'], keep_units)]
+    spikes['amps'] = spikes['amps'][np.isin(spikes['clusters'], keep_units)]
+    spikes['depths'] = spikes['depths'][np.isin(spikes['clusters'], keep_units)]
+    if 'distances' in spikes.keys():
+        spikes['distances'] = spikes['distances'][np.isin(spikes['clusters'], keep_units)]
+    spikes['clusters'] = spikes['clusters'][np.isin(spikes['clusters'], keep_units)]
+    if histology:
+        clusters['acronym'] = clusters['acronym'][keep_units]
+        clusters['region'] = clusters['region'][keep_units]
+        clusters['full_region'] = clusters['full_region'][keep_units]
+    clusters['depths'] = clusters['depths'][keep_units]
+    clusters['amps'] = clusters['amps'][keep_units]
+    clusters['cluster_id'] = clusters['cluster_id'][keep_units]
     
     return spikes, clusters, channels
+    
+
+def remap(acronyms, source='Allen', dest='Beryl', brainregions=None):
+    br = brainregions or BrainRegions()
+    _, inds = ismember(br.acronym2id(acronyms), br.id[br.mappings[source]])
+    remapped_acronyms = br.get(br.id[br.mappings[dest][inds]])['acronym']
+    return remapped_acronyms
+
+
+def get_full_region_name(acronyms, brainregions=None):
+    br = brainregions or BrainRegions()
+    full_region_names = []
+    for i, acronym in enumerate(acronyms):
+        try:
+            regname = br.name[np.argwhere(br.acronym == acronym).flatten()][0]
+            full_region_names.append(regname)
+        except IndexError:
+            full_region_names.append(acronym)
+    if len(full_region_names) == 1:
+        return full_region_names[0]
+    else:
+        return full_region_names
+    
+    
+def combine_regions(allen_acronyms, abbreviate=False, brainregions=None):
+    br = brainregions or BrainRegions()
+    acronyms = remap(allen_acronyms)  # remap to Beryl
+    regions = np.array(['root'] * len(acronyms), dtype=object)
+    if abbreviate:
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'PERI'
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'PERI'
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('ENT'))['acronym'])] = 'ENT'
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('VIS'))['acronym'])] = 'VIS'
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('AUD'))['acronym'])] = 'AUD'
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('TEa'))['acronym'])] = 'TEa'
+    else:
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'Perirhinal cortex'
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'Perirhinal cortex'
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('ENT'))['acronym'])] = 'Enthorhinal cortex'
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('VIS'))['acronym'])] = 'Visual cortex'
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('AUD'))['acronym'])] = 'Auditory cortex'
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('TEa'))['acronym'])] = 'Temporal association area'
+
+    return regions
 
 
 def bandpass_filter(data, lowcut, highcut, fs, order=5):
@@ -449,14 +510,14 @@ def calculate_peths(
 
     # average
     if smoothing > 0:
-        binned_spikes_ = np.copy(binned_spikes_conv)
+        binned_spikes = np.copy(binned_spikes_conv)
     else:
-        binned_spikes_ = np.copy(binned_spikes)
+        binned_spikes = np.copy(binned_spikes)
     if return_fr:
-        binned_spikes_ /= bin_size
+        binned_spikes /= bin_size
 
-    peth_means = np.mean(binned_spikes_, axis=0)
-    peth_stds = np.std(binned_spikes_, axis=0)
+    peth_means = np.mean(binned_spikes, axis=0)
+    peth_stds = np.std(binned_spikes, axis=0)
 
     if smoothing > 0:
         peth_means = peth_means[:, n_offset:-n_offset]

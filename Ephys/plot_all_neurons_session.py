@@ -24,7 +24,7 @@ MIN_SPEED = 50  # mm/s
 MIN_FR = 1
 
 # Time
-T_BEFORE = 1  # s
+T_BEFORE = 2  # s
 T_AFTER = 2
 T_BIN_SIZE = 0.025
 T_SMOOTHING = 0.1
