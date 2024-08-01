@@ -291,7 +291,7 @@ for i, neuron_id in enumerate(clusters['cluster_id']):
                                              {'color': colors['sound2'], 'lw': 0.5}],
                               eventline_kwargs={'lw': 0}, include_raster=True)
     y_max = ax1.get_ylim()[1]
-    if y_max > 1:
+    if y_max > 1.95:
         y_max = int(np.ceil(y_max))
     else:
         y_max = np.round(y_max + 0.1, decimals=1) 
