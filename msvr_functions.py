@@ -320,6 +320,7 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
         clusters['full_region'] = clusters['full_region'][keep_units]
     clusters['depths'] = clusters['depths'][keep_units]
     clusters['amps'] = clusters['amps'][keep_units]
+    clusters['firing_rate'] = clusters['firing_rate'][keep_units]
     clusters['cluster_id'] = clusters['cluster_id'][keep_units]
     
     return spikes, clusters, channels

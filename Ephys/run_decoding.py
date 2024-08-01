@@ -5,6 +5,7 @@ Created on Mon Jul 29 09:53:26 2024 by Guido Meijer
 
 
 import numpy as np
+np.random.seed(42)
 from os.path import join
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
@@ -22,11 +23,12 @@ DATE = '20240411'
 PROBE = 'probe00'
 T_BEFORE = 2  # s
 T_AFTER = 2
-BIN_SIZE = 0.3
+BIN_SIZE = 0.25
 STEP_SIZE = 0.01
 N_NEURONS = 30
 N_NEURON_PICKS = 100
 N_SHUFFLES = 500
+ONLY_GOOD_NEURONS = True
 
 # Create time array
 t_centers = np.arange(-T_BEFORE + (BIN_SIZE/2), T_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
@@ -41,7 +43,8 @@ clf = LogisticRegression(solver='liblinear', max_iter=1000, random_state=42)
 
 # Load in data
 session_path = join(path_dict['local_data_path'], 'Subjects', f'{SUBJECT}', f'{DATE}')
-spikes, clusters, channels = load_neural_data(session_path, PROBE, histology=True, only_good=False)
+spikes, clusters, channels = load_neural_data(session_path, PROBE, histology=True,
+                                              only_good=ONLY_GOOD_NEURONS)
 trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'trials.csv'))
 
 # Get reward contingencies
