@@ -8,6 +8,8 @@ import numpy as np
 from os.path import join
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import KFold
 from sklearn.utils import shuffle
 from brainbox.population.decode import get_spike_counts_in_bins, classify
@@ -20,8 +22,10 @@ DATE = '20240411'
 PROBE = 'probe00'
 T_BEFORE = 2  # s
 T_AFTER = 2
-BIN_SIZE = 0.2
-STEP_SIZE = 0.05
+BIN_SIZE = 0.3
+STEP_SIZE = 0.01
+N_NEURONS = 30
+N_NEURON_PICKS = 100
 N_SHUFFLES = 500
 
 # Create time array
@@ -31,11 +35,13 @@ t_centers = np.arange(-T_BEFORE + (BIN_SIZE/2), T_AFTER - ((BIN_SIZE/2) - STEP_S
 path_dict = paths(sync=False)
 subjects = load_subjects()
 kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
-random_forest = RandomForestClassifier(n_jobs=-1, random_state=42)
+#clf = RandomForestClassifier(random_state=42)
+#clf = GaussianNB()
+clf = LogisticRegression(solver='liblinear', max_iter=1000, random_state=42)
 
 # Load in data
 session_path = join(path_dict['local_data_path'], 'Subjects', f'{SUBJECT}', f'{DATE}')
-spikes, clusters, channels = load_neural_data(session_path, PROBE, histology=True, only_good=True)
+spikes, clusters, channels = load_neural_data(session_path, PROBE, histology=True, only_good=False)
 trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'trials.csv'))
 
 # Get reward contingencies
@@ -60,6 +66,19 @@ control_obj_df = pd.DataFrame(data={'times': trials[f'enterObj{control_obj}'],
 all_obj_df = pd.concat((rew_obj1_df, rew_obj2_df, control_obj_df))
 all_obj_df = all_obj_df.sort_values(by='times').reset_index(drop=True)
 
+# %% Functions
+
+def classify_subselection(spike_counts, n_neurons, trial_labels, clf, cv):
+    
+    # Subselect neurons
+    these_neurons = np.random.choice(np.arange(spike_counts.shape[1]), N_NEURONS)
+
+    # Decode goal vs distractor
+    accuracy, _, _ = classify(spike_counts[:, these_neurons], trial_labels, clf, cross_validation=cv)
+    
+    return accuracy
+    
+
 # %% Loop over time bins
 decode_df, shuffles_df = pd.DataFrame(), pd.DataFrame()
 for i, bin_center in enumerate(t_centers):
@@ -76,12 +95,13 @@ for i, bin_center in enumerate(t_centers):
     for r, region in enumerate(np.unique(clusters['region'])):
         if region == 'root':
             continue
-        print(f'Region {region}')
+        if np.sum(clusters['region'] == region) < N_NEURONS:
+            continue
+        region_neuron_ids = clusters['cluster_id'][clusters['region'] == region]
         
         # Do decoding per object
         accuracy_obj = np.empty(3)
         for obj in [1, 2, 3]:
-            print(f'Object {obj} of 3')
         
             # Select neurons from this region and trials of this object
             region_counts = spike_counts[np.ix_(all_obj_df['object'] == obj,
@@ -90,10 +110,17 @@ for i, bin_center in enumerate(t_centers):
             # Get whether this object was a goal or a distractor
             trial_labels = all_obj_df.loc[all_obj_df['object'] == obj, 'sound'].values
             
-            # Decode goal vs distractor
-            accuracy_obj[obj-1], _, _ = classify(region_counts, trial_labels, random_forest, 
-                                                 cross_validation=kfold_cv)
+            # Do decoding with random subselection of neurons, use parallel processing
+            results = Parallel(n_jobs=-1)(
+                delayed(classify_subselection)(region_counts, N_NEURONS, trial_labels, clf, kfold_cv)
+                for i in range(N_NEURON_PICKS))
+            accuracy_obj = np.array([result for result in results])
             
+            # Add to dataframe
+            decode_df = pd.concat((decode_df, pd.DataFrame(data={
+                'time': bin_center, 'accuracy': accuracy_obj, 'object': obj, 'region': region})))
+            
+            """
             # Do decoding for all shuffles, use parallel processing
             results = Parallel(n_jobs=-1)(
                 delayed(classify)(
@@ -103,14 +130,11 @@ for i, bin_center in enumerate(t_centers):
             acc_shuffles = np.array([result[0] for result in results])
             shuffles_df = pd.concat((shuffles_df, pd.DataFrame(data={
                 'time': bin_center, 'accuracy': acc_shuffles, 'object': obj, 'region': region})))
-            
-        # Add to dataframe
-        decode_df = pd.concat((decode_df, pd.DataFrame(data={
-            'time': bin_center, 'accuracy': accuracy_obj, 'object': [1, 2, 3], 'region': region})))
+            """
         
     # Save to disk
     decode_df.to_csv(join(path_dict['save_path'], 'decode_goal_distractor.csv'), index=False)
-    shuffles_df.to_csv(join(path_dict['save_path'], 'decode_goal_distractor_shuffles.csv'), index=False)
+    #shuffles_df.to_csv(join(path_dict['save_path'], 'decode_goal_distractor_shuffles.csv'), index=False)
             
             
             
