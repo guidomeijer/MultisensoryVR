@@ -95,33 +95,23 @@ for i, bin_center in enumerate(t_centers):
                                                  cross_validation=kfold_cv)
             
             
-            # Do decoding for shuffled trial lables
+            # Do decoding for all shuffles, use parallel processing
             results = Parallel(n_jobs=-1)(
-                delayed(classify)(region_counts, shuffle(trial_labels), random_forest, cross_validation=kfold_cv)
+                delayed(classify)(
+                    region_counts, shuffle(trial_labels),
+                    random_forest, cross_validation=kfold_cv)
                 for i in range(N_SHUFFLES))
-            """
-            acc_shuffles = np.empty(N_SHUFFLES)
-            for ii in range(N_SHUFFLES):
-                if np.mod(ii, 100) == 0:
-                    print(f'Shuffle {ii} of {N_SHUFFLES}')
-                
-                    
-                    
-                acc_shuffles[ii], _, _ = classify(region_counts, shuffle(trial_labels),
-                                                  random_forest, cross_validation=kfold_cv)
-            """
-            asd
+            acc_shuffles = np.array([result[0] for result in results])
             shuffles_df = pd.concat((shuffles_df, pd.DataFrame(data={
                 'time': bin_center, 'accuracy': acc_shuffles, 'object': obj, 'region': region})))
-            
             
         # Add to dataframe
         decode_df = pd.concat((decode_df, pd.DataFrame(data={
             'time': bin_center, 'accuracy': accuracy_obj, 'object': [1, 2, 3], 'region': region})))
         
     # Save to disk
-    #decode_df.to_csv(join(path_dict['save_path'], 'decode_goal_distractor.csv'), index=False)
-    #shuffles_df.to_csv(join(path_dict['save_path'], 'decode_goal_distractor_shuffles.csv'), index=False)
+    decode_df.to_csv(join(path_dict['save_path'], 'decode_goal_distractor.csv'), index=False)
+    shuffles_df.to_csv(join(path_dict['save_path'], 'decode_goal_distractor_shuffles.csv'), index=False)
             
             
             
