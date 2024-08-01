@@ -9,6 +9,7 @@ from os.path import join
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import KFold
+from sklearn.utils import shuffle
 from brainbox.population.decode import get_spike_counts_in_bins, classify
 from msvr_functions import paths, load_neural_data, load_subjects
 
@@ -57,10 +58,9 @@ control_obj_df = pd.DataFrame(data={'times': trials[f'enterObj{sound1_obj}'],
                                     'goal': (trials['soundId'] == obj3_goal_sound).astype(int)})
 all_obj_df = pd.concat((rew_obj1_df, rew_obj2_df, control_obj_df))
 all_obj_df = all_obj_df.sort_values(by='times').reset_index(drop=True)
-X = all_obj_df[['object', 'sound', 'goal']]  # for GLM fit
 
 # %% Loop over time bins
-decode_df = pd.DataFrame()
+decode_df, shuffles_df = pd.DataFrame(), pd.DataFrame()
 for i, bin_center in enumerate(t_centers):
     print(f'Timebin {np.round(bin_center, 2)} ({i} of {len(t_centers)})')
     
@@ -79,7 +79,6 @@ for i, bin_center in enumerate(t_centers):
         
         # Do decoding per object
         accuracy_obj = np.empty(3)
-        acc_obj_shuffles = np.empty()
         for obj in [1, 2, 3]:
         
             # Select neurons from this region and trials of this object
@@ -92,14 +91,23 @@ for i, bin_center in enumerate(t_centers):
             # Decode goal vs distractor
             accuracy_obj[obj-1], _, _ = classify(region_counts, trial_labels, random_forest, 
                                                  cross_validation=kfold_cv)
-        
+            
+            # Do decoding for shuffled trial lables
+            acc_shuffles = np.empty(N_SHUFFLES)
+            for ii in range(N_SHUFFLES):
+                acc_shuffles[ii], _, _ = classify(region_counts, shuffle(trial_labels),
+                                                  random_forest, cross_validation=kfold_cv)
+            
+            shuffles_df = pd.concat((shuffles_df, pd.DataFrame(data={
+                'time': bin_center, 'accuracy': acc_shuffles, 'object': obj, 'region': region})))
+            
         # Add to dataframe
         decode_df = pd.concat((decode_df, pd.DataFrame(data={
-            'accuracy': accuracy_obj,
-            'object': ['rewarded_1', 'rewarded_2', 'control'],
-            'region': region
-            })))
-            
+            'time': bin_center, 'accuracy': accuracy_obj, 'object': [1, 2, 3], 'region': region})))
+        
+    # Save to disk
+    decode_df.to_csv(join(path_dict['save_path'], 'decode_goal_distractor.csv'), index=False)
+    shuffles_df.to_csv(join(path_dict['save_path'], 'decode_goal_distractor_shuffles.csv'), index=False)
             
             
             
