@@ -24,7 +24,7 @@ PROBE = 'probe00'
 T_BEFORE = 2  # s
 T_AFTER = 2
 BIN_SIZE = 0.25
-STEP_SIZE = 0.01
+STEP_SIZE = 0.05
 N_NEURONS = 30
 N_NEURON_PICKS = 100
 N_SHUFFLES = 500
@@ -74,7 +74,7 @@ all_obj_df = all_obj_df.sort_values(by='times').reset_index(drop=True)
 def classify_subselection(spike_counts, n_neurons, trial_labels, clf, cv):
     
     # Subselect neurons
-    these_neurons = np.random.choice(np.arange(spike_counts.shape[1]), N_NEURONS)
+    these_neurons = np.random.choice(np.arange(spike_counts.shape[1]), N_NEURONS, replace=False)
 
     # Decode goal vs distractor
     accuracy, _, _ = classify(spike_counts[:, these_neurons], trial_labels, clf, cross_validation=cv)
@@ -100,7 +100,6 @@ for i, bin_center in enumerate(t_centers):
             continue
         if np.sum(clusters['region'] == region) < N_NEURONS:
             continue
-        region_neuron_ids = clusters['cluster_id'][clusters['region'] == region]
         
         # Do decoding per object
         accuracy_obj = np.empty(3)
@@ -122,22 +121,9 @@ for i, bin_center in enumerate(t_centers):
             # Add to dataframe
             decode_df = pd.concat((decode_df, pd.DataFrame(data={
                 'time': bin_center, 'accuracy': accuracy_obj, 'object': obj, 'region': region})))
-            
-            """
-            # Do decoding for all shuffles, use parallel processing
-            results = Parallel(n_jobs=-1)(
-                delayed(classify)(
-                    region_counts, shuffle(trial_labels),
-                    random_forest, cross_validation=kfold_cv)
-                for i in range(N_SHUFFLES))
-            acc_shuffles = np.array([result[0] for result in results])
-            shuffles_df = pd.concat((shuffles_df, pd.DataFrame(data={
-                'time': bin_center, 'accuracy': acc_shuffles, 'object': obj, 'region': region})))
-            """
         
     # Save to disk
     decode_df.to_csv(join(path_dict['save_path'], 'decode_goal_distractor.csv'), index=False)
-    #shuffles_df.to_csv(join(path_dict['save_path'], 'decode_goal_distractor_shuffles.csv'), index=False)
             
             
             
