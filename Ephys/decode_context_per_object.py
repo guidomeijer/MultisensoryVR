@@ -85,7 +85,8 @@ def classify_subselection(spike_counts, n_neurons, trial_labels, clf, cv):
 # %% Loop over time bins
 decode_df, shuffles_df = pd.DataFrame(), pd.DataFrame()
 for i, bin_center in enumerate(t_centers):
-    print(f'Timebin {np.round(bin_center, 2)} ({i} of {len(t_centers)})')
+    if np.mod(i, 10) == 0:
+        print(f'Timebin {np.round(bin_center, 2)} ({i} of {len(t_centers)})')
     
     # Get spike counts per trial for all neurons during this time bin
     these_intervals = np.vstack((all_obj_df['times'] + (bin_center - (BIN_SIZE/2)),
@@ -123,7 +124,7 @@ for i, bin_center in enumerate(t_centers):
                 'time': bin_center, 'accuracy': accuracy_obj, 'object': obj, 'region': region})))
         
     # Save to disk
-    decode_df.to_csv(join(path_dict['save_path'], 'decode_goal_distractor.csv'), index=False)
+    decode_df.to_csv(join(path_dict['save_path'], 'decode_context_per_object.csv'), index=False)
             
             
             
