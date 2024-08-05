@@ -13,9 +13,10 @@ colors, dpi = figure_style()
 
 # Load in data
 path_dict = paths()
-obj_context_df = pd.read_csv(join(path_dict['save_path'], 'decode_goal_distractor.csv'))
+obj_context_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_per_object.csv'))
 context_onset_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_onset.csv'))
 obj_id_df = pd.read_csv(join(path_dict['save_path'], 'decode_object_identity.csv'))
+context_env_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_environment.csv')) 
 
 """
 # Subtract the mean decoding accuracy of the control object during the pre window from object 2
@@ -78,6 +79,19 @@ sns.lineplot(obj_id_df, x='time', y='accuracy', hue='region', ax=ax1, errorbar='
 ax1.plot(ax1.get_xlim(), [0.33, 0.33], ls='--', color='grey', zorder=0, lw=0.75)
 ax1.set(ylim=[0.3, 0.7], ylabel='Object decoding accuracy (%)', xticks=[-2, -1, 0, 1],
         yticks=[0.3, 0.4, 0.5, 0.6, 0.7], xlabel='Time from object entry (s)')
+ax1.legend().set_title('')
+
+sns.despine(trim=True)
+plt.tight_layout()
+
+# %%
+
+f, ax1 = plt.subplots(1, 1, figsize=(1.75, 1.75), dpi=dpi)
+sns.lineplot(context_env_df, x='time', y='accuracy', hue='region', ax=ax1, errorbar='se',
+             zorder=1, err_kws={'lw': 0})
+ax1.plot(ax1.get_xlim(), [0.5, 0.5], ls='--', color='grey', zorder=0, lw=0.75)
+ax1.set(ylim=[0.3, 0.9], ylabel='Object decoding accuracy (%)', xticks=[0, 50, 100, 150],
+        yticks=[0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9], xlabel='Distance from environment entry (cm)')
 ax1.legend().set_title('')
 
 sns.despine(trim=True)
