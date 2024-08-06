@@ -16,9 +16,8 @@ import matplotlib.pyplot as plt
 from brainbox import singlecell
 from scipy.signal import convolve
 from scipy.signal.windows import gaussian
-import json
-import shutil
-import datetime
+import json, shutil, datetime
+from glob import glob
 from os.path import join, realpath, dirname, isfile, split, isdir
 from iblutil.numerical import ismember
 from iblatlas.atlas import BrainRegions
@@ -359,6 +358,35 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
     clusters['cluster_id'] = clusters['cluster_id'][keep_units]
     
     return spikes, clusters, channels
+    
+
+def load_all_probes(session_path, **kwargs):
+    """
+    Load all simultaneously recorded probes of a single session
+
+    Parameters
+    ----------
+    session_path : str
+        Path to session data.
+    **kwargs 
+        Extra inputs to the load_neural_data function.
+
+    Returns
+    -------
+    spikes : dict
+    clusters : dict
+    channels : dict
+    """
+    
+    # Get all probes of session
+    probe_paths = glob(join(session_path, 'probe*'))
+    probes = [split(i)[-1] for i in probe_paths]
+    spikes, clusters, channels = dict(), dict(), dict()
+    for probe in probes:
+        spikes[probe], clusters[probe], channels[probe] = load_neural_data(
+            session_path, probe, **kwargs)
+    
+    return spikes, clusters, channels    
     
 
 def remap(acronyms, source='Allen', dest='Beryl', brainregions=None):
