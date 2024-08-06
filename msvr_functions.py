@@ -77,6 +77,8 @@ def paths(sync=False, full_sync=False, force_sync=False):
         sync_time = datetime.datetime.now() - datetime.timedelta(hours=24)
 
     # Synchronize server with local data once a day
+    if force_sync:
+        sync = True
     if sync:
         if ((datetime.datetime.now() - sync_time).total_seconds() > 12*60*60) | force_sync:
             print('Synchronizing data from server with local data folder')

@@ -63,6 +63,8 @@ for i, subject in enumerate(PLOT_SUBJECTS):
                                                  'DateFinalTask'].values[0]]
     if len(sessions) == 0:
         continue
+    elif len(sessions) > 16:
+        sessions = sessions[-16:]
 
     # Create breathing figure
     f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4,
