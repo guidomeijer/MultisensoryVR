@@ -13,7 +13,7 @@ colors, dpi = figure_style()
 
 # Load in data
 path_dict = paths()
-corr_df = pd.read_csv(join(path_dict['save_path'], 'region_corr_100ms-bins.csv'))
+corr_df = pd.read_csv(join(path_dict['save_path'], 'region_corr_50ms-bins.csv'))
 
 # Plot
 region_pairs = np.unique(corr_df['region_pair'])

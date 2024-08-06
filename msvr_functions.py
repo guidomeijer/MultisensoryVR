@@ -141,6 +141,39 @@ def paths(sync=False, full_sync=False, force_sync=False):
     return path_dict
 
 
+def load_objects(subject, date):
+    
+    # Initialize
+    path_dict = paths()
+    subjects = load_subjects()
+    
+    # Load in trials
+    trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', subject, date, 'trials.csv'))
+    
+    # Get reward contingencies
+    sound1_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound1Obj'].values[0]
+    sound2_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound2Obj'].values[0]
+    control_obj = subjects.loc[subjects['SubjectID'] == subject, 'ControlObject'].values[0]
+
+    obj1_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 1)[0][0] + 1
+    obj2_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 2)[0][0] + 1
+    obj3_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 3)[0][0] + 1
+
+    # Prepare trial data
+    rew_obj1_df = pd.DataFrame(data={'times': trials[f'enterObj{sound1_obj}'],
+                                     'object': 1, 'sound': trials['soundId'],
+                                     'goal': (trials['soundId'] == obj1_goal_sound).astype(int)})
+    rew_obj2_df = pd.DataFrame(data={'times': trials[f'enterObj{sound2_obj}'],
+                                     'object': 2, 'sound': trials['soundId'],
+                                     'goal': (trials['soundId'] == obj2_goal_sound).astype(int)})
+    control_obj_df = pd.DataFrame(data={'times': trials[f'enterObj{control_obj}'],
+                                        'object': 3, 'sound': trials['soundId'],
+                                        'goal': (trials['soundId'] == obj3_goal_sound).astype(int)})
+    all_obj_df = pd.concat((rew_obj1_df, rew_obj2_df, control_obj_df))
+    
+    return all_obj_df
+
+
 def figure_style(font_size=7):
     """
     Set style for plotting figures
