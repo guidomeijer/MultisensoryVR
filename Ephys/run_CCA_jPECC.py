@@ -14,15 +14,15 @@ from scipy.signal.windows import gaussian
 from sklearn.cross_decomposition import CCA
 from sklearn.decomposition import PCA
 from sklearn.model_selection import KFold
-from msvr_functions import paths, load_all_probes, load_objects, calculate_peths
+from msvr_functions import paths, load_multiple_probes, load_objects, calculate_peths
 cca = CCA(n_components=1, max_iter=5000)
 pca = PCA(n_components=10)
 
 # Settings
-OVERWRITE = False  # whether to overwrite existing runs
+OVERWRITE = True  # whether to overwrite existing runs
 N_PC = 10  # number of PCs to use
 MIN_NEURONS = 10  # minimum neurons per region
-WIN_SIZE = 0.1  # window size in seconds
+WIN_SIZE = 0.01  # window size in seconds
 PRE_TIME = 1  # time before stim onset in s
 POST_TIME = 2  # time after stim onset in s
 SMOOTHING = 0.025  # smoothing of psth
@@ -79,7 +79,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
     
     # Load in neural data
     session_path = join(path_dict['local_data_path'], 'Subjects', f'{subject}', f'{date}')
-    spikes, clusters, channels = load_all_probes(session_path, min_fr=MIN_FR)
+    spikes, clusters, channels = load_multiple_probes(session_path, probes=['probe00'], min_fr=MIN_FR)
     
     # Create population activity arrays for all regions
     pca_goal, pca_dis, spks_goal, spks_dis = dict(), dict(), dict(), dict()
@@ -199,5 +199,5 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                 'r_opto': [r_goal], 'p_opto': [p_goal], 'time': [psth_goal['tscale']]})))
 
     # Save to disk        
-    cca_df.to_pickle(join(path_dict['save_path'], 'jPECC_goal_{int(WIN_SIZE*1000)}ms-bins.pickle'))
+    cca_df.to_pickle(join(path_dict['save_path'], f'jPECC_goal_{int(WIN_SIZE*1000)}ms-bins.pickle'))
 

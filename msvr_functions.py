@@ -360,7 +360,7 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
     return spikes, clusters, channels
     
 
-def load_all_probes(session_path, **kwargs):
+def load_multiple_probes(session_path, probes=[], **kwargs):
     """
     Load all simultaneously recorded probes of a single session
 
@@ -368,6 +368,8 @@ def load_all_probes(session_path, **kwargs):
     ----------
     session_path : str
         Path to session data.
+    probes : list
+        List of probes to load in, by default load all probes
     **kwargs 
         Extra inputs to the load_neural_data function.
 
@@ -378,9 +380,12 @@ def load_all_probes(session_path, **kwargs):
     channels : dict
     """
     
-    # Get all probes of session
-    probe_paths = glob(join(session_path, 'probe*'))
-    probes = [split(i)[-1] for i in probe_paths]
+    if len(probes) == 0:
+        # Get all probes of session
+        probe_paths = glob(join(session_path, 'probe*'))
+        probes = [split(i)[-1] for i in probe_paths]
+    
+    # Load in neural data per probe
     spikes, clusters, channels = dict(), dict(), dict()
     for probe in probes:
         spikes[probe], clusters[probe], channels[probe] = load_neural_data(
