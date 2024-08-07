@@ -215,7 +215,7 @@ def figure_style(font_size=7):
         'sound2': matplotlib.colors.to_rgb('darkorchid')}
 
     screen_width = tk.Tk().winfo_screenwidth()
-    dpi = screen_width / 10
+    dpi = screen_width / 8
     return colors, dpi
 
 
