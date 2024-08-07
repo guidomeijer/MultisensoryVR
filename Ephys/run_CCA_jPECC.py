@@ -22,9 +22,9 @@ pca = PCA(n_components=10)
 OVERWRITE = True  # whether to overwrite existing runs
 N_PC = 10  # number of PCs to use
 MIN_NEURONS = 10  # minimum neurons per region
-WIN_SIZE = 0.01  # window size in seconds
+WIN_SIZE = 0.05  # window size in seconds
 PRE_TIME = 1  # time before stim onset in s
-POST_TIME = 2  # time after stim onset in s
+POST_TIME = 1  # time after stim onset in s
 SMOOTHING = 0.025  # smoothing of psth
 SUBTRACT_MEAN = False  # whether to subtract the mean PSTH from each trial
 DIV_BASELINE = True  # whether to divide over baseline + 1 spk/s
@@ -85,15 +85,9 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
     pca_goal, pca_dis, spks_goal, spks_dis = dict(), dict(), dict(), dict()
     for probe in spikes.keys():
         for region in np.unique(clusters[probe]['region']):
-  
-            # Exclude neurons with low firing rates
-            clusters_in_region = np.where(clusters[probe]['region'] == region)[0]
-            fr = np.empty(clusters_in_region.shape[0])
-            for nn, neuron_id in enumerate(clusters_in_region):
-                fr[nn] = np.sum(spikes[probe]['clusters'] == neuron_id) / spikes[probe]['clusters'][-1]
-            clusters_in_region = clusters_in_region[fr >= MIN_FR]
-  
+    
             # Get spikes and clusters
+            clusters_in_region = np.where(clusters[probe]['region'] == region)[0]
             spks_region = spikes[probe]['times'][np.isin(spikes[probe]['clusters'], clusters_in_region)]
             clus_region = spikes[probe]['clusters'][np.isin(spikes[probe]['clusters'], clusters_in_region)]
   
@@ -172,7 +166,6 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                 continue
     
             print(f'Running CCA for region pair {region_pair}')
-            print('Starting with goal object entries')
             results = Parallel(n_jobs=-1)(
                 delayed(do_cca)(pca_goal, region_1, region_2, tb_1)
                 for tb_1 in range(pca_goal[region_1].shape[2]))
@@ -185,7 +178,6 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                 'region_2': region_2, 'region_pair': region_pair, 'goal': 1,
                 'r': [r_goal], 'p': [p_goal], 'time': [psth_goal['tscale']]})))
             
-            print('Now processing with distractor object entries')
             results = Parallel(n_jobs=-1)(
                 delayed(do_cca)(pca_dis, region_1, region_2, tb_1)
                 for tb_1 in range(pca_dis[region_1].shape[2]))
