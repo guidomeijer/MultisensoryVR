@@ -12,7 +12,7 @@ from msvr_functions import paths, load_subjects, figure_style
 colors, dpi = figure_style()
 
 # Settings
-CLIM = [0, 1]
+CLIM = [-1, 1]
 #CMAP = sns.diverging_palette(250, 15, center="dark", as_cmap=True)
 CMAP = 'coolwarm'
 TICKS = [-1, 0, 1, 2]
@@ -35,14 +35,16 @@ for i, region_pair in enumerate(np.unique(cca_df['region_pair'])):
     r_diff = r_goal - r_dis
     
     # Plot
-    axs[0, i].imshow(np.flipud(r_goal), clim=CLIM, cmap=CMAP,
+    axs[0, i].imshow(np.flipud(r_goal), clim=CLIM, vmin=CLIM[0], vmax=CLIM[1],
+                     cmap=CMAP,
                      extent=[time_ax[0], time_ax[-1], time_ax[0], time_ax[-1]],
                      interpolation=None)
     axs[0, i].set(title=f'{region_pair}', yticks=TICKS, xticks=TICKS,
                   xlim=[np.round(time_ax[0]), np.round(time_ax[-1])],
                   ylim=[np.round(time_ax[0]), np.round(time_ax[-1])])
         
-    axs[1, i].imshow(np.flipud(r_dis), clim=CLIM, cmap=CMAP,
+    axs[1, i].imshow(np.flipud(r_dis), clim=CLIM,  vmin=CLIM[0], vmax=CLIM[1],
+                     cmap=CMAP,
                      extent=[time_ax[0], time_ax[-1], time_ax[0], time_ax[-1]],
                      interpolation=None)
     

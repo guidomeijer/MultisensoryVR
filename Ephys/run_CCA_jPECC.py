@@ -22,12 +22,12 @@ pca = PCA(n_components=10)
 OVERWRITE = True  # whether to overwrite existing runs
 N_PC = 10  # number of PCs to use
 MIN_NEURONS = 10  # minimum neurons per region
-WIN_SIZE = 0.05  # window size in seconds
+WIN_SIZE = 0.01  # window size in seconds
 PRE_TIME = 1  # time before stim onset in s
 POST_TIME = 1  # time after stim onset in s
 SMOOTHING = 0.025  # smoothing of psth
-SUBTRACT_MEAN = False  # whether to subtract the mean PSTH from each trial
-DIV_BASELINE = True  # whether to divide over baseline + 1 spk/s
+SUBTRACT_MEAN = True  # whether to subtract the mean PSTH from each trial
+DIV_BASELINE = False  # whether to divide over baseline + 1 spk/s
 K_FOLD = 10  # k in k-fold
 MIN_FR = 0.1  # minimum firing rate over the whole recording
 
