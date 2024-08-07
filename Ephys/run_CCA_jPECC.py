@@ -183,7 +183,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             cca_df = pd.concat((cca_df, pd.DataFrame(index=[cca_df.shape[0]], data={
                 'subject': subject, 'date': date, 'region_1': region_1,
                 'region_2': region_2, 'region_pair': region_pair, 'goal': 1,
-                'r_opto': [r_goal], 'p_opto': [p_goal], 'time': [psth_goal['tscale']]})))
+                'r': [r_goal], 'p': [p_goal], 'time': [psth_goal['tscale']]})))
             
             print('Now processing with distractor object entries')
             results = Parallel(n_jobs=-1)(
