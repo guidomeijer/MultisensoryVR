@@ -189,14 +189,14 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             results = Parallel(n_jobs=-1)(
                 delayed(do_cca)(pca_dis, region_1, region_2, tb_1)
                 for tb_1 in range(pca_dis[region_1].shape[2]))
-            r_goal = np.vstack([i[0] for i in results])
-            p_goal = np.vstack([i[1] for i in results])
+            r_dis = np.vstack([i[0] for i in results])
+            p_dis = np.vstack([i[1] for i in results])
             
             # Add to dataframe
             cca_df = pd.concat((cca_df, pd.DataFrame(index=[cca_df.shape[0]], data={
                 'subject': subject, 'date': date, 'region_1': region_1,
                 'region_2': region_2, 'region_pair': region_pair, 'goal': 0,
-                'r_opto': [r_goal], 'p_opto': [p_goal], 'time': [psth_goal['tscale']]})))
+                'r': [r_dis], 'p': [p_dis], 'time': [psth_goal['tscale']]})))
 
     # Save to disk        
     cca_df.to_pickle(join(path_dict['save_path'], f'jPECC_goal_{int(WIN_SIZE*1000)}ms-bins.pickle'))
