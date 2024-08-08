@@ -26,8 +26,8 @@ WIN_SIZE = 0.01  # window size in seconds
 PRE_TIME = 0.5  # time before stim onset in s
 POST_TIME = 0.2  # time after stim onset in s
 SMOOTHING = 0.025  # smoothing of psth
-SUBTRACT_MEAN = False  # whether to subtract the mean PSTH from each trial
-DIV_BASELINE = False  # whether to divide over baseline + 1 spk/s
+SUBTRACT_MEAN = False  # whether to subtract the mean PSTH from each trial (Semedo method)
+DIV_BASELINE = False  # whether to divide over baseline + 1 spk/s (Steinmetz method)
 K_FOLD = 10  # k in k-fold
 MIN_FR = 0.1  # minimum firing rate over the whole recording
 
@@ -45,25 +45,23 @@ if SMOOTHING > 0:
 
 # %% Function for paralization
 
-def do_cca(act_mat, region_1, region_2):
+def do_cca(act_mat, reg_1, reg_2, tb_1):
 
-    n_timebins = act_mat[region_1].shape[2]
-    r_cca, p_cca = np.empty((n_timebins, n_timebins)), np.empty((n_timebins, n_timebins))
+    r_cca, p_cca = np.empty(n_timebins), np.empty(n_timebins)
     
-    for tb_1 in range(n_timebins):
-        for tb_2 in range(n_timebins):
-        
-            # Run CCA
-            x_test = np.empty(act_mat[region_1].shape[0])
-            y_test = np.empty(act_mat[region_1].shape[0])
-            for train_index, test_index in kfold.split(act_mat[region_1][:, :, 0]):
-                cca.fit(act_mat[region_1][train_index, :, tb_1],
-                        act_mat[region_2][train_index, :, tb_2])
-                x, y = cca.transform(act_mat[region_1][test_index, :, tb_1],
-                                     act_mat[region_2][test_index, :, tb_2])
-                x_test[test_index] = x.T[0]
-                y_test[test_index] = y.T[0]
-            r_cca[tb_1, tb_2], p_cca[tb_1, tb_2] = pearsonr(x_test, y_test)
+    for tb_2 in range(n_timebins):
+    
+        # Run CCA
+        x_test = np.empty(act_mat[reg_1].shape[0])
+        y_test = np.empty(act_mat[reg_1].shape[0])
+        for train_index, test_index in kfold.split(act_mat[reg_1][:, :, 0]):
+            cca.fit(act_mat[reg_1][train_index, :, tb_1],
+                    act_mat[reg_2][train_index, :, tb_2])
+            x, y = cca.transform(act_mat[reg_1][test_index, :, tb_1],
+                                 act_mat[reg_2][test_index, :, tb_2])
+            x_test[test_index] = x.T[0]
+            y_test[test_index] = y.T[0]
+        r_cca[tb_2], p_cca[tb_2] = pearsonr(x_test, y_test)
             
     return r_cca, p_cca
 
@@ -127,7 +125,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                 pca_goal[region] = np.empty([binned_spks_goal.shape[0], N_PC, binned_spks_goal.shape[2]])
                 for tb in range(binned_spks_goal.shape[2]):
                     pca_goal[region][:, :, tb] = pca.fit_transform(binned_spks_goal[:, :, tb])
-                    
+                
                 # Get PSTH and binned spikes for distractor activity
                 dis_entries = np.sort(all_obj_df.loc[
                     (all_obj_df['goal'] == 0) & (all_obj_df['object'] != 3), 'times'].values)
@@ -173,13 +171,13 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                 continue
     
             print(f'Running CCA for region pair {region_pair}')
+            n_timebins = pca_goal[region_1].shape[2]
             results = Parallel(n_jobs=-1)(
-                delayed(do_cca)(pca_goal, region_1, region_2)
-                for k_bs in range(K_FOLD_BOOTSTRAPS))
-            r_goal = np.dstack([i[0] for i in results])
-            p_goal = np.dstack([i[1] for i in results])
-            asd
-            
+                delayed(do_cca)(pca_goal, region_1, region_2, tt)
+                for tt in range(n_timebins))
+            r_goal = np.hstack([i[0] for i in results])
+            p_goal = np.hstack([i[1] for i in results])
+                        
             # Add to dataframe
             cca_df = pd.concat((cca_df, pd.DataFrame(index=[cca_df.shape[0]], data={
                 'subject': subject, 'date': date, 'region_1': region_1,
@@ -187,10 +185,10 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                 'r': [r_goal], 'p': [p_goal], 'time': [psth_goal['tscale']]})))
             
             results = Parallel(n_jobs=-1)(
-                delayed(do_cca)(pca_dis, region_1, region_2, tb_1)
-                for tb_1 in range(pca_dis[region_1].shape[2]))
-            r_dis = np.vstack([i[0] for i in results])
-            p_dis = np.vstack([i[1] for i in results])
+                delayed(do_cca)(pca_dis, region_1, region_2, tt)
+                for tt in range(n_timebins))
+            r_dis = np.hstack([i[0] for i in results])
+            p_dis = np.hstack([i[1] for i in results])
             
             # Add to dataframe
             cca_df = pd.concat((cca_df, pd.DataFrame(index=[cca_df.shape[0]], data={
