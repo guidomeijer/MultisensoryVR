@@ -51,8 +51,8 @@ for i, subject in enumerate(PLOT_SUBJECTS):
                                                  'DateFinalTask'].values[0]]
     if len(sessions) == 0:
         continue
-    elif len(sessions) > 16:
-        sessions = sessions[-16:]
+    elif len(sessions) > 8:
+        sessions = sessions[-8:]
 
     # Create lick figure
     f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4, figsize=(7,  2*np.ceil(len(sessions) / 4)),

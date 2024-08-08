@@ -23,13 +23,12 @@ OVERWRITE = True  # whether to overwrite existing runs
 N_PC = 10  # number of PCs to use
 MIN_NEURONS = 10  # minimum neurons per region
 WIN_SIZE = 0.01  # window size in seconds
-PRE_TIME = 1  # time before stim onset in s
-POST_TIME = 1  # time after stim onset in s
+PRE_TIME = 0.5  # time before stim onset in s
+POST_TIME = 0.2  # time after stim onset in s
 SMOOTHING = 0.025  # smoothing of psth
-SUBTRACT_MEAN = True  # whether to subtract the mean PSTH from each trial
+SUBTRACT_MEAN = False  # whether to subtract the mean PSTH from each trial
 DIV_BASELINE = False  # whether to divide over baseline + 1 spk/s
 K_FOLD = 10  # k in k-fold
-K_FOLD_BOOTSTRAPS = 100  # TO DO 
 MIN_FR = 0.1  # minimum firing rate over the whole recording
 
 # Paths
@@ -37,7 +36,8 @@ path_dict = paths()
 
 # Initialize some things
 n_time_bins = int((PRE_TIME + POST_TIME) / WIN_SIZE)
-kfold = KFold(n_splits=K_FOLD, shuffle=True)
+kfold = KFold(n_splits=K_FOLD, shuffle=False)
+
 if SMOOTHING > 0:
     w = n_time_bins - 1 if n_time_bins % 2 == 0 else n_time_bins
     window = gaussian(w, std=SMOOTHING / WIN_SIZE)
@@ -45,7 +45,7 @@ if SMOOTHING > 0:
 
 # %% Function for paralization
 
-def do_cca(act_mat, region_1, region_2, kfold):
+def do_cca(act_mat, region_1, region_2):
 
     n_timebins = act_mat[region_1].shape[2]
     r_cca, p_cca = np.empty((n_timebins, n_timebins)), np.empty((n_timebins, n_timebins))

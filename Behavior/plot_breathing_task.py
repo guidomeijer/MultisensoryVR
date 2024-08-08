@@ -26,7 +26,7 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
 T_BEFORE = 1.5
 T_AFTER = 1.5
 T_PLOT = [-1, 1]
-Y_LIM = [2, 16]
+Y_LIM = [2, 20]
 WIN_SIZE = 0.25  # s
 WIN_SHIFT = 0.01  # s
 FS = 1000  # sampling rate
@@ -63,8 +63,8 @@ for i, subject in enumerate(PLOT_SUBJECTS):
                                                  'DateFinalTask'].values[0]]
     if len(sessions) == 0:
         continue
-    elif len(sessions) > 16:
-        sessions = sessions[-16:]
+    elif len(sessions) > 8:
+        sessions = sessions[-8:]
 
     # Create breathing figure
     f, axs = plt.subplots(int(np.ceil(len(sessions)/4)), 4,
