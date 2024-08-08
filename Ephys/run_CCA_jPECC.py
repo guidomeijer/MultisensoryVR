@@ -92,7 +92,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         for region in np.unique(clusters[probe]['region']):
     
             # Get spikes and clusters
-            clusters_in_region = np.where(clusters[probe]['region'] == region)[0]
+            clusters_in_region = clusters[probe]['cluster_id'][clusters[probe]['region'] == region]
             spks_region = spikes[probe]['times'][np.isin(spikes[probe]['clusters'], clusters_in_region)]
             clus_region = spikes[probe]['clusters'][np.isin(spikes[probe]['clusters'], clusters_in_region)]
   
@@ -156,7 +156,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                 pca_dis[region] = np.empty([binned_spks_dis.shape[0], N_PC, binned_spks_dis.shape[2]])
                 for tb in range(binned_spks_dis.shape[2]):
                     pca_dis[region][:, :, tb] = pca.fit_transform(binned_spks_dis[:, :, tb])
-    
+                
     # Perform CCA per region pair
     print('Starting CCA per region pair')
     all_cca_df = pd.DataFrame()
