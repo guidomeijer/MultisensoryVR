@@ -29,6 +29,7 @@ SMOOTHING = 0.025  # smoothing of psth
 SUBTRACT_MEAN = True  # whether to subtract the mean PSTH from each trial
 DIV_BASELINE = False  # whether to divide over baseline + 1 spk/s
 K_FOLD = 10  # k in k-fold
+K_FOLD_BOOTSTRAPS = 100  # TO DO 
 MIN_FR = 0.1  # minimum firing rate over the whole recording
 
 # Paths
@@ -44,23 +45,27 @@ if SMOOTHING > 0:
 
 # %% Function for paralization
 
-def do_cca(act_mat, region_1, region_2, tb_1):
+def do_cca(act_mat, region_1, region_2, kfold):
 
-    r_opto, p_opto = np.empty(act_mat[region_1].shape[2]), np.empty(act_mat[region_1].shape[2])
-    for tb_2 in range(act_mat[region_1].shape[2]):
+    n_timebins = act_mat[region_1].shape[2]
+    r_cca, p_cca = np.empty((n_timebins, n_timebins)), np.empty((n_timebins, n_timebins))
     
-        # Run CCA
-        x_test = np.empty(act_mat[region_1].shape[0])
-        y_test = np.empty(act_mat[region_1].shape[0])
-        for train_index, test_index in kfold.split(act_mat[region_1][:, :, 0]):
-            cca.fit(act_mat[region_1][train_index, :, tb_1],
-                    act_mat[region_2][train_index, :, tb_2])
-            x, y = cca.transform(act_mat[region_1][test_index, :, tb_1],
-                                 act_mat[region_2][test_index, :, tb_2])
-            x_test[test_index] = x.T[0]
-            y_test[test_index] = y.T[0]
-        r_opto[tb_2], p_opto[tb_2] = pearsonr(x_test, y_test)
-    return r_opto, p_opto
+    for tb_1 in range(n_timebins):
+        for tb_2 in range(n_timebins):
+        
+            # Run CCA
+            x_test = np.empty(act_mat[region_1].shape[0])
+            y_test = np.empty(act_mat[region_1].shape[0])
+            for train_index, test_index in kfold.split(act_mat[region_1][:, :, 0]):
+                cca.fit(act_mat[region_1][train_index, :, tb_1],
+                        act_mat[region_2][train_index, :, tb_2])
+                x, y = cca.transform(act_mat[region_1][test_index, :, tb_1],
+                                     act_mat[region_2][test_index, :, tb_2])
+                x_test[test_index] = x.T[0]
+                y_test[test_index] = y.T[0]
+            r_cca[tb_1, tb_2], p_cca[tb_1, tb_2] = pearsonr(x_test, y_test)
+            
+    return r_cca, p_cca
 
 
 # %%
@@ -95,9 +100,10 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                 print(f'Loading population activity for {region}')
   
                 # Get PSTH and binned spikes for goal activity
+                goal_entries = np.sort(all_obj_df.loc[
+                    (all_obj_df['goal'] == 1) & (all_obj_df['object'] != 3), 'times'].values)
                 psth_goal, binned_spks_goal = calculate_peths(
-                    spks_region, clus_region, np.unique(clus_region),
-                    all_obj_df.loc[(all_obj_df['goal'] == 1) & (all_obj_df['object'] != 3), 'times'], 
+                    spks_region, clus_region, np.unique(clus_region), goal_entries, 
                     pre_time=PRE_TIME, post_time=POST_TIME, bin_size=WIN_SIZE, smoothing=SMOOTHING,
                     return_fr=False)
   
@@ -123,9 +129,10 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                     pca_goal[region][:, :, tb] = pca.fit_transform(binned_spks_goal[:, :, tb])
                     
                 # Get PSTH and binned spikes for distractor activity
+                dis_entries = np.sort(all_obj_df.loc[
+                    (all_obj_df['goal'] == 0) & (all_obj_df['object'] != 3), 'times'].values)
                 psth_dis, binned_spks_dis = calculate_peths(
-                    spks_region, clus_region, np.unique(clus_region),
-                    all_obj_df.loc[(all_obj_df['goal'] == 0) & (all_obj_df['object'] != 3), 'times'], 
+                    spks_region, clus_region, np.unique(clus_region), dis_entries, 
                     pre_time=PRE_TIME, post_time=POST_TIME, bin_size=WIN_SIZE, smoothing=SMOOTHING,
                     return_fr=False)
   
@@ -167,10 +174,11 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
     
             print(f'Running CCA for region pair {region_pair}')
             results = Parallel(n_jobs=-1)(
-                delayed(do_cca)(pca_goal, region_1, region_2, tb_1)
-                for tb_1 in range(pca_goal[region_1].shape[2]))
-            r_goal = np.vstack([i[0] for i in results])
-            p_goal = np.vstack([i[1] for i in results])
+                delayed(do_cca)(pca_goal, region_1, region_2)
+                for k_bs in range(K_FOLD_BOOTSTRAPS))
+            r_goal = np.dstack([i[0] for i in results])
+            p_goal = np.dstack([i[1] for i in results])
+            asd
             
             # Add to dataframe
             cca_df = pd.concat((cca_df, pd.DataFrame(index=[cca_df.shape[0]], data={
