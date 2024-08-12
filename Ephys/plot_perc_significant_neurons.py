@@ -30,7 +30,7 @@ region_df['perc_goal_no_control'] = (region_df['sig_goal_no_control'] / region_d
 region_df = region_df.reset_index()
 
 long_df = pd.melt(region_df, id_vars=['region'],
-                  value_vars=['perc_obj_onset', 'perc_control', 'sig_goal_no_control'])
+                  value_vars=['perc_obj_onset', 'perc_goal', 'sig_goal_no_control'])
 
 # Plot
 f, ax = plt.subplots(1, 1, figsize=(2.5, 1.75), dpi=dpi) 
