@@ -35,31 +35,22 @@ rew_obj2_df = all_obj_df[all_obj_df['object'] == 2]
 
 # %% Fuction for parallization
 
-def run_correlation(goal_counts, distractor_counts, tt):
+def run_correlation(spike_counts, tt):
     pairwise_corr = []
-    for n1 in range(goal_counts[region_1].shape[1]):  # Neurons in region 1
-        for n2 in range(goal_counts[region_2].shape[1]):  # Neurons in region 2
-            r, _ = pearsonr(goal_counts[region_1][:, n1, tt],
-                            goal_counts[region_2][:, n2, tt])
+    for n1 in range(spike_counts[region_1].shape[1]):  # Neurons in region 1
+        for n2 in range(spike_counts[region_2].shape[1]):  # Neurons in region 2
+            r, _ = pearsonr(spike_counts[region_1][:, n1, tt],
+                            spike_counts[region_2][:, n2, tt])
             pairwise_corr.append(r)
-    mean_goal = np.nanmean(pairwise_corr)
-    sem_goal = sem(pairwise_corr, nan_policy='omit')
-    
-    pairwise_corr = []
-    for n1 in range(distractor_counts[region_1].shape[1]):  # Neurons in region 1
-        for n2 in range(distractor_counts[region_2].shape[1]):  # Neurons in region 2
-            r, _ = pearsonr(distractor_counts[region_1][:, n1, tt],
-                            distractor_counts[region_2][:, n2, tt])
-            pairwise_corr.append(r)
-    mean_dis = np.nanmean(pairwise_corr)
-    sem_dis = sem(pairwise_corr, nan_policy='omit')
-
-    return mean_goal, sem_goal, mean_dis, sem_dis
+    r_mean = np.nanmean(pairwise_corr)
+    r_sem = sem(pairwise_corr, nan_policy='omit')
+  
+    return r_mean, r_sem
 
 
 # %%
 # Get binned spike counts per region
-goal_counts, distractor_counts = dict(), dict()
+goal_counts, distractor_counts, sound_counts = dict(), dict(), dict()
 corr_df = pd.DataFrame()
 for j, region in enumerate(np.unique(clusters['region'])):
     if region == 'root':
@@ -84,6 +75,11 @@ for j, region in enumerate(np.unique(clusters['region'])):
         spikes['times'], spikes['clusters'], use_neurons,
         rew_obj2_df.loc[rew_obj2_df['goal'] == 0, 'times'], T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING,
         return_fr=False)
+    
+    peths, sound_counts[region] = calculate_peths(
+        spikes['times'], spikes['clusters'], use_neurons,
+        trials['soundOnset'].values, T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING,
+        return_fr=False)
 
     # Get time scale
     tscale = peths['tscale']
@@ -94,23 +90,35 @@ for r1, region_1 in enumerate(these_regions[:-1]):
     for r2, region_2 in enumerate(these_regions[r1+1:]):
         print(f'{region_1} - {region_2}')
         
+        # Goal object entries
         results = Parallel(n_jobs=-1)(
-            delayed(run_correlation)(goal_counts, distractor_counts, tt)
-            for tt in range(tscale.shape[0]))
+            delayed(run_correlation)(goal_counts, tt) for tt in range(tscale.shape[0]))
         corr_goal = np.array([result[0] for result in results])
         sem_goal = np.array([result[1] for result in results])
+        
+        # Distractor object entries
+        results = Parallel(n_jobs=-1)(
+            delayed(run_correlation)(goal_counts, tt) for tt in range(tscale.shape[0]))        
         corr_dis = np.array([result[2] for result in results])
         sem_dis = np.array([result[3] for result in results])
+        
+        # Sound onset
+        results = Parallel(n_jobs=-1)(
+            delayed(run_correlation)(sound_counts, tt) for tt in range(tscale.shape[0]))        
+        corr_sound = np.array([result[2] for result in results])
+        sem_sound = np.array([result[3] for result in results])
         
         # Baseline subtract        
         corr_goal_bl = corr_goal - np.mean(corr_goal[tscale < 0])
         corr_dis_bl = corr_dis - np.mean(corr_dis[tscale < 0])
+        corr_sound_bl = corr_sound - np.mean(corr_sound[tscale < 0])
 
         # Add to dataframe
         corr_df = pd.concat((corr_df, pd.DataFrame(data={
             'r_goal': corr_goal, 'r_goal_baseline': corr_goal_bl,
             'r_sem_goal': sem_goal, 'r_sem_distractor': sem_dis,
             'r_distractor': corr_dis, 'r_distractor_baseline': corr_dis_bl,
+            'r_sound': corr_sound, 'r_sound_baseline': corr_sound_bl, 'r_sem_sound': sem_sound,
             'time': tscale, 'region_1': region_1, 'region_2': region_2,
             'region_pair': f'{region_1}-{region_2}',
             'subject': SUBJECT, 'date': DATE})), ignore_index=True)

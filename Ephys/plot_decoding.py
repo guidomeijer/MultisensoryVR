@@ -20,11 +20,14 @@ context_env_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_enviro
 
 # Subtract the decoding accuracy of the control object 
 for region in np.unique(obj_context_df['region']):
-    obj_control = obj_context_df.loc[(obj_context_df['object'] == 3), (obj_context_df['region'] == region),
-                                     ['time', 'accuracy']].groupby('time').mean()
+    mean_control = obj_context_df.loc[(obj_context_df['object'] == 3) & (obj_context_df['region'] == region),
+                                      ['time', 'accuracy']].groupby('time').mean()
+    for time_point in mean_control.index:
+        obj_context_df.loc[obj_context_df['time'] == time_point, 'acc_subtr'] = (
+            obj_context_df.loc[obj_context_df['time'] == time_point, 'accuracy']
+            - mean_control.loc[time_point, 'accuracy'])
 
-
-# Plot
+# %% Plot
 f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(4.5, 1.75), dpi=dpi, sharey=True)
 
 sns.lineplot(data=obj_context_df[obj_context_df['object'] == 1], x='time', y='accuracy', hue='region', ax=ax1,
@@ -54,6 +57,22 @@ f, ax1 = plt.subplots(1, 1, figsize=(1.75, 1.75), dpi=dpi)
 sns.lineplot(data=obj_context_df[obj_context_df['object'] == 2], x='time', y='rel_acc', hue='region', ax=ax1,
              errorbar='se', zorder=1)
 """
+
+# %%
+
+f, ax1 = plt.subplots(1, 1, figsize=(1.75, 1.75), dpi=dpi)
+
+sns.lineplot(data=obj_context_df[obj_context_df['object'] == 2], x='time', y='acc_subtr', hue='region', ax=ax1,
+             errorbar='se', zorder=1, palette=colors)
+ax1.plot(ax1.get_xlim(), [0, 0], ls='--', color='grey', zorder=0, lw=0.75)
+ax1.set(ylim=[-0.3, 0.3], ylabel='Context decoding accuracy (%)',
+        yticks=[-0.3, 0, 0.3], xlabel='')
+ax1.legend(prop={'size': 6}).set_title('')
+
+sns.despine(trim=True)
+plt.tight_layout()
+
+
 # %%
 
 f, ax1 = plt.subplots(1, 1, figsize=(1.75, 1.75), dpi=dpi)
