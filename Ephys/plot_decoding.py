@@ -18,15 +18,11 @@ context_onset_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_onse
 obj_id_df = pd.read_csv(join(path_dict['save_path'], 'decode_object_identity.csv'))
 context_env_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_environment.csv')) 
 
-"""
-# Subtract the mean decoding accuracy of the control object during the pre window from object 2
-for r, region in enumerate(np.unique(obj_context_df['region'])):
-    control_acc = obj_context_df.loc[(obj_context_df['object'] == 3)
-                                & (obj_context_df['region'] == region)
-                                & (obj_context_df['time'] < 0), 'accuracy'].mean()
-    obj_context_df.loc[((obj_context_df['region'] == region) & (obj_context_df['object'] == 2)), 'rel_acc'] = (
-        obj_context_df.loc[((obj_context_df['region'] == region) & (obj_context_df['object'] == 2)), 'accuracy'] - control_acc)
-"""
+# Subtract the decoding accuracy of the control object 
+for region in np.unique(obj_context_df['region']):
+    obj_control = obj_context_df.loc[(obj_context_df['object'] == 3), (obj_context_df['region'] == region),
+                                     ['time', 'accuracy']].groupby('time').mean()
+
 
 # Plot
 f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(4.5, 1.75), dpi=dpi, sharey=True)

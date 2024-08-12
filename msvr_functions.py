@@ -212,7 +212,22 @@ def figure_style(font_size=7):
         'no-goal': matplotlib.colors.to_rgb('tomato'),
         'control': matplotlib.colors.to_rgb('gray'),
         'sound1': matplotlib.colors.to_rgb('goldenrod'),
-        'sound2': matplotlib.colors.to_rgb('darkorchid')}
+        'sound2': matplotlib.colors.to_rgb('darkorchid'),
+        'PERI': sns.color_palette('Set3')[3],
+        'TEa': sns.color_palette('Set3')[2],
+        'VIS': sns.color_palette('Set3')[0],
+        'HPC': sns.color_palette('Set3')[4],
+        'AUD': sns.color_palette('Set3')[4],
+        'ENT': sns.color_palette('Set3')[6],
+        'TBA': sns.color_palette('Dark2')[4],
+        'TBA': sns.color_palette('Dark2')[7],
+        'TBA': sns.color_palette('tab10')[9],
+        'TBA': sns.color_palette('Dark2')[0],
+        'TBA': sns.color_palette('Accent')[0],
+        'TBA': sns.color_palette('Accent')[1],
+        'TBA': sns.color_palette('Accent')[2],
+        'TBA': sns.color_palette('tab10')[8],
+        }
 
     screen_width = tk.Tk().winfo_screenwidth()
     dpi = screen_width / 8

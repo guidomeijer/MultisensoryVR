@@ -47,6 +47,7 @@ if SMOOTHING > 0:
 
 def do_cca(act_mat, reg_1, reg_2, tb_1):
 
+    n_timebins = pca_goal[region_1].shape[2]
     r_cca, p_cca = np.empty(n_timebins), np.empty(n_timebins)
     
     for tb_2 in range(n_timebins):
@@ -154,7 +155,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                 pca_dis[region] = np.empty([binned_spks_dis.shape[0], N_PC, binned_spks_dis.shape[2]])
                 for tb in range(binned_spks_dis.shape[2]):
                     pca_dis[region][:, :, tb] = pca.fit_transform(binned_spks_dis[:, :, tb])
-                
+    
     # Perform CCA per region pair
     print('Starting CCA per region pair')
     all_cca_df = pd.DataFrame()
@@ -175,8 +176,8 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             results = Parallel(n_jobs=-1)(
                 delayed(do_cca)(pca_goal, region_1, region_2, tt)
                 for tt in range(n_timebins))
-            r_goal = np.hstack([i[0] for i in results])
-            p_goal = np.hstack([i[1] for i in results])
+            r_goal = np.vstack([i[0] for i in results])
+            p_goal = np.vstack([i[1] for i in results])
                         
             # Add to dataframe
             cca_df = pd.concat((cca_df, pd.DataFrame(index=[cca_df.shape[0]], data={
