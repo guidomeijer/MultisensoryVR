@@ -14,6 +14,7 @@ from scipy.signal.windows import gaussian
 from sklearn.cross_decomposition import CCA
 from sklearn.decomposition import PCA
 from sklearn.model_selection import KFold
+#from brainbox.singlecell import calculate_peths
 from msvr_functions import paths, load_multiple_probes, load_objects, calculate_peths
 cca = CCA(n_components=1, max_iter=5000)
 pca = PCA(n_components=10)
@@ -22,12 +23,12 @@ pca = PCA(n_components=10)
 OVERWRITE = True  # whether to overwrite existing runs
 N_PC = 10  # number of PCs to use
 MIN_NEURONS = 10  # minimum neurons per region
-WIN_SIZE = 0.01  # window size in seconds
-PRE_TIME = 0.5  # time before stim onset in s
-POST_TIME = 0.2  # time after stim onset in s
-SMOOTHING = 0.025  # smoothing of psth
+WIN_SIZE = 0.1  # window size in seconds
+PRE_TIME = 2  # time before stim onset in s
+POST_TIME = 2  # time after stim onset in s
+SMOOTHING = 0  # smoothing of psth
 SUBTRACT_MEAN = False  # whether to subtract the mean PSTH from each trial (Semedo method)
-DIV_BASELINE = False  # whether to divide over baseline + 1 spk/s (Steinmetz method)
+DIV_BASELINE = True  # whether to divide over baseline + 1 spk/s (Steinmetz method)
 K_FOLD = 10  # k in k-fold
 MIN_FR = 0.1  # minimum firing rate over the whole recording
 
@@ -173,12 +174,34 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
     
             print(f'Running CCA for region pair {region_pair}')
             n_timebins = pca_goal[region_1].shape[2]
+            
             results = Parallel(n_jobs=-1)(
                 delayed(do_cca)(pca_goal, region_1, region_2, tt)
                 for tt in range(n_timebins))
             r_goal = np.vstack([i[0] for i in results])
             p_goal = np.vstack([i[1] for i in results])
+<<<<<<< Updated upstream
                         
+=======
+            """
+            r_goal, p_goal = np.empty((n_timebins, n_timebins)), np.empty((n_timebins, n_timebins))
+            for tb_1 in range(n_timebins):
+                for tb_2 in range(n_timebins):
+                
+                    # Run CCA
+                    x_test = np.empty(pca_goal[region_1].shape[0])
+                    y_test = np.empty(pca_goal[region_1].shape[0])
+                    for train_index, test_index in kfold.split(pca_goal[region_1][:, :, 0]):
+                        cca.fit(pca_goal[region_1][train_index, :, tb_1],
+                                pca_goal[region_2][train_index, :, tb_2])
+                        x, y = cca.transform(pca_goal[region_1][test_index, :, tb_1],
+                                             pca_goal[region_2][test_index, :, tb_2])
+                        x_test[test_index] = x.T[0]
+                        y_test[test_index] = y.T[0]
+                    r_goal[tb_1, tb_2], p_goal[tb_1, tb_2] = pearsonr(x_test, y_test)
+            """
+                      
+>>>>>>> Stashed changes
             # Add to dataframe
             cca_df = pd.concat((cca_df, pd.DataFrame(index=[cca_df.shape[0]], data={
                 'subject': subject, 'date': date, 'region_1': region_1,
@@ -188,8 +211,8 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             results = Parallel(n_jobs=-1)(
                 delayed(do_cca)(pca_dis, region_1, region_2, tt)
                 for tt in range(n_timebins))
-            r_dis = np.hstack([i[0] for i in results])
-            p_dis = np.hstack([i[1] for i in results])
+            r_dis = np.vstack([i[0] for i in results])
+            p_dis = np.vstack([i[1] for i in results])
             
             # Add to dataframe
             cca_df = pd.concat((cca_df, pd.DataFrame(index=[cca_df.shape[0]], data={
