@@ -214,6 +214,8 @@ def figure_style(font_size=7):
         'sound1': matplotlib.colors.to_rgb('goldenrod'),
         'sound2': matplotlib.colors.to_rgb('darkorchid'),
         'PERI': sns.color_palette('Set3')[3],
+        'sPERI': sns.color_palette('Set3')[5],
+        'dPERI': sns.color_palette('Set3')[3],
         'TEa': sns.color_palette('Set3')[2],
         'VIS': sns.color_palette('Set3')[0],
         'HPC': sns.color_palette('Set3')[4],
@@ -339,9 +341,9 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
         
         # Use the channel location to infer the brain regions of the clusters
         clusters['acronym'] = channels['acronym'][clusters['channels']]
-        clusters['region'] = combine_regions(clusters['acronym'], abbreviate=True,
+        clusters['region'] = combine_regions(clusters['acronym'], abbreviate=True, split_peri=True,
                                              brainregions=BrainRegions())
-        clusters['full_region'] = combine_regions(clusters['acronym'], abbreviate=False,
+        clusters['full_region'] = combine_regions(clusters['acronym'], abbreviate=False, split_peri=True,
                                                   brainregions=BrainRegions())
             
     # Load in the local coordinates of the probe
@@ -431,20 +433,28 @@ def get_full_region_name(acronyms, brainregions=None):
         return full_region_names
     
     
-def combine_regions(allen_acronyms, abbreviate=False, brainregions=None):
+def combine_regions(allen_acronyms, split_peri=False, abbreviate=True, brainregions=None):
     br = brainregions or BrainRegions()
     acronyms = remap(allen_acronyms)  # remap to Beryl
     regions = np.array(['root'] * len(acronyms), dtype=object)
     if abbreviate:
-        regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'PERI'
-        regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'PERI'
+        if split_peri:
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'sPERI'
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'dPERI'
+        else:
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'PERI'
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'PERI'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('ENT'))['acronym'])] = 'ENT'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('VIS'))['acronym'])] = 'VIS'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('AUD'))['acronym'])] = 'AUD'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('TEa'))['acronym'])] = 'TEa'
     else:
-        regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'Perirhinal cortex'
-        regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'Perirhinal cortex'
+        if split_peri:
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'Superficial perirhinal cortex'
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'Deep perirhinal cortex'
+        else:
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'Perirhinal cortex'
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'Perirhinal cortex'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('ENT'))['acronym'])] = 'Enthorhinal cortex'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('VIS'))['acronym'])] = 'Visual cortex'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('AUD'))['acronym'])] = 'Auditory cortex'
