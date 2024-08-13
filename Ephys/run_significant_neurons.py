@@ -15,7 +15,7 @@ DATE = '20240411'
 PROBE = 'probe00'
 T_BEFORE = 1  # s
 T_AFTER = 2
-ALPHA = 0.01
+ALPHA = 0.025
 
 # Initialize
 path_dict = paths(sync=False)
@@ -131,8 +131,9 @@ for n, neuron_id in enumerate(clusters['cluster_id']):
         
     # Add to dataframe
     stats_df = pd.concat((stats_df, pd.DataFrame(index=[stats_df.shape[0]], data={
-        'subject': SUBJECT, 'date': DATE, 'probe': PROBE,
-        'neuron_id': neuron_id, 'region': clusters['region'][clusters['cluster_id'] == neuron_id],
+        'subject': SUBJECT, 'date': DATE, 'probe': PROBE, 'neuron_id': neuron_id,
+        'region': clusters['region'][clusters['cluster_id'] == neuron_id],
+        'allen_acronym': clusters['acronym'][clusters['cluster_id'] == neuron_id],
         'sig_goal': sig_goal, 'sig_obj_onset': sig_obj_onset, 'sig_control': sig_control,
         'sig_obj_diff': sig_obj_diff, 'p_obj1_sound': obj1_sound_p, 'p_obj2_sound': obj2_sound_p,
         'p_control_sound': control_sound_p, 'p_obj_onset': obj_p,

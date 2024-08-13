@@ -246,7 +246,7 @@ def load_subjects():
     return subjects
 
 
-def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr=0.05):
+def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr=0.1):
     """
     Helper function to read in the spike sorting output from the Power Pixels pipeline.
 

@@ -99,14 +99,14 @@ for r1, region_1 in enumerate(these_regions[:-1]):
         # Distractor object entries
         results = Parallel(n_jobs=-1)(
             delayed(run_correlation)(goal_counts, tt) for tt in range(tscale.shape[0]))        
-        corr_dis = np.array([result[2] for result in results])
-        sem_dis = np.array([result[3] for result in results])
+        corr_dis = np.array([result[0] for result in results])
+        sem_dis = np.array([result[1] for result in results])
         
         # Sound onset
         results = Parallel(n_jobs=-1)(
             delayed(run_correlation)(sound_counts, tt) for tt in range(tscale.shape[0]))        
-        corr_sound = np.array([result[2] for result in results])
-        sem_sound = np.array([result[3] for result in results])
+        corr_sound = np.array([result[0] for result in results])
+        sem_sound = np.array([result[1] for result in results])
         
         # Baseline subtract        
         corr_goal_bl = corr_goal - np.mean(corr_goal[tscale < 0])

@@ -32,7 +32,7 @@ WIN_SHIFT = 0.01  # s
 FS = 1000  # sampling rate
 FREQ = [5, 10]
 TIME_AX = np.linspace(-T_BEFORE, T_AFTER, num=int((T_BEFORE + T_AFTER) * FS))
-PLOT_SUBJECTS = ['462910', '462911']
+PLOT_SUBJECTS = ['462910']
 
 # Get subjects
 subjects = load_subjects()
