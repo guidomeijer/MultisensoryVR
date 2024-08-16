@@ -31,15 +31,15 @@ region_df['perc_goal_no_control'] = (region_df['sig_goal_no_control'] / region_d
 region_df = region_df.reset_index()
 
 long_df = pd.melt(region_df, id_vars=['region'],
-                  value_vars=['perc_obj_onset', 'perc_goal', 'perc_goal_no_control'])
+                  value_vars=['perc_obj_onset', 'perc_goal', 'perc_goal_no_control', 'perc_obj_diff'])
 
 # Plot
 f, ax = plt.subplots(1, 1, figsize=(2.5, 1.75), dpi=dpi) 
 sns.barplot(data=long_df, x='variable', y='value', hue='region', ax=ax,
             palette=colors)
-ax.set(ylabel='Significant neurons (%)', xticks=[0, 1, 2],
-       xticklabels=['Landmark\nentry', 'Context', 'Goal'],
-       yticks=[0, 10, 20, 30, 40, 50, 60, 70], xlabel='')
+ax.set(ylabel='Significant neurons (%)', xticks=[0, 1, 2, 3],
+       xticklabels=['Landmark\nentry', 'Context', 'Goal', 'Object'],
+       yticks=[0, 20, 40, 60, 80, 100], xlabel='')
 ax.legend(title='')
 
 sns.despine(trim=False)

@@ -28,11 +28,9 @@ path_dict = paths(sync=False)
 subjects = load_subjects()
 rec_df = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 neuron_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
+neuron_df['subject'] = neuron_df['subject'].astype(str)
+neuron_df['date'] = neuron_df['date'].astype(str)
 neuron_df = neuron_df[neuron_df['region'] != 'root']
-
-neuron_df['subject'] = '459601'
-neuron_df['date'] = '20240411'
-neuron_df['probe'] = 'probe00'
 
 # Create folders if necessary
 if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons')):
@@ -42,6 +40,7 @@ if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', 'LandmarkNeurons')):
 
 # Loop over recordings
 for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date'], rec_df['probe'])):
+    print(f'{subject}', f'{date}', f'{probe}')
     
     # Load in data
     session_path = join(path_dict['local_data_path'], 'subjects', f'{subject}', f'{date}')
@@ -185,8 +184,8 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
         plt.close(f)
         
       
-    # %% Sound neurons
-    
+    # %% Object onset
+    """
     these_neurons = neuron_df[(neuron_df['subject'] == subject)
                               & (neuron_df['date'] == date)
                               & (neuron_df['probe'] == probe)
@@ -311,4 +310,4 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
                          f'{subject}_{date}_{probe}_neuron{neuron_id}.jpg'), dpi=300)
         plt.close(f)
         
-      
+      """

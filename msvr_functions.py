@@ -248,8 +248,8 @@ def figure_style(font_size=7):
         'HPC': sns.color_palette('Set3')[4],
         'AUD': sns.color_palette('Set3')[4],
         'ENT': sns.color_palette('Set3')[6],
-        'TBA': sns.color_palette('Dark2')[4],
-        'TBA': sns.color_palette('Dark2')[7],
+        'CA1': sns.color_palette('Dark2')[4],
+        'DG': sns.color_palette('Dark2')[7],
         'TBA': sns.color_palette('tab10')[9],
         'TBA': sns.color_palette('Dark2')[0],
         'TBA': sns.color_palette('Accent')[0],
@@ -483,7 +483,8 @@ def get_full_region_name(acronyms, brainregions=None):
         return full_region_names
     
     
-def combine_regions(allen_acronyms, split_peri=False, abbreviate=True, brainregions=None):
+def combine_regions(allen_acronyms, split_peri=False, split_hpc=False, abbreviate=True,
+                    brainregions=None):
     br = brainregions or BrainRegions()
     acronyms = remap(allen_acronyms)  # remap to Beryl
     regions = np.array(['root'] * len(acronyms), dtype=object)
@@ -498,6 +499,12 @@ def combine_regions(allen_acronyms, split_peri=False, abbreviate=True, brainregi
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('VIS'))['acronym'])] = 'VIS'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('AUD'))['acronym'])] = 'AUD'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('TEa'))['acronym'])] = 'TEa'
+        if split_hpc:    
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('DG'))['acronym'])] = 'DG'
+            regions[acronyms == 'CA1'] = 'CA1'
+        else:
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('DG'))['acronym'])] = 'HPC'
+            regions[acronyms == 'CA1'] = 'HPC'
     else:
         if split_peri:
             regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'Superficial perirhinal cortex'
@@ -509,6 +516,12 @@ def combine_regions(allen_acronyms, split_peri=False, abbreviate=True, brainregi
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('VIS'))['acronym'])] = 'Visual cortex'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('AUD'))['acronym'])] = 'Auditory cortex'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('TEa'))['acronym'])] = 'Temporal association area'
+        if split_hpc:
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('DG'))['acronym'])] = 'Dentate gyrus'
+            regions[acronyms == 'CA1'] = 'CA1'
+        else:
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('DG'))['acronym'])] = 'Hippocampus'
+            regions[acronyms == 'CA1'] = 'Hippocampus'
 
     return regions
 
