@@ -76,7 +76,8 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
 
             # Match the ephys and totalsync barcodes
             time_shift = np.nan
-            for ii in range(nidq_pulses.shape[0]):
+            for ii in range(nidq_pulses.shape[0]-20):
+                
                 if np.sum(np.abs(np.diff(nidq_pulses)[ii:ii+20] - np.diff(totalsync_pulses)[:20])) < 0.01:
 
                     # Ephys started before behavior
@@ -327,7 +328,7 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
                 indices = np.searchsorted(time_s, spike_times, side='right') - 1
                 indices = np.clip(indices, 0, wheel_distance.shape[0] - 1)
                 spike_dist = wheel_distance[indices]
-                np.save(join(this_probe), 'spikes.distances.npy', spike_dist)
+                np.save(join(this_probe, 'spikes.distances.npy'), spike_dist)
         
         # Save extracted events as ONE files
         np.save(join(root, 'continuous.wheelDistance.npy'), wheel_distance[:-1])

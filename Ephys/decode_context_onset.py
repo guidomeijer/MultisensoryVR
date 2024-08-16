@@ -11,6 +11,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
 from sklearn.model_selection import KFold
 from sklearn.utils import shuffle
 from brainbox.population.decode import get_spike_counts_in_bins, classify
@@ -25,7 +26,7 @@ T_BEFORE = 1  # s
 T_AFTER = 3
 BIN_SIZE = 0.25
 STEP_SIZE = 0.05
-N_NEURONS = 30
+N_NEURONS = 50
 N_NEURON_PICKS = 100
 ONLY_GOOD_NEURONS = True
 
@@ -38,7 +39,8 @@ subjects = load_subjects()
 kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
 #clf = RandomForestClassifier(random_state=42)
 #clf = GaussianNB()
-clf = LogisticRegression(solver='liblinear', max_iter=1000, random_state=42)
+#clf = LogisticRegression(solver='liblinear', max_iter=1000, random_state=42)
+clf = SVC(probability=True)
 
 # Load in data
 session_path = join(path_dict['local_data_path'], 'Subjects', f'{SUBJECT}', f'{DATE}')
