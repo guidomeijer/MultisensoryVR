@@ -140,7 +140,23 @@ def paths(sync=False, full_sync=False, force_sync=False):
     return path_dict
 
 
-def load_objects(subject, date):
+def load_objects(subject, date, reorder=True):
+    """
+    Parameters
+    ----------
+    subject : str
+    date : str
+    reorder : boolean, optional
+        Whether to reorder the object id's such that:
+            object 1: the first encountered rewarded object
+            object 2: the second encountered rewarded object
+            object 3: the control object (wherever it is) 
+            The default is True.
+
+    Returns
+    -------
+    all_obj_df : pandas dataframe
+    """
     
     # Initialize
     path_dict = paths()
@@ -158,15 +174,26 @@ def load_objects(subject, date):
     obj2_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 2)[0][0] + 1
     obj3_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 3)[0][0] + 1
 
+    if (trials['positionObj1'][0] > trials['positionObj2'][0]) & reorder:
+        # Object 1 comes after object 2
+        sound1_obj_ordered = 2
+        sound2_obj_ordered = 1
+    else:        
+        sound1_obj_ordered = 1
+        sound2_obj_ordered = 2
+
     # Prepare trial data
     rew_obj1_df = pd.DataFrame(data={'times': trials[f'enterObj{sound1_obj}'],
-                                     'object': 1, 'sound': trials['soundId'],
+                                     'object': sound1_obj_ordered, 'sound': trials['soundId'],
+                                     'goal_sound': obj1_goal_sound,
                                      'goal': (trials['soundId'] == obj1_goal_sound).astype(int)})
     rew_obj2_df = pd.DataFrame(data={'times': trials[f'enterObj{sound2_obj}'],
-                                     'object': 2, 'sound': trials['soundId'],
+                                     'object': sound2_obj_ordered, 'sound': trials['soundId'],
+                                     'goal_sound': obj2_goal_sound,
                                      'goal': (trials['soundId'] == obj2_goal_sound).astype(int)})
     control_obj_df = pd.DataFrame(data={'times': trials[f'enterObj{control_obj}'],
                                         'object': 3, 'sound': trials['soundId'],
+                                        'goal_sound': 0,
                                         'goal': (trials['soundId'] == obj3_goal_sound).astype(int)})
     all_obj_df = pd.concat((rew_obj1_df, rew_obj2_df, control_obj_df))
     
@@ -309,35 +336,63 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
                                                sep='\t')['group']
         
     # Add neuron firing rates
-    clusters['firing_rate'] =  np.array([spikes['times'][spikes['clusters'] == i].shape[0]
-                                         / spikes['times'][-1] for i in clusters['cluster_id']])
+    if isfile(join(session_path, probe, 'clusters.firingRates.npy')):
+        clusters['firing_rate'] = np.load(join(session_path, probe, 'clusters.firingRates.npy'))
+    else:
+        clusters['firing_rate'] =  np.array([spikes['times'][spikes['clusters'] == i].shape[0]
+                                             / spikes['times'][-1] for i in clusters['cluster_id']])
+        np.save(join(session_path, probe, 'clusters.firingRates.npy'), clusters['firing_rate'])
     
     # Load in channel data
     channels = dict()
     if histology:
-        if not isfile(join(session_path, probe, 'channel_locations.json')):
-            raise Exception('No aligned channel locations found! Set histology to False to load data without brain regions.')
-        
-        # Load in alignment GUI output
-        f = open(join(session_path, probe, 'channel_locations.json'))
-        channel_locations = json.load(f)
-        f.close()
-        
-        # Add channel information to channel dict        
-        brain_region, brain_region_id, x, y, z = [], [], [], [], []
-        for i, this_ch in enumerate(channel_locations.keys()):
-            if this_ch[:7] != 'channel':
-                continue
-            brain_region.append(channel_locations[this_ch]['brain_region'])
-            brain_region_id.append(channel_locations[this_ch]['brain_region_id'])
-            x.append(channel_locations[this_ch]['x'])
-            y.append(channel_locations[this_ch]['y'])
-            z.append(channel_locations[this_ch]['z'])
-        channels['acronym'] = np.array(brain_region)
-        channels['atlas_id'] = np.array(brain_region_id)
-        channels['x'] = np.array(x)
-        channels['y'] = np.array(y)
-        channels['z'] = np.array(z)
+        if isfile(join(session_path, probe, 'channels.brainLocations.csv')):
+            channels_df = pd.read_csv(join(session_path, probe, 'channels.brainLocations.csv'))
+            channels = {col: np.array(channels_df[col]) for col in channels_df.columns}
+        else:
+            
+            channel_loc_files = glob(join(session_path, probe, 'channel_locations*'))
+            if len(channel_loc_files) == 0:
+                raise Exception('No aligned channel locations found! Set histology to False to load data without brain regions.')
+            elif len(channel_loc_files) == 1:
+                
+                # One shank recording
+                f = open(join(session_path, probe, 'channel_locations.json'))
+                channel_locations = json.load(f)
+                f.close()
+                channel_locations_df = pd.DataFrame(data=channel_locations).transpose()
+                
+            elif len(channel_loc_files) == 4:
+                
+                # Four shank recording
+                channel_locations_df = pd.DataFrame()
+                for this_file in channel_loc_files:
+                    f = open(this_file)
+                    channel_locations = json.load(f)
+                    f.close()
+                    this_df = pd.DataFrame(data=channel_locations).transpose()
+                    channel_locations_df = pd.concat((channel_locations_df, this_df))
+                    
+            # Match xyz channel location and brain region to channels by local coordinates
+            local_coordinates = np.load(join(session_path, probe, 'channels.localCoordinates.npy'))
+            channels_df = pd.DataFrame(index=np.arange(local_coordinates.shape[0]),
+                                       columns=['acronym', 'atlas_id', 'x', 'y', 'z'])
+            for i, (lateral_um, axial_um) in enumerate(zip(local_coordinates[:, 0], local_coordinates[:, 1])):
+                this_ch = ((channel_locations_df['lateral'] == lateral_um)
+                           & (channel_locations_df['axial'] == axial_um)).values
+                channels_df.loc[i, 'acronym'] = channel_locations_df.loc[this_ch, 'brain_region'].values[0]
+                channels_df.loc[i, 'atlas_id'] = channel_locations_df.loc[this_ch, 'brain_region_id'].values[0]
+                channels_df.loc[i, 'x'] = channel_locations_df.loc[this_ch, 'x'].values[0]
+                channels_df.loc[i, 'y'] = channel_locations_df.loc[this_ch, 'y'].values[0]
+                channels_df.loc[i, 'z'] = channel_locations_df.loc[this_ch, 'z'].values[0]
+            channels_df['lateral_um'] = local_coordinates[:, 0]
+            channels_df['axial_um'] = local_coordinates[:, 1]
+            
+            # Save to disk
+            channels_df.to_csv(join(session_path, probe, 'channels.brainLocation.csv'), index=False)
+            
+            # Change into dict
+            channels = {col: np.array(channels_df[col]) for col in channels_df.columns}            
         
         # Use the channel location to infer the brain regions of the clusters
         clusters['acronym'] = channels['acronym'][clusters['channels']]
@@ -345,11 +400,6 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
                                              brainregions=BrainRegions())
         clusters['full_region'] = combine_regions(clusters['acronym'], abbreviate=False, split_peri=True,
                                                   brainregions=BrainRegions())
-            
-    # Load in the local coordinates of the probe
-    local_coordinates = np.load(join(session_path, probe, 'channels.localCoordinates.npy'))  
-    channels['lateral_um'] = local_coordinates[:, 0]
-    channels['axial_um'] = local_coordinates[:, 1]
         
     # Exclude neurons that are not labelled good or with firing rates which are too low
     select_units = np.ones(clusters['cluster_id'].shape[0]).astype(bool)
