@@ -24,7 +24,7 @@ T_BEFORE = 2  # s
 T_AFTER = 2
 BIN_SIZE = 0.3
 STEP_SIZE = 0.025
-N_NEURONS = 50
+N_NEURONS = 20
 N_NEURON_PICKS = 100
 N_SHUFFLES = 500
 ONLY_GOOD_NEURONS = True
@@ -58,6 +58,7 @@ def classify_subselection(spike_counts, n_neurons, trial_labels, clf, cv):
 
 # %% Loop over recordings
 
+decode_df = pd.DataFrame()
 for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
     print(f'\nStarting {subject} {date} {probe}..')
 
@@ -68,9 +69,9 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     trials = pd.read_csv(join(path_dict['local_data_path'], 'subjects', subject, date, 'trials.csv'))
     
     # Get reward contingencies
-    sound1_obj = subjects.loc[subjects['subjectID'] == subject, 'Sound1Obj'].values[0]
-    sound2_obj = subjects.loc[subjects['subjectID'] == subject, 'Sound2Obj'].values[0]
-    control_obj = subjects.loc[subjects['subjectID'] == subject, 'ControlObject'].values[0]
+    sound1_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound1Obj'].values[0]
+    sound2_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound2Obj'].values[0]
+    control_obj = subjects.loc[subjects['SubjectID'] == subject, 'ControlObject'].values[0]
     
     obj1_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 1)[0][0] + 1
     obj2_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 2)[0][0] + 1
@@ -91,7 +92,6 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     
     
     # %% Loop over time bins
-    decode_df, shuffles_df = pd.DataFrame(), pd.DataFrame()
     for i, bin_center in enumerate(t_centers):
         if np.mod(i, 10) == 0:
             print(f'Timebin {np.round(bin_center, 2)} ({i} of {len(t_centers)})')
@@ -131,9 +131,9 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
                 decode_df = pd.concat((decode_df, pd.DataFrame(data={
                     'time': bin_center, 'accuracy': accuracy_obj, 'object': obj, 'region': region,
                     'subject': subject, 'date': date, 'probe': probe})))
-            
-        # Save to disk
-        decode_df.to_csv(join(path_dict['save_path'], 'decode_context_per_object.csv'), index=False)
+                
+    # Save to disk
+    decode_df.to_csv(join(path_dict['save_path'], 'decode_context_per_object.csv'), index=False)
             
             
             
