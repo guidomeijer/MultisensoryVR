@@ -60,11 +60,12 @@ sns.lineplot(data=obj_context_df[obj_context_df['object'] == 2], x='time', y='re
 
 # %%
 
-f, ax1 = plt.subplots(1, 1, figsize=(1.75, 1.75), dpi=dpi)
+f, ax1 = plt.subplots(1, 1, figsize=(2, 2), dpi=dpi)
 
 sns.lineplot(data=obj_context_df[obj_context_df['object'] == 2], x='time', y='acc_subtr', hue='region', ax=ax1,
              errorbar='se', zorder=1, palette=colors)
 ax1.plot(ax1.get_xlim(), [0, 0], ls='--', color='grey', zorder=0, lw=0.75)
+ax1.plot([0, 0], ax1.get_ylim(), ls='--', color='grey', zorder=0, lw=0.75)
 ax1.set(ylim=[-0.2, 0.4], ylabel='Context decoding accuracy (%)', xlabel='Time from object entry (s)',
         yticks=[-0.2, 0, 0.2, 0.4])
 ax1.legend(prop={'size': 5}).set_title('')
