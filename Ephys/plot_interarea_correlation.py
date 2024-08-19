@@ -108,8 +108,8 @@ sns.despine(trim=True)
 plt.tight_layout()
 
 # %% Plot individual examples
-plot_pairs = ['TEa-sPERI', 'sPERI-HPC', 'TEa-HPC']
-these_colors = sns.color_palette('Set2')[:3]
+plot_pairs = ['TEa-sPERI', 'sPERI-HPC', 'TEa-HPC', 'dPERI-HPC']
+these_colors = sns.color_palette('Set2')[:4]
 
 f, ax = plt.subplots(1, 1, figsize=(2, 2), dpi=dpi, sharey=True)
 
