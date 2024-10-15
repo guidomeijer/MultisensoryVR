@@ -240,7 +240,8 @@ def figure_style(font_size=7):
         'control': matplotlib.colors.to_rgb('gray'),
         'sound1': matplotlib.colors.to_rgb('goldenrod'),
         'sound2': matplotlib.colors.to_rgb('darkorchid'),
-        'PERI': sns.color_palette('Set3')[3],
+        'PERI 36': sns.color_palette('Set3')[5],
+        'PERI 35': sns.color_palette('Set3')[3],
         'sPERI': sns.color_palette('Set3')[5],
         'dPERI': sns.color_palette('Set3')[3],
         'TEa': sns.color_palette('Set3')[2],
@@ -490,8 +491,8 @@ def combine_regions(allen_acronyms, split_peri=False, split_hpc=False, abbreviat
     regions = np.array(['root'] * len(acronyms), dtype=object)
     if abbreviate:
         if split_peri:
-            regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'sPERI'
-            regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'dPERI'
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'PERI 36'
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'PERI 35'
         else:
             regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'PERI'
             regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'PERI'
@@ -507,8 +508,8 @@ def combine_regions(allen_acronyms, split_peri=False, split_hpc=False, abbreviat
             regions[acronyms == 'CA1'] = 'HPC'
     else:
         if split_peri:
-            regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'Superficial perirhinal cortex'
-            regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'Deep perirhinal cortex'
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'Perirhinal cortex (area 36)'
+            regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'Perirhinal cortex (area 35)'
         else:
             regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'Perirhinal cortex'
             regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'Perirhinal cortex'

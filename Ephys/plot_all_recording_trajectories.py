@@ -19,7 +19,7 @@ path_dict = paths()
 url = 'http://download.alleninstitute.org/informatics-archive/current-release/mouse_ccf/annotation/ccf_2017/structure_meshes/'
 
 # Settings
-BRAIN_REGIONS = ['CA1', 'PERI', 'ECT']
+BRAIN_REGIONS = ['CA1', 'PERI', 'ECT', 'TEa', 'VISl']
 
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv'))
 

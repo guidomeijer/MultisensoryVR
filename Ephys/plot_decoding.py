@@ -18,6 +18,8 @@ context_onset_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_onse
 obj_id_df = pd.read_csv(join(path_dict['save_path'], 'decode_object_identity.csv'))
 context_env_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_environment.csv')) 
 
+obj_context_df['accuracy'] = obj_context_df['accuracy'] * 100
+
 # Subtract the decoding accuracy of the control object 
 for region in np.unique(obj_context_df['region']):
     mean_control = obj_context_df.loc[(obj_context_df['object'] == 3) & (obj_context_df['region'] == region),
@@ -72,7 +74,23 @@ ax1.legend(prop={'size': 5}).set_title('')
 
 sns.despine(trim=True)
 plt.tight_layout()
-plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_context_obj_entry.jpg'), dpi=600)
+#plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_context_obj_entry.jpg'), dpi=600)
+
+# %%
+
+f, ax1 = plt.subplots(1, 1, figsize=(2, 2), dpi=dpi)
+
+sns.lineplot(data=obj_context_df[obj_context_df['object'] == 2], x='time', y='accuracy', hue='region', ax=ax1,
+             errorbar='se', zorder=1, palette=colors)
+ax1.plot(ax1.get_xlim(), [50, 50], ls='--', color='grey', zorder=0, lw=0.75)
+ax1.plot([0, 0], ax1.get_ylim(), ls='--', color='grey', zorder=0, lw=0.75)
+ax1.set(ylim=[40, 90], ylabel='Context decoding accuracy (%)', xlabel='Time from object entry (s)',
+        yticks=[40, 50, 60, 70, 80, 90])
+ax1.legend(prop={'size': 5}).set_title('')
+
+sns.despine(trim=True)
+plt.tight_layout()
+#plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_context_obj_entry.jpg'), dpi=600)
 
 
 # %%
