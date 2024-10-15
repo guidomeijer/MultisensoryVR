@@ -26,13 +26,13 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
 T_BEFORE = 1.5
 T_AFTER = 1.5
 T_PLOT = [-1, 1]
-Y_LIM = [2, 20]
+Y_LIM = [2, 30]
 WIN_SIZE = 0.25  # s
 WIN_SHIFT = 0.01  # s
 FS = 1000  # sampling rate
 FREQ = [5, 10]
 TIME_AX = np.linspace(-T_BEFORE, T_AFTER, num=int((T_BEFORE + T_AFTER) * FS))
-PLOT_SUBJECTS = ['462910']
+PLOT_SUBJECTS = ['466394', '466395', '466396']
 
 # Get subjects
 subjects = load_subjects()
@@ -47,6 +47,11 @@ colors, dpi = figure_style()
 # Loop over subjects
 for i, subject in enumerate(PLOT_SUBJECTS):
 
+    # Get reward contingencies
+    sound1_obj = subjects.loc[subjects['SubjectID'] == subject, "Sound1Obj"].values[0]
+    sound2_obj = subjects.loc[subjects['SubjectID'] == subject, "Sound2Obj"].values[0]
+    control_obj = subjects.loc[subjects['SubjectID'] == subject, "ControlObject"].values[0]    
+    
     # List sessions
     sessions = os.listdir(join(data_path, 'Subjects', subject))
 
@@ -89,12 +94,12 @@ for i, subject in enumerate(PLOT_SUBJECTS):
 
         # Get timestamps of entry of goal, no-goal and control object sets
         goal_obj_enters = np.concatenate((
-            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound1Obj"]}'],
-            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound2Obj"]}']))
+            trials.loc[trials['soundId'] == 1, f'enterObj{sound1_obj}'],
+            trials.loc[trials['soundId'] == 2, f'enterObj{sound2_obj}']))
         nogoal_obj_enters = np.concatenate((
-            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound2Obj"]}'],
-            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound1Obj"]}']))
-        control_obj_enters = trials[f'enterObj{subjects.loc[i, "ControlObject"]}'].values
+            trials.loc[trials['soundId'] == 1, f'enterObj{sound2_obj}'],
+            trials.loc[trials['soundId'] == 2, f'enterObj{sound1_obj}']))
+        control_obj_enters = trials[f'enterObj{control_obj}'].values
         goal_obj_enters = np.sort(goal_obj_enters[~np.isnan(goal_obj_enters)])
         nogoal_obj_enters = np.sort(nogoal_obj_enters[~np.isnan(nogoal_obj_enters)])
         control_obj_enters = np.sort(control_obj_enters[~np.isnan(control_obj_enters)])

@@ -106,6 +106,7 @@ axs[2].set(xlabel='Time from object entry (s)', title='TEa - HPC')
 
 sns.despine(trim=True)
 plt.tight_layout()
+plt.savefig(join(path_dict['google_drive_fig_path'], 'interarea_correlation_goal_obj_entry.jpg'), dpi=600)
 
 # %% Plot individual examples
 plot_pairs = ['TEa-sPERI', 'sPERI-HPC', 'TEa-HPC', 'dPERI-HPC']
@@ -129,3 +130,4 @@ ax.legend(prop={'size': 5})
 
 sns.despine(trim=True)
 plt.tight_layout()
+plt.savefig(join(path_dict['google_drive_fig_path'], 'interarea_correlation_sound_onset.jpg'), dpi=600)

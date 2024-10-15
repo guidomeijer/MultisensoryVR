@@ -45,3 +45,5 @@ ax.legend(title='')
 sns.despine(trim=False)
 plt.tight_layout()
 
+plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons.jpg'), dpi=600)
+

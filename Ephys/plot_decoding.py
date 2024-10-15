@@ -72,6 +72,7 @@ ax1.legend(prop={'size': 5}).set_title('')
 
 sns.despine(trim=True)
 plt.tight_layout()
+plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_context_obj_entry.jpg'), dpi=600)
 
 
 # %%
@@ -80,12 +81,13 @@ f, ax1 = plt.subplots(1, 1, figsize=(1.75, 1.75), dpi=dpi)
 sns.lineplot(context_onset_df, x='time', y='accuracy', hue='region', ax=ax1, errorbar='se',
              zorder=1, err_kws={'lw': 0})
 ax1.plot(ax1.get_xlim(), [0.5, 0.5], ls='--', color='grey', zorder=0, lw=0.75)
-ax1.set(ylim=[0.4, 0.95], ylabel='Context decoding accuracy (%)', xticks=[-1, 0, 1, 2, 3],
-        yticks=[0.4, 0.5, 0.6, 0.7, 0.8, 0.9], xlabel='Time from sound onset (s)')
+ax1.set(ylim=[0.4, 1], ylabel='Context decoding accuracy (%)', xticks=[-1, 0, 1, 2, 3],
+        yticks=[0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1], xlabel='Time from sound onset (s)')
 ax1.legend().set_title('')
 
 sns.despine(trim=True)
 plt.tight_layout()
+plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_context_sound_onset.jpg'), dpi=600)
 
 # %%
 
@@ -93,12 +95,13 @@ f, ax1 = plt.subplots(1, 1, figsize=(1.75, 1.75), dpi=dpi)
 sns.lineplot(obj_id_df, x='time', y='accuracy', hue='region', ax=ax1, errorbar='se',
              zorder=1, err_kws={'lw': 0})
 ax1.plot(ax1.get_xlim(), [0.33, 0.33], ls='--', color='grey', zorder=0, lw=0.75)
-ax1.set(ylim=[0.3, 0.7], ylabel='Object decoding accuracy (%)', xticks=[-2, -1, 0, 1],
-        yticks=[0.3, 0.4, 0.5, 0.6, 0.7], xlabel='Time from object entry (s)')
+ax1.set(ylim=[0.3, 0.8], ylabel='Object decoding accuracy (%)', xticks=[-2, -1, 0, 1],
+        yticks=[0.3, 0.4, 0.5, 0.6, 0.7, 0.8], xlabel='Time from object entry (s)')
 ax1.legend().set_title('')
 
 sns.despine(trim=True)
 plt.tight_layout()
+plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_object_obj_entry.jpg'), dpi=600)
 
 # %%
 

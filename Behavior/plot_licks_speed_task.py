@@ -20,7 +20,7 @@ T_BEFORE = 2
 T_AFTER = 3
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
-PLOT_SUBJECTS = ['462910']
+PLOT_SUBJECTS = ['466394', '466395', '466396']
 
 # Get subjects
 subjects = load_subjects()
@@ -34,6 +34,11 @@ colors, dpi = figure_style()
 
 # Loop over subjects
 for i, subject in enumerate(PLOT_SUBJECTS):
+
+    # Get reward contingencies
+    sound1_obj = subjects.loc[subjects['SubjectID'] == subject, "Sound1Obj"].values[0]
+    sound2_obj = subjects.loc[subjects['SubjectID'] == subject, "Sound2Obj"].values[0]
+    control_obj = subjects.loc[subjects['SubjectID'] == subject, "ControlObject"].values[0]    
 
     # List sessions
     sessions = os.listdir(join(data_path, 'Subjects', subject))
@@ -71,12 +76,12 @@ for i, subject in enumerate(PLOT_SUBJECTS):
 
         # Get timestamps of entry of goal, no-goal and control object sets
         goal_obj_enters = np.concatenate((
-            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound1Obj"]}'],
-            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound2Obj"]}']))
+            trials.loc[trials['soundId'] == 1, f'enterObj{sound1_obj}'],
+            trials.loc[trials['soundId'] == 2, f'enterObj{sound2_obj}']))
         nogoal_obj_enters = np.concatenate((
-            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound2Obj"]}'],
-            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound1Obj"]}']))
-        control_obj_enters = trials[f'enterObj{subjects.loc[i, "ControlObject"]}'].values
+            trials.loc[trials['soundId'] == 1, f'enterObj{sound2_obj}'],
+            trials.loc[trials['soundId'] == 2, f'enterObj{sound1_obj}']))
+        control_obj_enters = trials[f'enterObj{control_obj}'].values
         all_obj_enters = np.concatenate((goal_obj_enters, nogoal_obj_enters, control_obj_enters))
         all_obj_ids = np.concatenate(
             (np.ones(goal_obj_enters.shape[0]),
