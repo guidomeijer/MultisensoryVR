@@ -20,7 +20,7 @@ TICKS = [-0.5, 0, 0.5]
 
 # Load in data
 path_dict = paths()
-cca_df = pd.read_pickle(join(path_dict['save_path'], 'jPECC_goal_100ms-bins.pickle'))
+cca_df = pd.read_pickle(join(path_dict['save_path'], 'jPECC_goal_25ms-bins.pickle'))
 time_ax = cca_df['time'][0]
 
 # Plot
