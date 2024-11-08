@@ -260,7 +260,7 @@ def figure_style(font_size=7):
         }
 
     screen_width = tk.Tk().winfo_screenwidth()
-    dpi = screen_width / 8
+    dpi = screen_width / 4
     return colors, dpi
 
 
