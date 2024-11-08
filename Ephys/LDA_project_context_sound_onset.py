@@ -19,11 +19,11 @@ SUBJECT = '459601'
 DATE = '20240411'
 PROBE = 'probe00'
 D_BEFORE = 0  # s
-D_AFTER = 150
-LDA_PLACE = 25
-LDA_CONTROL = -5
+D_AFTER = 40
+LDA_PLACE = 130
+LDA_CONTROL = 0
 BIN_SIZE = 5
-STEP_SIZE = 0.5
+STEP_SIZE = 1
 MIN_NEURONS = 10
 MIN_SPEED = 50  # mm/s
 ONLY_GOOD_NEURONS = True
@@ -63,9 +63,9 @@ trials['enterEnvPos'] = trials['enterEnvPos'] / 10
 # Get neural activity of a bin in the environment
 lda_intervals = np.vstack((trials['enterEnvPos'] + (LDA_PLACE - (BIN_SIZE/2)),
                            trials['enterEnvPos'] + (LDA_PLACE + (BIN_SIZE/2)))).T
-spike_counts, neuron_ids = get_spike_counts_in_bins(spikes_dist, clusters_dist,
+spike_lda, neuron_ids = get_spike_counts_in_bins(spikes_dist, clusters_dist,
                                                     lda_intervals)
-spike_counts = spike_counts.T  # transpose array into [trials x neurons]
+spike_lda = spike_lda.T  # transpose array into [trials x neurons]
 
 # Get neural activity of a bin in the tunnel
 control_intervals = np.vstack((trials['enterEnvPos'] + (LDA_CONTROL - (BIN_SIZE/2)),
@@ -74,26 +74,10 @@ spike_control, neuron_ids = get_spike_counts_in_bins(spikes_dist, clusters_dist,
                                                     control_intervals)
 spike_control = spike_control.T  # transpose array into [trials x neurons]
 
-# Fit LDA projection per region
-for r, region in enumerate(np.unique(clusters['region'])):
-    if region == 'root':
-        continue
-    
-    # In environment
-    region_counts = spike_counts[:, clusters['region'] == region]
-    lda[region] = LinearDiscriminantAnalysis()
-    lda[region].fit(region_counts, trials['soundId'])
-    
-    # In tunnel
-    region_counts = spike_control[:, clusters['region'] == region]
-    lda_control[region] = LinearDiscriminantAnalysis()
-    lda_control[region].fit(region_counts, trials['soundId'])
-    
-
 # Loop over all distance bins
 lda_dist_df, shuffles_df = pd.DataFrame(), pd.DataFrame()
 for i, bin_center in enumerate(d_centers):
-    if np.mod(i, 50) == 0:
+    if np.mod(i, 10) == 0:
         print(f'Distance bin {np.round(bin_center, 2)} cm ({i} of {len(d_centers)})')
     
     # Get spike counts per trial for all neurons during this time bin
@@ -110,15 +94,17 @@ for i, bin_center in enumerate(d_centers):
         if np.sum(clusters['region'] == region) < MIN_NEURONS:
             continue        
         
-        # Project neural activity to LDA projection
-        region_counts = spike_counts[:, clusters['region'] == region]
-        lda_proj = lda[region].transform(region_counts)
+        # Fit LDA projection
+        lda = LinearDiscriminantAnalysis()
+        lda.fit(spike_lda[:, clusters['region'] == region], trials['soundId'].values)
+        lda_proj = lda.transform(spike_counts[:, clusters['region'] == region])
         lda_dist = np.abs(np.mean(lda_proj[trials['soundId'] == 1]) - 
                           np.mean(lda_proj[trials['soundId'] == 2]))
         
         # For control projection
-        region_counts = spike_counts[:, clusters['region'] == region]
-        lda_proj_control = lda_control[region].transform(region_counts)
+        lda_control = LinearDiscriminantAnalysis()
+        lda_control.fit(spike_control[:, clusters['region'] == region], trials['soundId'].values)
+        lda_proj_control = lda_control.transform(spike_counts[:, clusters['region'] == region])
         lda_dist_control = np.abs(np.mean(lda_proj_control[trials['soundId'] == 1]) - 
                                   np.mean(lda_proj_control[trials['soundId'] == 2]))
         
@@ -128,7 +114,7 @@ for i, bin_center in enumerate(d_centers):
             'control': [0, 1]})))
         
     # Save to disk
-    lda_dist_df.to_csv(join(path_dict['save_path'], 'lda_distance_context.csv'), index=False)
+    lda_dist_df.to_csv(join(path_dict['save_path'], 'lda_distance_context_sound_onset.csv'), index=False)
             
             
             
