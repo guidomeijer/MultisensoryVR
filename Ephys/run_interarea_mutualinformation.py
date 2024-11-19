@@ -12,9 +12,6 @@ from scipy.stats import pearsonr, sem
 from msvr_functions import paths, load_multiple_probes, load_subjects, calculate_peths, load_objects
 
 # Settings
-SUBJECT = '459601'
-DATE = '20240411'
-PROBE = 'probe00'
 T_BEFORE = 2
 T_AFTER = 2
 BIN_SIZE = 0.15
@@ -29,12 +26,7 @@ subjects = load_subjects()
 
 # Load in data
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv'))
-session_path = join(path_dict['local_data_path'], 'Subjects', f'{SUBJECT}', f'{DATE}')
-
-trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', SUBJECT, DATE, 'trials.csv'))
 neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
-all_obj_df = load_objects(SUBJECT, DATE)
-rew_obj2_df = all_obj_df[all_obj_df['object'] == 2]
 
 # %% Fuction for parallization
 
@@ -56,9 +48,12 @@ def run_mi(spike_counts, tt):
 
 for i, (subject, date) in enumerate(zip(np.unique(rec['subject']), np.unique(rec['date']))):
 
-    # Load in neural data for all probes
+    # Load in data for this session
     session_path = join(path_dict['local_data_path'], 'Subjects', f'{subject}', f'{date}')
+    trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', subject, date, 'trials.csv'))
     spikes, clusters, channels = load_multiple_probes(session_path, min_fr=MIN_FR)
+    all_obj_df = load_objects(subject, date)
+    rew_obj2_df = all_obj_df[all_obj_df['object'] == 2]
 
     # Get binned spike counts per region
     goal_counts, distractor_counts, sound_counts = dict(), dict(), dict()

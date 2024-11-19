@@ -6,7 +6,7 @@ Created on Mon Aug 21 15:08:20 2023
 """
 
 import os
-from os.path import join
+from os.path import join, split
 import numpy as np
 from glob import glob
 from msvr_functions import paths
