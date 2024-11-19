@@ -9,11 +9,13 @@ Created on Mon Jun 17 17:24:36 2024
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from os.path import join, isdir
+from os.path import join, isdir, isfile
 import pandas as pd
 from matplotlib.ticker import FormatStrFormatter
 from msvr_functions import (paths, peri_multiple_events_time_histogram, load_objects,
                             load_neural_data, figure_style, load_subjects)
+
+OVERWITE = False
 
 # Time
 T_BEFORE = 2  # s
@@ -65,12 +67,17 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
                               & (neuron_df['sig_goal'])]
     
     for i, neuron_id in enumerate(these_neurons['neuron_id']):
-        print(f'Plotting neuron {i} of {these_neurons.shape[0]}')
       
         # Get region
         region = clusters['region'][clusters['cluster_id'] == neuron_id][0]
        
         # Plot object conditioned on sound
+        if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons', f'{region}')):
+            os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons', f'{region}'))
+        if isfile(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons', f'{region}',
+                       f'{subject}_{date}_{probe}_neuron{neuron_id}.jpg')):
+            continue
+        print(f'Plotting neuron {i} of {these_neurons.shape[0]}')
         
         # First get y limits of both plots
         f, (ax1, ax2) = plt.subplots(1, 2)
@@ -177,8 +184,6 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
         plt.subplots_adjust(bottom=0.2, top=0.8)
         
         # Save
-        if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons', f'{region}')):
-            os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons', f'{region}'))
         plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons', f'{region}',
                          f'{subject}_{date}_{probe}_neuron{neuron_id}.jpg'), dpi=300)
         plt.close(f)

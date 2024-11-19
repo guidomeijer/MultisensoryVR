@@ -55,7 +55,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     no_goal_times = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 0), 'times']
     sound1_times = all_obj_df.loc[(all_obj_df['object'] == 3) & (all_obj_df['sound'] == 1), 'times']
     sound2_times = all_obj_df.loc[(all_obj_df['object'] == 3) & (all_obj_df['sound'] == 2), 'times']
-
+    
     # Difference between contexts for the second rewarded object (goal)
     print('Calculating difference between goal/distractor context')
     results = Parallel(n_jobs=-1)(
