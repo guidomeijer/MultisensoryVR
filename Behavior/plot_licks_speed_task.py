@@ -20,7 +20,7 @@ T_BEFORE = 2
 T_AFTER = 3
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
-PLOT_SUBJECTS = ['466395']
+PLOT_SUBJECTS = ['472975', '472976']
 
 # Get subjects
 subjects = load_subjects()
