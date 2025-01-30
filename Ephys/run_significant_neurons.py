@@ -1,3 +1,4 @@
+# %%
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jul 31 08:45:16 2024 by Guido Meijer
@@ -14,7 +15,7 @@ from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 T_BEFORE = 1  # s
 T_AFTER = 2
 ALPHA = 0.05
-OVERWRITE = False
+OVERWRITE = True
 max_dur = T_BEFORE + T_AFTER
 
 # Initialize

@@ -37,8 +37,6 @@ neuron_df = neuron_df[neuron_df['region'] != 'root']
 # Create folders if necessary
 if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons')):
     os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons'))
-if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', 'LandmarkNeurons')):
-    os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', 'LandmarkNeurons'))
 
 # Loop over recordings
 for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date'], rec_df['probe'])):
@@ -191,6 +189,10 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
       
     # %% Object onset
     """
+    
+    if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', 'LandmarkNeurons')):
+        os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', 'LandmarkNeurons'))
+        
     these_neurons = neuron_df[(neuron_df['subject'] == subject)
                               & (neuron_df['date'] == date)
                               & (neuron_df['probe'] == probe)

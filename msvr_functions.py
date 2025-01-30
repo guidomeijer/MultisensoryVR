@@ -297,8 +297,8 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
         Whether to load the channel location and brain regions from the output of the alignment GUI.
         If False, no brain regions will be provided. The default is True.
     only_good : bool, optional
-        Whether to only load in neurons that have been manually labelled in Phy.
-        The default is True.
+        Whether to only load in neurons that are labelled 'good' by automatic curation, either 
+        IBL labelled good or machine learning lablled good. The default is True.
     min_fr : float, optional
         Only return neurons with a firing rate of minimally this value in spikes/s over the entire 
         recording
@@ -331,17 +331,10 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
     clusters['cluster_id'] = np.arange(clusters['channels'].shape[0])
     
     # Add cluster qc metrics
-    if isfile(join(session_path, probe, 'clusters.bcUnitType.npy')):
-        clusters['bc_label'] = np.load(join(session_path, probe, 'clusters.bcUnitType.npy'),
-                                       allow_pickle=True)
-    clusters['ks_label'] = pd.read_csv(join(session_path, probe, 'cluster_KSLabel.tsv'),
-                                       sep='\t')['KSLabel']
-    if isfile(join(session_path, probe, 'cluster_IBLLabel.tsv')):
-        clusters['ibl_label'] = pd.read_csv(join(session_path, probe, 'cluster_IBLLabel.tsv'),
-                                            sep='\t')['ibl_label']
-    if isfile(join(session_path, probe, 'cluster_group.tsv')):
-        clusters['manual_label'] = pd.read_csv(join(session_path, probe, 'cluster_group.tsv'),
-                                               sep='\t')['group']
+    clusters['ibl_label'] = np.load(join(session_path, probe, 'clusters.IBLLabel.npy'))
+    clusters['ml_label'] = np.load(join(session_path, probe, 'clusters.MLLabel.npy'))
+    if isfile(join(session_path, probe, 'clusters.manualLabels.npy')):
+        clusters['manual_label'] = np.load(join(session_path, probe, 'clusters.manualLabels.npy'))
         
     # Add neuron firing rates
     if isfile(join(session_path, probe, 'clusters.firingRates.npy')):
@@ -413,9 +406,7 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
     select_units = np.ones(clusters['cluster_id'].shape[0]).astype(bool)
     select_units[np.where(clusters['firing_rate'] < min_fr)[0]] = False
     if only_good:     
-        if 'manual_label' not in clusters.keys():
-            raise Exception('No manual cluster labels found! Set only_good to False to load all neurons.')
-        select_units[np.where(clusters['manual_label'] != 'good')[0]] = False
+        select_units[np.where((clusters['ml_label'] == 0) & (clusters['ibl_label'] < 1))[0]] = False
     keep_units = clusters['cluster_id'][select_units]
     spikes['times'] = spikes['times'][np.isin(spikes['clusters'], keep_units)]
     spikes['amps'] = spikes['amps'][np.isin(spikes['clusters'], keep_units)]
@@ -431,6 +422,8 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
     clusters['amps'] = clusters['amps'][keep_units]
     clusters['firing_rate'] = clusters['firing_rate'][keep_units]
     clusters['cluster_id'] = clusters['cluster_id'][keep_units]
+    clusters['ml_label'] = clusters['ml_label'][keep_units]
+    clusters['ibl_label'] = clusters['ibl_label'][keep_units]
     
     return spikes, clusters, channels
     
