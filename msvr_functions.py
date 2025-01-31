@@ -105,20 +105,21 @@ def paths(sync=False, full_sync=False, force_sync=False):
                     local_files = [f for f in os.listdir(local_path)
                                    if isfile(join(local_path, f)) & (f[-4:] != 'flag')]    
                     
-                    if len(local_files) != len(server_files):
-                        print(f'Copying files {join(path_dict["server_path"], "Subjects", subject, session)}')
+                    if len(server_files) > len(local_files):
+                        print(f'Copying files from server {server_path}')
                         for f, file in enumerate(server_files):
                             if not isfile(join(local_path, file)):
-                                shutil.copyfile(join(server_path, file),
-                                                join(local_path, file))
-                        if ((isdir(join(server_path, 'probe00')))
-                                & (~isdir(join(local_path, 'probe00')))):
-                            shutil.copytree(join(server_path, 'probe00'),
-                                            join(local_path, 'probe00'))
-                        if ((isdir(join(server_path, 'probe01')))
-                                & (~isdir(join(local_path, 'probe01')))):
-                            shutil.copytree(join(server_path, 'probe01'),
-                                            join(local_path, 'probe01'))
+                                shutil.copyfile(join(server_path, file), join(local_path, file))
+                        if (isdir(join(server_path, 'probe00'))) & (~isdir(join(local_path, 'probe00'))):
+                            shutil.copytree(join(server_path, 'probe00'), join(local_path, 'probe00'))
+                        if (isdir(join(server_path, 'probe01'))) & (~isdir(join(local_path, 'probe01'))):
+                            shutil.copytree(join(server_path, 'probe01'), join(local_path, 'probe01'))
+                    elif len(server_files) < len(local_files):
+                        print('Copying files to server {server_path}')
+                        for f, file in enumerate(local_files):
+                            if not isfile(join(server_path, file)):
+                                shutil.copyfile(join(local_path, file), join(server_path, file))
+                        
                     if (not isdir(join(server_path, 'raw_video_data'))) & full_sync:
                         print(
                             f'Copying raw video data {join(path_dict["server_path"], "Subjects", subject, session)}')
