@@ -14,6 +14,13 @@ colors, dpi = figure_style()
 # Load in data
 path_dict = paths()
 stats_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
+session_df = stats_df[['subject', 'date', 'probe']].value_counts().reset_index()
+print(f'{len(np.unique(session_df["subject"]))} mice')
+print(f'{len(np.unique(session_df["date"]))} recording sessions')
+print(f'{session_df.shape[0]} probe insertions')
+print(f'{stats_df.shape[0]} neurons ({int(session_df["count"].mean())} +- {int(session_df["count"].sem())}, mean +- sem per probe)')
+
+# Select neurons
 stats_df['region'] = combine_regions(stats_df['allen_acronym'], split_peri=True, abbreviate=True)
 stats_df = stats_df[stats_df['region'] != 'root']
 stats_df = stats_df[stats_df['region'] != 'ENT']

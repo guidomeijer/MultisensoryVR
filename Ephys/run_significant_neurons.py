@@ -15,13 +15,21 @@ from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 T_BEFORE = 1  # s
 T_AFTER = 2
 ALPHA = 0.05
-OVERWRITE = True
+OVERWRITE = False
 max_dur = T_BEFORE + T_AFTER
 
 # Initialize
 path_dict = paths(sync=False)
 subjects = load_subjects()
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
+
+# Load in previous data
+if OVERWRITE:
+    stats_df = pd.DataFrame()
+else:
+    stats_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
+    rec = rec[rec['']]
+    
 
 # %% Function for parallel processing
 

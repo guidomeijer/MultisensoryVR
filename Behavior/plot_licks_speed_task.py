@@ -26,7 +26,7 @@ PLOT_SUBJECTS = ['472975', '472976']
 subjects = load_subjects()
 
 # Get paths
-path_dict = paths(force_sync=True)
+path_dict = paths(force_sync=False)
 data_path = path_dict['local_data_path']
 
 # Set figure style
