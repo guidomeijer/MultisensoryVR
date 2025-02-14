@@ -15,7 +15,7 @@ from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 T_BEFORE = 1  # s
 T_AFTER = 2
 ALPHA = 0.05
-OVERWRITE = False
+OVERWRITE = True
 max_dur = T_BEFORE + T_AFTER
 
 # Initialize
@@ -28,7 +28,9 @@ if OVERWRITE:
     stats_df = pd.DataFrame()
 else:
     stats_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
-    rec = rec[rec['']]
+    stats_df[['subject', 'date', 'probe']] = stats_df[['subject', 'date', 'probe']].astype(str)
+    merged = rec.merge(stats_df, on=['subject', 'date', 'probe'], how='left', indicator=True)
+    rec = merged[merged['_merge'] == 'left_only'].drop(columns=['_merge'])
     
 
 # %% Function for parallel processing
@@ -45,7 +47,6 @@ def run_zetatest(neuron_id, event_times):
     return p_value
 
 # %%
-stats_df = pd.DataFrame()
 for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
     print(f'\nStarting {subject} {date} {probe}..')
     

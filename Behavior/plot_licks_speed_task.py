@@ -26,7 +26,7 @@ PLOT_SUBJECTS = ['472975', '472976']
 subjects = load_subjects()
 
 # Get paths
-path_dict = paths(force_sync=False)
+path_dict = paths(force_sync=True)
 data_path = path_dict['local_data_path']
 
 # Set figure style
@@ -146,12 +146,12 @@ for i, subject in enumerate(PLOT_SUBJECTS):
 
         # Get timestamps of entry of goal, no-goal and control object sets
         goal_obj_enters = np.concatenate((
-            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound1Obj"]}'],
-            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound2Obj"]}']))
+            trials.loc[trials['soundId'] == 1, f'enterObj{sound1_obj}'],
+            trials.loc[trials['soundId'] == 2, f'enterObj{sound2_obj}']))
         nogoal_obj_enters = np.concatenate((
-            trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound2Obj"]}'],
-            trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound1Obj"]}']))
-        control_obj_enters = trials[f'enterObj{subjects.loc[i, "ControlObject"]}'].values
+            trials.loc[trials['soundId'] == 1, f'enterObj{sound2_obj}'],
+            trials.loc[trials['soundId'] == 2, f'enterObj{sound1_obj}']))
+        control_obj_enters = trials[f'enterObj{control_obj}'].values
         all_obj_enters = np.concatenate((goal_obj_enters, nogoal_obj_enters, control_obj_enters))
         all_obj_ids = np.concatenate(
             (np.ones(goal_obj_enters.shape[0]),
@@ -159,6 +159,7 @@ for i, subject in enumerate(PLOT_SUBJECTS):
              np.ones(control_obj_enters.shape[0])*3))
         all_obj_ids = all_obj_ids[~np.isnan(all_obj_enters)]
         all_obj_enters = all_obj_enters[~np.isnan(all_obj_enters)]
+        
         if j == 0:
             peri_event_trace(wheel_speed, wheel_times, all_obj_enters,
                              event_ids=all_obj_ids,

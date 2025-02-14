@@ -25,6 +25,17 @@ stats_df['region'] = combine_regions(stats_df['allen_acronym'], split_peri=True,
 stats_df = stats_df[stats_df['region'] != 'root']
 stats_df = stats_df[stats_df['region'] != 'ENT']
 stats_df['sig_goal_no_control'] = stats_df['sig_goal'] & ~stats_df['sig_control']
+stats_df['ses_id'] = [f'{stats_df.loc[i, "subject"]}_{stats_df.loc[i, "date"]}' for i in stats_df.index]
+
+# Summary statistics per session
+per_ses_df = stats_df.groupby(['region', 'ses_id']).sum(numeric_only=True)
+per_ses_df['n_neurons'] = stats_df.groupby(['region', 'ses_id']).size()
+per_ses_df['perc_goal'] = (per_ses_df['sig_goal'] / per_ses_df['n_neurons']) * 100
+per_ses_df['perc_obj_onset'] = (per_ses_df['sig_obj_onset'] / per_ses_df['n_neurons']) * 100
+per_ses_df['perc_control'] = (per_ses_df['sig_control'] / per_ses_df['n_neurons']) * 100
+per_ses_df['perc_obj_diff'] = (per_ses_df['sig_obj_diff'] / per_ses_df['n_neurons']) * 100
+per_ses_df['perc_goal_no_control'] = (per_ses_df['sig_goal_no_control'] / per_ses_df['n_neurons']) * 100
+per_ses_df = per_ses_df.reset_index()
 
 # Get percentage of significant neurons per region
 region_df = stats_df[['region', 'sig_goal', 'sig_obj_onset', 'sig_control', 'sig_obj_diff',
@@ -40,7 +51,7 @@ region_df = region_df.reset_index()
 long_df = pd.melt(region_df, id_vars=['region'],
                   value_vars=['perc_obj_onset', 'perc_goal', 'perc_goal_no_control', 'perc_obj_diff'])
 
-# Plot
+# %% Plot
 f, ax = plt.subplots(1, 1, figsize=(2.5, 1.75), dpi=dpi) 
 sns.barplot(data=long_df, x='variable', y='value', hue='region', ax=ax,
             palette=colors)
@@ -52,5 +63,26 @@ ax.legend(title='')
 sns.despine(trim=False)
 plt.tight_layout()
 
-#plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons.jpg'), dpi=600)
+plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons.jpg'), dpi=600)
+
+# %%
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.75*2, 2), dpi=dpi, sharey=True) 
+
+sns.barplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, hue='region', errorbar=None,
+            palette=colors)
+sns.swarmplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, color='k', size=4)
+ax1.set(ylabel='Significant neurons (%)',  yticks=[0, 20, 40, 60, 80, 100], xlabel='',
+        title='Landmark')
+ax1.tick_params(axis='x', labelrotation=90)
+
+sns.barplot(data=per_ses_df, x='region', y='perc_goal', ax=ax2, hue='region', errorbar=None,
+            palette=colors)
+sns.swarmplot(data=per_ses_df, x='region', y='perc_goal', ax=ax2, color='k', size=4)
+ax2.set(xlabel='', title='Context')
+ax2.tick_params(axis='x', labelrotation=90)
+
+sns.despine(trim=False)
+plt.tight_layout()
+
+plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_per_ses.jpg'), dpi=600)
 
