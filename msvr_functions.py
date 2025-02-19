@@ -121,20 +121,20 @@ def paths(sync=False, full_sync=False, force_sync=False):
                             if not isfile(join(server_path, file)):
                                 shutil.copyfile(join(local_path, file), join(server_path, file))
                     
-                    # Do the same for the two probe folders
+                    # Synchronize neural data 
                     if isdir(join(local_path, 'probe00')):
                         local_probe_files = [f for f in os.listdir(join(local_path, 'probe00'))
                                              if isfile(join(local_path, f))]
                         server_probe_files = [f for f in os.listdir(join(server_path, 'probe00'))
-                                              if isfile(join(local_path, f))]   
+                                              if isfile(join(server_path, f))]   
                         if len(local_probe_files) > len(server_probe_files):
-                            print('Copying probe00 files to server {server_path}')
+                            print(f'{subject} {session} | Copying probe00 files to server {server_path}')
                             for f, file in enumerate(local_probe_files):
                                 if not isfile(join(server_path, 'probe00', file)):
                                     shutil.copyfile(join(local_path, 'probe00', file),
                                                     join(server_path, 'probe00', file))
                         elif len(local_probe_files) < len(server_probe_files):
-                            print('Copying probe00 files from server {server_path}')
+                            print(f'{subject} {session} | Copying probe00 files from server {server_path}')
                             for f, file in enumerate(server_probe_files):
                                 if not isfile(join(local_path, 'probe00', file)):
                                     shutil.copyfile(join(server_path, 'probe00', file),
@@ -143,15 +143,15 @@ def paths(sync=False, full_sync=False, force_sync=False):
                         local_probe_files = [f for f in os.listdir(join(local_path, 'probe01'))
                                              if isfile(join(local_path, f))]
                         server_probe_files = [f for f in os.listdir(join(server_path, 'probe01'))
-                                              if isfile(join(local_path, f))]   
+                                              if isfile(join(server_path, f))]   
                         if len(local_probe_files) > len(server_probe_files):
-                            print('Copying probe01 files to server {server_path}')
+                            print(f'{subject} {session} | Copying probe01 files to server {server_path}')
                             for f, file in enumerate(local_probe_files):
                                 if not isfile(join(server_path, 'probe01', file)):
                                     shutil.copyfile(join(local_path, 'probe01', file),
                                                     join(server_path, 'probe01', file))
                         elif len(local_probe_files) < len(server_probe_files):
-                            print('Copying probe01 files from server {server_path}')
+                            print(f'{subject} {session} | Copying probe01 files from server {server_path}')
                             for f, file in enumerate(server_probe_files):
                                 if not isfile(join(local_path, 'probe01', file)):
                                     shutil.copyfile(join(server_path, 'probe01', file),
@@ -159,11 +159,28 @@ def paths(sync=False, full_sync=False, force_sync=False):
                         
                     # If the probe folder does not exist on local drive, copy it from server
                     if (isdir(join(server_path, 'probe00'))) & (~isdir(join(local_path, 'probe00'))):
-                        print('Copying probe00 folder from server')
-                        shutil.copytree(join(server_path, 'probe00'), join(local_path, 'probe00'))
+                        print(f'{subject} {session} | Copying probe00 folder from server')
+                        if full_sync:
+                            shutil.copytree(join(server_path, 'probe00'), join(local_path, 'probe00'))
+                        else:
+                            os.mkdir(join(local_path, 'probe00'))
+                            server_probe_files = [f for f in os.listdir(join(server_path, 'probe00'))
+                                                  if isfile(join(server_path, 'probe00', f))]   
+                            for f, file in enumerate(server_probe_files):
+                                shutil.copyfile(join(server_path, 'probe00', file),
+                                                join(local_path, 'probe00', file))
+                                
                     if (isdir(join(server_path, 'probe01'))) & (~isdir(join(local_path, 'probe01'))):
-                        print('Copying probe01 folder from server')
-                        shutil.copytree(join(server_path, 'probe01'), join(local_path, 'probe01'))
+                        print(f'{subject} {session} | Copying probe01 folder from server')
+                        if full_sync:
+                            shutil.copytree(join(server_path, 'probe01'), join(local_path, 'probe01'))
+                        else:
+                            os.mkdir(join(local_path, 'probe01'))
+                            server_probe_files = [f for f in os.listdir(join(server_path, 'probe01'))
+                                                  if isfile(join(server_path, 'probe01', f))]   
+                            for f, file in enumerate(server_probe_files):
+                                shutil.copyfile(join(server_path, 'probe01', file),
+                                                join(local_path, 'probe01', file))
                     
                     # Copy raw data from server if a full sync is requested
                     if (not isdir(join(server_path, 'raw_video_data'))) & full_sync:
