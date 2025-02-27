@@ -15,11 +15,11 @@ from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 T_BEFORE = 1  # s
 T_AFTER = 2
 ALPHA = 0.05
-OVERWRITE = True
+OVERWRITE = False
 max_dur = T_BEFORE + T_AFTER
 
 # Initialize
-path_dict = paths(sync=False)
+path_dict = paths()
 subjects = load_subjects()
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 
@@ -37,8 +37,11 @@ else:
 
 def run_zetatest2(neuron_id, event_times1, event_times2):
     these_spikes = spikes['times'][spikes['clusters'] == neuron_id]
-    p_value, _ = zetatest2(these_spikes, event_times1, these_spikes, event_times2,
-                           dblUseMaxDur=max_dur)
+    try:
+        p_value, _ = zetatest2(these_spikes, event_times1, these_spikes, event_times2,
+                               dblUseMaxDur=max_dur)
+    except Exception:
+        p_value = np.nan            
     return p_value
 
 def run_zetatest(neuron_id, event_times):
@@ -52,7 +55,8 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     
     # Load in data
     session_path = join(path_dict['local_data_path'], 'Subjects', f'{subject}', f'{date}')
-    spikes, clusters, channels = load_neural_data(session_path, probe, histology=True, only_good=True)
+    spikes, clusters, channels = load_neural_data(session_path, probe, histology=True, only_good=True,
+                                                  min_fr=0.1)
     trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', subject, date, 'trials.csv'))
     all_obj_df = load_objects(subject, date)
    

@@ -51,33 +51,21 @@ region_df = region_df.reset_index()
 long_df = pd.melt(region_df, id_vars=['region'],
                   value_vars=['perc_obj_onset', 'perc_goal', 'perc_goal_no_control', 'perc_obj_diff'])
 
-# %% Plot
-f, ax = plt.subplots(1, 1, figsize=(2.5, 1.75), dpi=dpi) 
-sns.barplot(data=long_df, x='variable', y='value', hue='region', ax=ax,
-            palette=colors)
-ax.set(ylabel='Significant neurons (%)', xticks=[0, 1, 2, 3],
-       xticklabels=['Landmark\nentry', 'Context', 'Goal', 'Object'],
-       yticks=[0, 20, 40, 60, 80, 100], xlabel='')
-ax.legend(title='')
 
-sns.despine(trim=False)
-plt.tight_layout()
-
-plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons.jpg'), dpi=600)
 
 # %%
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.75*2, 2), dpi=dpi, sharey=True) 
 
 sns.barplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, hue='region', errorbar=None,
             palette=colors)
-sns.swarmplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, color='k', size=4)
+sns.swarmplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, color='k', size=3)
 ax1.set(ylabel='Significant neurons (%)',  yticks=[0, 20, 40, 60, 80, 100], xlabel='',
         title='Landmark')
 ax1.tick_params(axis='x', labelrotation=90)
 
 sns.barplot(data=per_ses_df, x='region', y='perc_goal', ax=ax2, hue='region', errorbar=None,
             palette=colors)
-sns.swarmplot(data=per_ses_df, x='region', y='perc_goal', ax=ax2, color='k', size=4)
+sns.swarmplot(data=per_ses_df, x='region', y='perc_goal', ax=ax2, color='k', size=3)
 ax2.set(xlabel='', title='Context')
 ax2.tick_params(axis='x', labelrotation=90)
 
