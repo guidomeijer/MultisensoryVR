@@ -19,7 +19,7 @@ OVERWRITE = False
 max_dur = T_BEFORE + T_AFTER
 
 # Initialize
-path_dict = paths()
+path_dict = paths(force_sync=True)
 subjects = load_subjects()
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 

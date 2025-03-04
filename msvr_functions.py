@@ -116,7 +116,7 @@ def paths(sync=False, full_sync=False, force_sync=False):
                             if not isfile(join(local_path, file)):
                                 shutil.copyfile(join(server_path, file), join(local_path, file))
                     elif len(server_files) < len(local_files):
-                        print('Copying files to server {server_path}')
+                        print(f'Copying files to server {server_path}')
                         for f, file in enumerate(local_files):
                             if not isfile(join(server_path, file)):
                                 shutil.copyfile(join(local_path, file), join(server_path, file))
