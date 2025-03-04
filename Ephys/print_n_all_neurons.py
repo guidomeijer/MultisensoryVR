@@ -13,7 +13,7 @@ path_dict = paths()
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 n_neurons = []
 for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
-    print(f'\nStarting {subject} {date} {probe}..')
+    print(f'Starting {subject} {date} {probe}..')
     
     # Load in data
     session_path = join(path_dict['local_data_path'], 'Subjects', f'{subject}', f'{date}')
@@ -23,5 +23,5 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
                                                   min_fr=0)
     n_neurons.append(len(clusters['cluster_id']))
 
-print(f'{np.sum(n_neurons)} total number of detected units')
-print(f'{np.mean(n_neurons)} +- {stats.sem(n_neurons)} (mean += sem) per probe')
+print(f'\n{np.sum(n_neurons)} total number of detected units')
+print(f'{np.round(np.mean(n_neurons))} +- {np.round(stats.sem(n_neurons))} (mean += sem) per probe')

@@ -58,14 +58,14 @@ f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.75*2, 2), dpi=dpi)
 
 sns.barplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, hue='region', errorbar=None,
             palette=colors)
-sns.swarmplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, color='k', size=3)
+sns.swarmplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, color='k', size=2)
 ax1.set(ylabel='Significant neurons (%)',  yticks=[0, 20, 40, 60, 80, 100], xlabel='',
         title='Landmark')
 ax1.tick_params(axis='x', labelrotation=90)
 
 sns.barplot(data=per_ses_df, x='region', y='perc_goal', ax=ax2, hue='region', errorbar=None,
             palette=colors)
-sns.swarmplot(data=per_ses_df, x='region', y='perc_goal', ax=ax2, color='k', size=3)
+sns.swarmplot(data=per_ses_df, x='region', y='perc_goal', ax=ax2, color='k', size=2)
 ax2.set(xlabel='', title='Context', yticks=[0, 10, 20, 30, 40, 50], ylabel='Significant neurons (%)')
 ax2.tick_params(axis='x', labelrotation=90)
 
