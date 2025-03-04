@@ -19,7 +19,7 @@ OVERWRITE = False
 max_dur = T_BEFORE + T_AFTER
 
 # Initialize
-path_dict = paths(force_sync=True)
+path_dict = paths(force_sync=False)
 subjects = load_subjects()
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 
@@ -65,17 +65,23 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     all_obj_df['times'] = all_obj_df['times'] - T_BEFORE
     
     # Get event times 
-    goal_times = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 1), 'times']
-    no_goal_times = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 0), 'times']
+    goal1_times = all_obj_df.loc[(all_obj_df['object'] == 1) & (all_obj_df['goal'] == 1), 'times']
+    no_goal1_times = all_obj_df.loc[(all_obj_df['object'] == 1) & (all_obj_df['goal'] == 0), 'times']
+    goal2_times = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 1), 'times']
+    no_goal2_times = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 0), 'times']
     sound1_times = all_obj_df.loc[(all_obj_df['object'] == 3) & (all_obj_df['sound'] == 1), 'times']
     sound2_times = all_obj_df.loc[(all_obj_df['object'] == 3) & (all_obj_df['sound'] == 2), 'times']
     
     # Difference between contexts for the second rewarded object (goal)
     print('Calculating difference between goal/distractor context')
     results = Parallel(n_jobs=-1)(
-        delayed(run_zetatest2)(neuron_id, goal_times, no_goal_times)
+        delayed(run_zetatest2)(neuron_id, goal1_times, no_goal1_times)
         for i, neuron_id in enumerate(clusters['cluster_id']))
-    goal_p = np.array([result for result in results])
+    goal1_p = np.array([result for result in results])
+    results = Parallel(n_jobs=-1)(
+        delayed(run_zetatest2)(neuron_id, goal2_times, no_goal2_times)
+        for i, neuron_id in enumerate(clusters['cluster_id']))
+    goal2_p = np.array([result for result in results])
     
     # Difference between the two sounds for the control object
     print('Calculating difference between sound context for control object')
@@ -142,7 +148,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     obj23_sound2_p = np.array([result for result in results])
     
     # Get significance
-    sig_goal = goal_p < ALPHA
+    sig_goal = (goal1_p < ALPHA) | (goal2_p < ALPHA)
     sig_control = control_sound_p < ALPHA
     sig_obj_onset = obj_p < ALPHA
     sig_obj_diff = ((obj12_sound1_p < ALPHA / 6) | (obj13_sound1_p < ALPHA / 6) | (obj23_sound1_p < ALPHA / 6)
@@ -153,7 +159,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         'subject': subject, 'date': date, 'probe': probe, 'neuron_id': clusters['cluster_id'],
         'region': clusters['region'], 'allen_acronym': clusters['acronym'],
         'sig_goal': sig_goal, 'sig_obj_onset': sig_obj_onset, 'sig_control': sig_control,
-        'sig_obj_diff': sig_obj_diff, 'p_goal': goal_p, 
+        'sig_obj_diff': sig_obj_diff, 'p_goal_obj1': goal1_p, 'p_goal_obj2': goal2_p, 
         'p_control_sound': control_sound_p, 'p_obj_onset': obj_p,
         'p_obj12_sound1': obj12_sound1_p, 'p_obj23_sound1': obj23_sound1_p, 'p_obj13_sound1': obj13_sound1_p,
         'p_obj12_sound2': obj12_sound2_p, 'p_obj23_sound2': obj23_sound2_p, 'p_obj13_sound2': obj13_sound2_p
