@@ -58,16 +58,7 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
     wheel_speed = np.load(join(path_dict['local_data_path'], 'Subjects', subject, date, 'continuous.wheelSpeed.npy'))
     wheel_dist = np.load(join(path_dict['local_data_path'], 'Subjects', subject, date, 'continuous.wheelDistance.npy'))
     wheel_times = np.load(join(path_dict['local_data_path'], 'Subjects', subject, date, 'continuous.times.npy'))
-    
-    # Get reward contingencies
-    sound1_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound1Obj'].values[0]
-    sound2_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound2Obj'].values[0]
-    control_obj = subjects.loc[subjects['SubjectID'] == subject, 'ControlObject'].values[0]
-    
-    obj1_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 1)[0][0] + 1
-    obj2_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 2)[0][0] + 1
-    obj3_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 3)[0][0] + 1
-    
+        
     # Set a speed threshold, find for each spike its corresponding speed
     indices = np.searchsorted(wheel_times, spikes['times'], side='right') - 1
     indices = np.clip(indices, 0, wheel_dist.shape[0] - 1)
@@ -101,98 +92,74 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
         print(f'Plotting neuron {i} of {these_neurons.shape[0]}')
         
         # First get y limits of both plots
-        f, (ax1, ax2) = plt.subplots(1, 2)
-        peri_multiple_events_time_histogram(
-            spikes['times'], spikes['clusters'], 
-            all_obj_df.loc[all_obj_df['object'] == 1, 'times'], 
-            all_obj_df.loc[all_obj_df['object'] == 1, 'goal'],
-            [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax1,
-            pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
-            errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
-            raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
-            smoothing = T_SMOOTHING, include_raster=True
-            )
-        _, y_max_1 = ax1.get_ylim()
-        peri_multiple_events_time_histogram(
-            spikes['times'], spikes['clusters'], 
-            all_obj_df.loc[all_obj_df['object'] == 2, 'times'], 
-            all_obj_df.loc[all_obj_df['object'] == 2, 'goal'],
-            [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax2,
-            pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
-            errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
-            raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
-            smoothing=T_SMOOTHING, include_raster=True
-            )
-        _, y_max_2 = ax2.get_ylim()
-        plt.close(f)
-        y_max_use = np.ceil(np.max([y_max_1, y_max_2]))
+        try:
+            f, (ax1, ax2) = plt.subplots(1, 2)
+            peri_multiple_events_time_histogram(
+                spikes['times'], spikes['clusters'], 
+                all_obj_df.loc[all_obj_df['object'] == 1, 'times'], 
+                all_obj_df.loc[all_obj_df['object'] == 1, 'goal'],
+                [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax1,
+                pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
+                errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
+                raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
+                smoothing = T_SMOOTHING, include_raster=True
+                )
+            _, y_max_1 = ax1.get_ylim()
+            peri_multiple_events_time_histogram(
+                spikes['times'], spikes['clusters'], 
+                all_obj_df.loc[all_obj_df['object'] == 2, 'times'], 
+                all_obj_df.loc[all_obj_df['object'] == 2, 'goal'],
+                [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax2,
+                pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
+                errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
+                raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
+                smoothing=T_SMOOTHING, include_raster=True
+                )
+            _, y_max_2 = ax2.get_ylim()
+            plt.close(f)
+            y_max_use = np.ceil(np.max([y_max_1, y_max_2]))
+        except Exception:
+            continue
         
         f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(4, 2), dpi=dpi)
-
-        if (obj1_goal_sound == 1) or (obj1_goal_sound == 2):
-            obj1_sound = all_obj_df.loc[all_obj_df['object'] == 1, 'sound']
-            obj1_id = (obj1_sound != obj1_goal_sound).astype(int)
-            color_1 = colors['goal']
-            color_2 = colors['no-goal']
-        elif obj1_goal_sound == 3:
-            obj1_id = all_obj_df.loc[all_obj_df['object'] == 1, 'sound']
-            color_1 = colors['sound1']
-            color_2 = colors['sound2']
  
         peri_multiple_events_time_histogram(
             spikes['times'], spikes['clusters'],
-            all_obj_df.loc[all_obj_df['object'] == 1, 'times'], obj1_id,
+            all_obj_df.loc[all_obj_df['object'] == 1, 'times'],
+            all_obj_df.loc[all_obj_df['object'] == 1, 'goal'],
             [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax1,
             smoothing = T_SMOOTHING, ylim=y_max_use,
-            pethline_kwargs=[{'color': color_1, 'lw': 1}, {'color': color_2, 'lw': 1}],
-            errbar_kwargs=[{'color': color_1, 'alpha': 0.3, 'lw': 0}, {'color': color_2, 'alpha': 0.3, 'lw': 0}],
-            raster_kwargs=[{'color': color_1, 'lw': 0.5}, {'color': color_2, 'lw': 0.5}],
+            pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}],
+            errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
+            raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
             eventline_kwargs={'lw': 0}, include_raster=True)
         ax1.set(title='Object 1', ylabel='Firing rate (spks/s)', yticks=[0, np.ceil(ax1.get_ylim()[1])],
                 xlabel='')
         ax1.yaxis.set_label_coords(-0.3, 0.75)
         ax1.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
-        
-        if (obj2_goal_sound == 1) or (obj2_goal_sound == 2):
-            obj2_sound = all_obj_df.loc[all_obj_df['object'] == 2, 'sound']
-            obj2_id = (obj2_sound != obj2_goal_sound).astype(int)
-            color_1 = colors['goal']
-            color_2 = colors['no-goal']
-        elif obj2_goal_sound == 3:
-            obj2_id = all_obj_df.loc[all_obj_df['object'] == 2, 'sound']
-            color_1 = colors['sound1']
-            color_2 = colors['sound2']   
             
         peri_multiple_events_time_histogram(
             spikes['times'], spikes['clusters'], 
-            all_obj_df.loc[all_obj_df['object'] == 2, 'times'], obj2_id,
+            all_obj_df.loc[all_obj_df['object'] == 2, 'times'],
+            all_obj_df.loc[all_obj_df['object'] == 2, 'goal'],
             [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax2,
             smoothing = T_SMOOTHING, ylim=y_max_use,
-            pethline_kwargs=[{'color': color_1, 'lw': 1}, {'color': color_2, 'lw': 1}],
-            errbar_kwargs=[{'color': color_1, 'alpha': 0.3, 'lw': 0}, {'color': color_2, 'alpha': 0.3, 'lw': 0}],
-            raster_kwargs=[{'color': color_1, 'lw': 0.5}, {'color': color_2, 'lw': 0.5}],
+            pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}],
+            errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
+            raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
             eventline_kwargs={'lw': 0}, include_raster=True)
         ax2.set(title='Object 2', yticks=[0, np.ceil(ax2.get_ylim()[1])], ylabel='', xlabel='')
         ax2.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
-        
-        if (obj3_goal_sound == 1) or (obj3_goal_sound == 2):
-            obj3_sound = all_obj_df.loc[all_obj_df['object'] == 3, 'sound']
-            obj3_id = (obj3_sound != obj3_goal_sound).astype(int)
-            color_1 = colors['goal']
-            color_2 = colors['no-goal']
-        elif obj3_goal_sound == 3:
-            obj3_id = all_obj_df.loc[all_obj_df['object'] == 3, 'sound']
-            color_1 = colors['sound1']
-            color_2 = colors['sound2']    
             
         peri_multiple_events_time_histogram(
             spikes['times'], spikes['clusters'], 
-            all_obj_df.loc[all_obj_df['object'] == 3, 'times'], obj3_id,
+            all_obj_df.loc[all_obj_df['object'] == 3, 'times'],
+            all_obj_df.loc[all_obj_df['object'] == 3, 'sound'],
             [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax3,
             smoothing = T_SMOOTHING, ylim=y_max_use,
-            pethline_kwargs=[{'color': color_1, 'lw': 1}, {'color': color_2, 'lw': 1}],
-            errbar_kwargs=[{'color': color_1, 'alpha': 0.3, 'lw': 0}, {'color': color_2, 'alpha': 0.3, 'lw': 0}],
-            raster_kwargs=[{'color': color_1, 'lw': 0.5}, {'color': color_2, 'lw': 0.5}],
+            pethline_kwargs=[{'color': colors['sound1'], 'lw': 1}, {'color': colors['sound2'], 'lw': 1}],
+            errbar_kwargs=[{'color': colors['sound1'], 'alpha': 0.3, 'lw': 0}, {'color': colors['sound2'], 'alpha': 0.3, 'lw': 0}],
+            raster_kwargs=[{'color': colors['sound1'], 'lw': 0.5}, {'color': colors['sound2'], 'lw': 0.5}],
             eventline_kwargs={'lw': 0}, include_raster=True)
         ax3.set(title='Object 3', yticks=[0, np.ceil(ax3.get_ylim()[1])], ylabel='', xlabel='')
         ax3.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))

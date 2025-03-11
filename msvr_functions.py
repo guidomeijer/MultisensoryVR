@@ -209,7 +209,7 @@ def paths(sync=False, full_sync=False, force_sync=False):
     return path_dict
 
 
-def load_objects(subject, date, reorder=True):
+def load_objects(subject, date):
     """
     Parameters
     ----------
@@ -239,31 +239,16 @@ def load_objects(subject, date, reorder=True):
     sound2_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound2Obj'].values[0]
     control_obj = subjects.loc[subjects['SubjectID'] == subject, 'ControlObject'].values[0]
 
-    obj1_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 1)[0][0] + 1
-    obj2_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 2)[0][0] + 1
-    obj3_goal_sound = np.where(np.array([sound1_obj, sound2_obj, control_obj]) == 3)[0][0] + 1
-
-    if (trials['positionObj1'][0] > trials['positionObj2'][0]) & reorder:
-        # Object 1 comes after object 2
-        sound1_obj_ordered = 2
-        sound2_obj_ordered = 1
-    else:        
-        sound1_obj_ordered = 1
-        sound2_obj_ordered = 2
-
     # Prepare trial data
     rew_obj1_df = pd.DataFrame(data={'times': trials[f'enterObj{sound1_obj}'],
-                                     'object': sound1_obj_ordered, 'sound': trials['soundId'],
-                                     'goal_sound': obj1_goal_sound,
-                                     'goal': (trials['soundId'] == obj1_goal_sound).astype(int)})
+                                     'object': 1, 'sound': trials['soundId'],
+                                     'goal': (trials['soundId'] == 1).astype(int)})
     rew_obj2_df = pd.DataFrame(data={'times': trials[f'enterObj{sound2_obj}'],
-                                     'object': sound2_obj_ordered, 'sound': trials['soundId'],
-                                     'goal_sound': obj2_goal_sound,
-                                     'goal': (trials['soundId'] == obj2_goal_sound).astype(int)})
+                                     'object': 2, 'sound': trials['soundId'],
+                                     'goal': (trials['soundId'] == 2).astype(int)})
     control_obj_df = pd.DataFrame(data={'times': trials[f'enterObj{control_obj}'],
                                         'object': 3, 'sound': trials['soundId'],
-                                        'goal_sound': 0,
-                                        'goal': (trials['soundId'] == obj3_goal_sound).astype(int)})
+                                        'goal': 0})
     all_obj_df = pd.concat((rew_obj1_df, rew_obj2_df, control_obj_df))
     
     return all_obj_df
