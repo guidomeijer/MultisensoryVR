@@ -11,8 +11,6 @@ import matplotlib.pyplot as plt
 from msvr_functions import paths, load_subjects, figure_style, combine_regions
 colors, dpi = figure_style()
 
-SPLIT_HPC = True
-
 # Load in data
 path_dict = paths()
 stats_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
@@ -23,19 +21,10 @@ print(f'{session_df.shape[0]} probe insertions')
 print(f'{stats_df.shape[0]} neurons ({int(session_df["count"].mean())} +- {int(session_df["count"].sem())}, mean +- sem per probe)')
 
 # Select neurons
-stats_df['region'] = combine_regions(stats_df['allen_acronym'], split_peri=True, split_hpc=SPLIT_HPC,
-                                     abbreviate=True)
 stats_df = stats_df[stats_df['region'] != 'root']
 stats_df = stats_df[stats_df['region'] != 'ENT']
 stats_df['sig_goal_no_control'] = stats_df['sig_goal'] & ~stats_df['sig_control']
 stats_df['ses_id'] = [f'{stats_df.loc[i, "subject"]}_{stats_df.loc[i, "date"]}' for i in stats_df.index]
-
-if SPLIT_HPC:
-    # Define CA1v
-    stats_df.loc[(stats_df['subject'] == 462910) & (stats_df['date'] == 20240813) & (stats_df['region'] == 'CA1'), 'region'] = 'vCA1'
-    stats_df.loc[(stats_df['subject'] == 462910) & (stats_df['date'] == 20240814) & (stats_df['region'] == 'CA1'), 'region'] = 'vCA1'
-    stats_df.loc[(stats_df['subject'] == 462910) & (stats_df['date'] == 20240815) & (stats_df['region'] == 'CA1'), 'region'] = 'vCA1'
-    stats_df.loc[stats_df['region'] == 'CA1', 'region'] = 'dCA1'
 
 # Summary statistics per session
 per_ses_df = stats_df.groupby(['region', 'ses_id']).sum(numeric_only=True)
@@ -82,8 +71,5 @@ ax2.tick_params(axis='x', labelrotation=90)
 sns.despine(trim=False)
 plt.tight_layout()
 
-if SPLIT_HPC:
-    plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_per_ses_split-hpc.jpg'), dpi=600)
-else:
-    plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_per_ses.jpg'), dpi=600)
+plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_per_ses.jpg'), dpi=600)
 
