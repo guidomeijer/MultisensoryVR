@@ -19,7 +19,7 @@ path_dict = paths()
 url = 'http://download.alleninstitute.org/informatics-archive/current-release/mouse_ccf/annotation/ccf_2017/structure_meshes/'
 
 # Settings
-BRAIN_REGIONS = ['CA1', 'PERI', 'ECT', 'TEa', 'VISl']
+BRAIN_REGIONS = ['CA1', 'PERI', 'TEa', 'VISl', 'AUDp']
 
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv'))
 
@@ -83,6 +83,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     mlab.plot3d(mlapdv[:, 1], mlapdv[:, 2], mlapdv[:, 0], line_width=1, tube_radius=40,
                 color=(1, 0, 0))
     
+    
     for region in BRAIN_REGIONS:
         atlas_id = br.acronym2id(region)[0]
         mesh_path = join(path_dict['save_path'], f'{atlas_id}.obj')
@@ -90,4 +91,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         color = br.rgb[idx[0][0], :] / 255
         add_mesh(fig, mesh_path, color, opacity=0.5)
     
+
+#rendering.rotating_video(join(path_dict['google_drive_fig_path'], 'rotation_brain_insertions.avi'), fig, fps=30, secs=12)
+
     

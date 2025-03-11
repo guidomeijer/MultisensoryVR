@@ -5,39 +5,32 @@ Created on Mon Aug 21 15:08:20 2023
 @author: Guido Meijer
 """
 
-import os
-from os.path import join, split
+from os import path
 import numpy as np
-from glob import glob
+import pandas as pd
 from msvr_functions import paths
 
 path_dict = paths(sync=False)
+rec = pd.read_csv(path.join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 
-# Search for spikesort_me.flag
-print('Looking for extract_me.flag..')
-for root, directory, files in os.walk(path_dict['local_data_path']):
-    if 'spikeposition_me.flag' in files:
-        print(f'\nFound spikeposition_me.flag in {root}')
 
-        # Load in wheel data
-        wheel_dist = np.load(join(root, 'continuous.wheelDistance.npy'))
-        wheel_times = np.load(join(root, 'continuous.times.npy'))
+for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
+    probe_path = path.join(path_dict['local_data_path'], 'Subjects', subject, date, probe)
+    if path.isfile(path.join(probe_path, 'spikes.distances.npy')):
+        continue
+    print(f'\nCalculating spike distances for {subject} {date} {probe}..')
 
-        probes = glob(join(root, 'probe*'))
-        for p, this_probe in enumerate(probes):
-            print(f'Starting probe {this_probe[-7:]}')
+    # Load in wheel data
+    wheel_dist = np.load(path.join(path.split(probe_path)[0], 'continuous.wheelDistance.npy'))
+    wheel_times = np.load(path.join(path.split(probe_path)[0], 'continuous.times.npy'))
 
-            # Load in spikes
-            spike_times = np.load(join(this_probe, 'spikes.times.npy'))
+    # Load in spikes
+    spike_times = np.load(path.join(probe_path, 'spikes.times.npy'))
 
-            # Find for each spike its corresponding distance
-            indices = np.searchsorted(wheel_times, spike_times, side='right') - 1
-            indices = np.clip(indices, 0, wheel_dist.shape[0] - 1)
-            spike_dist = wheel_dist[indices]
-            
-            # Save result
-            np.save(join(this_probe, 'spikes.distances.npy'), spike_dist)
-            print(f'Successfully extracted spike distances in {root}')
-
-        # Remove flag
-        os.remove(join(root, 'spikeposition_me.flag'))
+    # Find for each spike its corresponding distance
+    indices = np.searchsorted(wheel_times, spike_times, side='right') - 1
+    indices = np.clip(indices, 0, wheel_dist.shape[0] - 1)
+    spike_dist = wheel_dist[indices]
+    
+    # Save result
+    np.save(path.join(probe_path, 'spikes.distances.npy'), spike_dist)

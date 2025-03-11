@@ -315,11 +315,13 @@ def figure_style(font_size=7):
         'dPERI': sns.color_palette('Set3')[3],
         'TEa': sns.color_palette('Set3')[2],
         'VIS': sns.color_palette('Set3')[0],
-        'HPC': sns.color_palette('Set3')[4],
         'AUD': sns.color_palette('Set3')[6],
-        'CA1': sns.color_palette('Dark2')[4],
+        'HPC': sns.color_palette('Set3')[4],
+        'CA1': sns.color_palette('Set3')[4],
+        'vCA1': sns.color_palette('Set3')[4],
+        'dCA1': sns.color_palette('Dark2')[4],
         'DG': sns.color_palette('Dark2')[7],
-        'TBA': sns.color_palette('tab10')[9],
+        'CA3': sns.color_palette('tab10')[9],
         'TBA': sns.color_palette('Dark2')[0],
         'TBA': sns.color_palette('Accent')[0],
         'TBA': sns.color_palette('Accent')[1],
@@ -458,12 +460,18 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
             # Change into dict
             channels = {col: np.array(channels_df[col]) for col in channels_df.columns}            
         
-        # Use the channel location to infer the brain regions of the clusters
+        # Use the channel location to infer the locations of the neurons
+        clusters['x'] = channels['x'][clusters['channels']]
+        clusters['y'] = channels['y'][clusters['channels']]
+        clusters['z'] = channels['z'][clusters['channels']]
         clusters['acronym'] = channels['acronym'][clusters['channels']]
-        clusters['region'] = combine_regions(clusters['acronym'], abbreviate=True, split_peri=True,
-                                             brainregions=BrainRegions())
-        clusters['full_region'] = combine_regions(clusters['acronym'], abbreviate=False, split_peri=True,
+        clusters['region'] = combine_regions(clusters['acronym'], abbreviate=True, brainregions=BrainRegions())
+        clusters['region'][(clusters['region'] == 'CA1') & (clusters['z'] < -2000)] = 'vCA1'
+        clusters['region'][(clusters['region'] == 'CA1') & (clusters['z'] > -2000)] = 'dCA1'
+        clusters['full_region'] = combine_regions(clusters['acronym'], abbreviate=False, 
                                                   brainregions=BrainRegions())
+        clusters['full_region'][(clusters['full_region'] == 'CA1') & (clusters['z'] < -2000)] = 'ventral CA1'
+        clusters['full_region'][(clusters['full_region'] == 'CA1') & (clusters['z'] > -2000)] = 'dorsal CA1'
         
     # Exclude neurons that are not labelled good or with firing rates which are too low
     select_units = np.ones(clusters['cluster_id'].shape[0]).astype(bool)
@@ -478,6 +486,9 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
         spikes['distances'] = spikes['distances'][np.isin(spikes['clusters'], keep_units)]
     spikes['clusters'] = spikes['clusters'][np.isin(spikes['clusters'], keep_units)]
     if histology:
+        clusters['x'] = clusters['x'][keep_units]
+        clusters['y'] = clusters['y'][keep_units]
+        clusters['z'] = clusters['z'][keep_units]
         clusters['acronym'] = clusters['acronym'][keep_units]
         clusters['region'] = clusters['region'][keep_units]
         clusters['full_region'] = clusters['full_region'][keep_units]
@@ -547,8 +558,7 @@ def get_full_region_name(acronyms, brainregions=None):
         return full_region_names
     
     
-def combine_regions(allen_acronyms, split_peri=False, split_hpc=False, abbreviate=True,
-                    brainregions=None):
+def combine_regions(allen_acronyms, split_peri=True, abbreviate=True, brainregions=None):
     br = brainregions or BrainRegions()
     acronyms = remap(allen_acronyms)  # remap to Beryl
     regions = np.array(['root'] * len(acronyms), dtype=object)
@@ -563,12 +573,7 @@ def combine_regions(allen_acronyms, split_peri=False, split_hpc=False, abbreviat
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('VIS'))['acronym'])] = 'VIS'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('AUD'))['acronym'])] = 'AUD'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('TEa'))['acronym'])] = 'TEa'
-        if split_hpc:    
-            regions[np.in1d(acronyms, br.descendants(br.acronym2id('DG'))['acronym'])] = 'DG'
-            regions[acronyms == 'CA1'] = 'CA1'
-        else:
-            regions[np.in1d(acronyms, br.descendants(br.acronym2id('DG'))['acronym'])] = 'HPC'
-            regions[acronyms == 'CA1'] = 'HPC'
+        regions[acronyms == 'CA1'] = 'CA1'
     else:
         if split_peri:
             regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'Perirhinal cortex (area 36)'
@@ -580,12 +585,7 @@ def combine_regions(allen_acronyms, split_peri=False, split_hpc=False, abbreviat
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('VIS'))['acronym'])] = 'Visual cortex'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('AUD'))['acronym'])] = 'Auditory cortex'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('TEa'))['acronym'])] = 'Temporal association area'
-        if split_hpc:
-            regions[np.in1d(acronyms, br.descendants(br.acronym2id('DG'))['acronym'])] = 'Dentate gyrus'
-            regions[acronyms == 'CA1'] = 'CA1'
-        else:
-            regions[np.in1d(acronyms, br.descendants(br.acronym2id('DG'))['acronym'])] = 'Hippocampus'
-            regions[acronyms == 'CA1'] = 'Hippocampus'
+        regions[acronyms == 'CA1'] = 'CA1'     
 
     return regions
 
