@@ -15,13 +15,15 @@ from joblib import Parallel, delayed
 from msvr_functions import paths, load_neural_data, load_subjects, get_spike_counts_in_bins
 
 # Settings
-D_BEFORE = 0  # cm
+D_BEFORE = 0  # s
 D_AFTER = 150
-LDA_PLACE = 20
+LDA_PLACE = 30
+LDA_CONTROL = -5
 BIN_SIZE = 5
 STEP_SIZE = 1
 MIN_NEURONS = 10
-MIN_SPEED = 25  # mm/s
+MIN_SPEED = 50  # mm/s
+ONLY_GOOD_NEURONS = True
 
 # Create distance array
 d_centers = np.arange(-D_BEFORE + (BIN_SIZE/2), D_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
@@ -35,7 +37,7 @@ lda, lda_control = dict(), dict()
 lda_dist_df = pd.DataFrame()
 
 for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
-    print(f'{subject} | {date} | {probe} | {i} of {len(rec)}')
+    print(f'\nStarting {subject} | {date} | {probe}')
     
     # Load in data for this session
     session_path = join(path_dict['local_data_path'], 'Subjects', f'{subject}', f'{date}')
@@ -66,22 +68,33 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
                                                         lda_intervals)
     spike_counts = spike_counts.T  # transpose array into [trials x neurons]
     
-       
+    # Get neural activity of a bin in the tunnel
+    control_intervals = np.vstack((trials['enterEnvPos'] + (LDA_CONTROL - (BIN_SIZE/2)),
+                                   trials['enterEnvPos'] + (LDA_CONTROL + (BIN_SIZE/2)))).T
+    spike_control, neuron_ids = get_spike_counts_in_bins(spikes_dist, clusters_dist,
+                                                        control_intervals)
+    spike_control = spike_control.T  # transpose array into [trials x neurons]
+    
     # Fit LDA projection per region
     for r, region in enumerate(np.unique(clusters['region'])):
         if region == 'root':
             continue
-        if np.sum(clusters['region'] == region) < MIN_NEURONS:
-            continue
         
         # In environment
-        region_counts = spike_counts[:, np.isin(neuron_ids, clusters['cluster_id'][clusters['region'] == region])]
+        region_counts = spike_counts[:, clusters['region'] == region]
         lda[region] = LinearDiscriminantAnalysis()
         lda[region].fit(region_counts, trials['soundId'])
+        
+        # In tunnel
+        region_counts = spike_control[:, clusters['region'] == region]
+        lda_control[region] = LinearDiscriminantAnalysis()
+        lda_control[region].fit(region_counts, trials['soundId'])
         
     
     # Loop over all distance bins
     for i, bin_center in enumerate(d_centers):
+        if np.mod(i, 50) == 0:
+            print(f'Distance bin {np.round(bin_center, 2)} cm ({i} of {len(d_centers)})')
         
         # Get spike counts per trial for all neurons during this time bin
         these_intervals = np.vstack((trials['enterEnvPos'] + (bin_center - (BIN_SIZE/2)),
@@ -98,14 +111,21 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
                 continue        
             
             # Project neural activity to LDA projection
-            region_counts = spike_counts[:, np.isin(neuron_ids, clusters['cluster_id'][clusters['region'] == region])]
+            region_counts = spike_counts[:, clusters['region'] == region]
             lda_proj = lda[region].transform(region_counts)
             lda_dist = np.abs(np.mean(lda_proj[trials['soundId'] == 1]) - 
                               np.mean(lda_proj[trials['soundId'] == 2]))
             
+            # For control projection
+            region_counts = spike_counts[:, clusters['region'] == region]
+            lda_proj_control = lda_control[region].transform(region_counts)
+            lda_dist_control = np.abs(np.mean(lda_proj_control[trials['soundId'] == 1]) - 
+                                      np.mean(lda_proj_control[trials['soundId'] == 2]))
+            
             # Add to dataframe
-            lda_dist_df = pd.concat((lda_dist_df, pd.DataFrame(index=[lda_dist_df.shape[0]], data={
-                'distance': bin_center, 'lda_distance': lda_dist, 'region': region})))
+            lda_dist_df = pd.concat((lda_dist_df, pd.DataFrame(data={
+                'distance': bin_center, 'lda_distance': [lda_dist, lda_dist_control], 'region': region,
+                'control': [0, 1]})))
             
         # Save to disk
         lda_dist_df.to_csv(join(path_dict['save_path'], 'lda_distance_context.csv'), index=False)

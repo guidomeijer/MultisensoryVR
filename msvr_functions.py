@@ -250,6 +250,7 @@ def load_objects(subject, date):
                                         'object': 3, 'sound': trials['soundId'],
                                         'goal': 0})
     all_obj_df = pd.concat((rew_obj1_df, rew_obj2_df, control_obj_df))
+    all_obj_df = all_obj_df.sort_values(by='times').reset_index(drop=True)
     
     return all_obj_df
 

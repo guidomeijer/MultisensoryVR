@@ -160,13 +160,15 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     sig_obj_onset = obj_p < ALPHA
     sig_obj_diff = ((obj12_sound1_p < ALPHA / 6) | (obj13_sound1_p < ALPHA / 6) | (obj23_sound1_p < ALPHA / 6)
                     | (obj12_sound1_p < ALPHA / 6) | (obj13_sound1_p < ALPHA / 6) | (obj23_sound1_p < ALPHA / 6))
-        
+    
     # Add to dataframe
     stats_df = pd.concat((stats_df, pd.DataFrame(data={
         'subject': subject, 'date': date, 'probe': probe, 'neuron_id': clusters['cluster_id'],
         'region': clusters['region'], 'allen_acronym': clusters['acronym'],
+        'x': clusters['x'], 'y': clusters['y'], 'z': clusters['z'],
         'sig_goal': sig_goal, 'sig_obj_onset': sig_obj_onset, 'sig_control': sig_control,
-        'sig_obj_diff': sig_obj_diff, 'p_goal': np.min([goal1_p, goal2_p]), 'z_goal': np.max([goal1_z, goal2_z]), 
+        'sig_obj_diff': sig_obj_diff, 'p_goal': np.min(np.vstack((goal1_p, goal2_p)), axis=0),
+        'z_goal': np.max(np.vstack((goal1_z, goal2_z)), axis=0), 
         'p_control_sound': control_sound_p, 'p_obj_onset': obj_p, 'z_obj_onset': obj_z,
         'p_obj12_sound1': obj12_sound1_p, 'p_obj23_sound1': obj23_sound1_p, 'p_obj13_sound1': obj13_sound1_p,
         'p_obj12_sound2': obj12_sound2_p, 'p_obj23_sound2': obj23_sound2_p, 'p_obj13_sound2': obj13_sound2_p

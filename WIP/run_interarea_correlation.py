@@ -24,7 +24,6 @@ subjects = load_subjects()
 
 # Load in data
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
-rec = rec.drop_duplicates(subset=['subject', 'date'])
 neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
 
 # %% Fuction for parallization
@@ -45,7 +44,7 @@ def run_correlation(spike_counts, tt):
 # %%
 
 
-for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
+for i, (subject, date) in enumerate(zip(np.unique(rec['subject']), np.unique(rec['date']))):
 
     # Load in neural data for all probes
     session_path = join(path_dict['local_data_path'], 'Subjects', f'{subject}', f'{date}')
@@ -133,7 +132,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                 'r_sound': corr_sound, 'r_sound_baseline': corr_sound_bl, 'r_sem_sound': sem_sound,
                 'time': tscale, 'region_1': region_1, 'region_2': region_2,
                 'region_pair': f'{region_1}-{region_2}',
-                'subject': subject, 'date': date})), ignore_index=True)
+                'subject': SUBJECT, 'date': DATE})), ignore_index=True)
             
     # Save to disk
     corr_df.to_csv(join(path_dict['save_path'], f'region_corr_{int(BIN_SIZE*1000)}ms-bins.csv'))

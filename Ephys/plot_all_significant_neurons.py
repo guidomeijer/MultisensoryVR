@@ -55,6 +55,7 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
     spikes, clusters, channels = load_neural_data(session_path, probe, histology=True, only_good=True)
     trials = pd.read_csv(join(path_dict['local_data_path'], 'subjects', subject, date, 'trials.csv'))
     all_obj_df = load_objects(subject, date)
+    all_obj_df.loc[all_obj_df['goal'] == 0, 'goal'] = 2
     wheel_speed = np.load(join(path_dict['local_data_path'], 'Subjects', subject, date, 'continuous.wheelSpeed.npy'))
     wheel_dist = np.load(join(path_dict['local_data_path'], 'Subjects', subject, date, 'continuous.wheelDistance.npy'))
     wheel_times = np.load(join(path_dict['local_data_path'], 'Subjects', subject, date, 'continuous.times.npy'))
@@ -76,7 +77,7 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
     these_neurons = neuron_df[(neuron_df['subject'] == subject)
                               & (neuron_df['date'] == date)
                               & (neuron_df['probe'] == probe)
-                              & (neuron_df['sig_goal'])]
+                              & (neuron_df['sig_obj_onset'] | neuron_df['sig_goal'])]
     
     for i, neuron_id in enumerate(these_neurons['neuron_id']):
       
@@ -178,7 +179,7 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
     these_neurons = neuron_df[(neuron_df['subject'] == subject)
                               & (neuron_df['date'] == date)
                               & (neuron_df['probe'] == probe)
-                              & (neuron_df['sig_obj_onset'])]
+                              & (neuron_df['sig_obj_onset'] | neuron_df['sig_goal'])]
     
     for i, neuron_id in enumerate(these_neurons['neuron_id']):
       
