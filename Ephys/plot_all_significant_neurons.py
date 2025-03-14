@@ -16,7 +16,7 @@ from msvr_functions import (paths, peri_multiple_events_time_histogram, load_obj
                             load_neural_data, figure_style, load_subjects)
 
 # Settings
-OVERWITE = False
+OVERWRITE = True
 MIN_SPEED = 50  # mm/s
 
 # Time
@@ -83,12 +83,13 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
       
         # Get region
         region = clusters['region'][clusters['cluster_id'] == neuron_id][0]
+        allen_acronym = clusters['acronym'][clusters['cluster_id'] == neuron_id][0]
        
         # Plot object conditioned on sound
         if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons', f'{region}')):
             os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons', f'{region}'))
         if isfile(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons', f'{region}',
-                       f'{subject}_{date}_{probe}_neuron{neuron_id}.jpg')):
+                       f'{subject}_{date}_{probe}_neuron{neuron_id}.jpg')) and not OVERWRITE:
             continue
         print(f'Plotting neuron {i} of {these_neurons.shape[0]}')
         
@@ -166,7 +167,7 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
         ax3.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
         
         f.text(0.5, 0.05, 'Time from object entry (s)', ha='center')
-        plt.suptitle(region)
+        plt.suptitle(allen_acronym)
         plt.subplots_adjust(bottom=0.2, top=0.8)
         
         # Save

@@ -18,7 +18,7 @@ colors, dpi = figure_style()
 path_dict = paths()
 per_obj_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_per_object.csv'))
 #per_obj_df = per_obj_df[per_obj_df['region'] != 'ENT']
-per_obj_df = per_obj_df[(per_obj_df['region'] == 'PERI 35') | (per_obj_df['region'] == 'vCA1')]
+per_obj_df = per_obj_df[(per_obj_df['region'] == 'PERI 35') | (per_obj_df['region'] == 'PERI 36')]
 onset_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_onset.csv'))
 onset_df = onset_df[onset_df['region'] != 'ENT']
 
