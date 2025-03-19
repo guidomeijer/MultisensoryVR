@@ -43,9 +43,10 @@ def run_correlation(spike_counts, tt):
 
 
 # %%
-
+corr_df = pd.DataFrame()
 
 for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
+    print(f'\n{subject} {date}')
 
     # Load in neural data for all probes
     session_path = join(path_dict['local_data_path'], 'Subjects', f'{subject}', f'{date}')
@@ -57,7 +58,6 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
 
     # Get binned spike counts per region
     goal_counts, distractor_counts, sound_counts = dict(), dict(), dict()
-    corr_df = pd.DataFrame()
     for k, probe in enumerate(spikes.keys()):
         for j, region in enumerate(np.unique(clusters[probe]['region'])):
             if region == 'root':
@@ -79,12 +79,12 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             # Get spike counts
             peths, goal_counts[region] = calculate_peths(
                 spikes[probe]['times'], spikes[probe]['clusters'], use_neurons,
-                all_obj_df.loc[all_obj_df['goal'] == 1, 'times'], T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING,
+                all_obj_df.loc[(all_obj_df['goal'] == 1) & (all_obj_df['object'] == 1), 'times'], T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING,
                 return_fr=False)
             
             peths, distractor_counts[region] = calculate_peths(
                 spikes[probe]['times'], spikes[probe]['clusters'], use_neurons,
-                all_obj_df.loc[(all_obj_df['goal'] == 0) & (all_obj_df['object'] != 3), 'times'],
+                all_obj_df.loc[(all_obj_df['goal'] == 0) & (all_obj_df['object'] == 1), 'times'],
                 T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING,
                 return_fr=False)
             
