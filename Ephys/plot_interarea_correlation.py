@@ -16,7 +16,23 @@ path_dict = paths()
 corr_df = pd.read_csv(join(path_dict['save_path'], 'region_corr_100ms-bins.csv'))
 
 
-# Plot all
+# %% Plot all
+
+for region in np.unique(corr_df['region_1']):
+    
+    f, axs = plt.subplots(1, 3, figsize=(1.75*3, 1.75), dpi=dpi)
+    
+    sns.lineplot(corr_df[corr_df['region_1'] == region], x='time', y='r_goal_baseline', hue='region_pair',
+                 ax=axs[0], errorbar='se', err_kws={'lw': 0}, legend=None)
+    
+    sns.lineplot(corr_df[corr_df['region_1'] == region], x='time', y='r_distractor_baseline', hue='region_pair',
+                 ax=axs[1], errorbar='se', err_kws={'lw': 0}, legend=None)
+    
+    sns.lineplot(corr_df[corr_df['region_1'] == region], x='time', y='r_sound_baseline', hue='region_pair',
+                 ax=axs[2], errorbar='se', err_kws={'lw': 0})
+    
+    sns.despine(trim=True)
+    plt.tight_layout()
 
 
 # %% Plot individual examples
