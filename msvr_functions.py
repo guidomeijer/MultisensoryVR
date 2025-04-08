@@ -241,12 +241,15 @@ def load_objects(subject, date):
 
     # Prepare trial data
     rew_obj1_df = pd.DataFrame(data={'times': trials[f'enterObj{sound1_obj}'],
+                                     'distances': trials[f'enterObj{sound1_obj}Pos'],
                                      'object': 1, 'sound': trials['soundId'],
                                      'goal': (trials['soundId'] == 1).astype(int)})
     rew_obj2_df = pd.DataFrame(data={'times': trials[f'enterObj{sound2_obj}'],
+                                     'distances': trials[f'enterObj{sound2_obj}Pos'],
                                      'object': 2, 'sound': trials['soundId'],
                                      'goal': (trials['soundId'] == 2).astype(int)})
     control_obj_df = pd.DataFrame(data={'times': trials[f'enterObj{control_obj}'],
+                                     'distances': trials[f'enterObj{control_obj}Pos'],
                                         'object': 3, 'sound': trials['soundId'],
                                         'goal': 0})
     all_obj_df = pd.concat((rew_obj1_df, rew_obj2_df, control_obj_df))
@@ -373,6 +376,8 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
     spikes['samples'] = np.load(join(session_path, probe, 'spikes.samples.npy'))
     if isfile(join(session_path, probe, 'spikes.distances.npy')):
         spikes['distances'] = np.load(join(session_path, probe, 'spikes.distances.npy'))
+    if isfile(join(session_path, probe, 'spikes.speeds.npy')):
+        spikes['speeds'] = np.load(join(session_path, probe, 'spikes.speeds.npy'))
         
     # Load in cluster data
     clusters = dict()
@@ -470,6 +475,8 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
     spikes['depths'] = spikes['depths'][np.isin(spikes['clusters'], keep_units)]
     if 'distances' in spikes.keys():
         spikes['distances'] = spikes['distances'][np.isin(spikes['clusters'], keep_units)]
+    if 'speeds' in spikes.keys():
+        spikes['speeds'] = spikes['speeds'][np.isin(spikes['clusters'], keep_units)]
     spikes['clusters'] = spikes['clusters'][np.isin(spikes['clusters'], keep_units)]
     if histology:
         clusters['x'] = clusters['x'][keep_units]
