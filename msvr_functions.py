@@ -243,15 +243,17 @@ def load_objects(subject, date):
     rew_obj1_df = pd.DataFrame(data={'times': trials[f'enterObj{sound1_obj}'],
                                      'distances': trials[f'enterObj{sound1_obj}Pos'],
                                      'object': 1, 'sound': trials['soundId'],
-                                     'goal': (trials['soundId'] == 1).astype(int)})
+                                     'goal': (trials['soundId'] == 1).astype(int),
+                                     'rewarded': trials[f'rewardsObj{sound1_obj}']})
     rew_obj2_df = pd.DataFrame(data={'times': trials[f'enterObj{sound2_obj}'],
                                      'distances': trials[f'enterObj{sound2_obj}Pos'],
                                      'object': 2, 'sound': trials['soundId'],
-                                     'goal': (trials['soundId'] == 2).astype(int)})
+                                     'goal': (trials['soundId'] == 2).astype(int),
+                                     'rewarded': trials[f'rewardsObj{sound2_obj}']})
     control_obj_df = pd.DataFrame(data={'times': trials[f'enterObj{control_obj}'],
-                                     'distances': trials[f'enterObj{control_obj}Pos'],
+                                        'distances': trials[f'enterObj{control_obj}Pos'],
                                         'object': 3, 'sound': trials['soundId'],
-                                        'goal': 0})
+                                        'goal': 0, 'rewarded': trials[f'rewardsObj{control_obj}']})
     all_obj_df = pd.concat((rew_obj1_df, rew_obj2_df, control_obj_df))
     all_obj_df = all_obj_df.sort_values(by='times').reset_index(drop=True)
     

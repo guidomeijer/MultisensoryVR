@@ -26,8 +26,10 @@ T_BIN_SIZE = 0.025
 T_SMOOTHING = 0.1
 
 # Distance
-D_BEFORE = 10  # cm
-D_AFTER = 160
+D_BEFORE_ENV = 10  # cm
+D_AFTER_ENV = 160
+D_BEFORE_OBJ = 30
+D_AFTER_OBJ = 30
 D_BIN_SIZE = 1
 D_SMOOTHING = 2
 
@@ -41,10 +43,6 @@ neuron_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
 neuron_df['subject'] = neuron_df['subject'].astype(str)
 neuron_df['date'] = neuron_df['date'].astype(str)
 neuron_df = neuron_df[neuron_df['region'] != 'root']
-
-# Create folders if necessary
-if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons')):
-    os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons'))
 
 # Loop over recordings
 for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date'], rec_df['probe'])):
@@ -70,6 +68,7 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
     # Convert from mm to cm
     spikes_dist = spikes_dist / 10
     trials['enterEnvPos'] = trials['enterEnvPos'] / 10
+    all_obj_df['distances'] = all_obj_df['distances'] / 10
 
     
     # %% Goal neurons
@@ -77,7 +76,7 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
     these_neurons = neuron_df[(neuron_df['subject'] == subject)
                               & (neuron_df['date'] == date)
                               & (neuron_df['probe'] == probe)
-                              & (neuron_df['sig_obj_onset'] | neuron_df['sig_goal'])]
+                              & (neuron_df['sig_obj_onset'] | neuron_df['sig_context_obj1'] | neuron_df['sig_context_obj2'])]
     
     for i, neuron_id in enumerate(these_neurons['neuron_id']):
       
@@ -86,10 +85,10 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
         allen_acronym = clusters['acronym'][clusters['cluster_id'] == neuron_id][0]
        
         # Plot object conditioned on sound
-        if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons', f'{region}')):
-            os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons', f'{region}'))
-        if isfile(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons', f'{region}',
-                       f'{subject}_{date}_{probe}_neuron{neuron_id}.jpg')) and not OVERWRITE:
+        if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', f'{region}')):
+            os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', f'{region}'))
+        if isfile(join(path_dict['fig_path'], 'ExampleNeurons', f'{region}',
+                       f'{subject}_{date}_{probe}_neuron{neuron_id}_time.jpg')) and not OVERWRITE:
             continue
         print(f'Plotting neuron {i} of {these_neurons.shape[0]}')
         
@@ -100,22 +99,24 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
                 spikes['times'], spikes['clusters'], 
                 all_obj_df.loc[all_obj_df['object'] == 1, 'times'], 
                 all_obj_df.loc[all_obj_df['object'] == 1, 'goal'],
-                [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax1,
+                [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, 
+                smoothing=T_SMOOTHING, ax=ax1,
                 pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
                 errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
                 raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
-                smoothing = T_SMOOTHING, include_raster=True
+                include_raster=True
                 )
             _, y_max_1 = ax1.get_ylim()
             peri_multiple_events_time_histogram(
                 spikes['times'], spikes['clusters'], 
                 all_obj_df.loc[all_obj_df['object'] == 2, 'times'], 
                 all_obj_df.loc[all_obj_df['object'] == 2, 'goal'],
-                [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, ax=ax2,
+                [neuron_id], t_before=T_BEFORE, t_after=T_AFTER, bin_size=T_BIN_SIZE, 
+                smoothing=T_SMOOTHING, ax=ax2,
                 pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
                 errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
                 raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
-                smoothing=T_SMOOTHING, include_raster=True
+                include_raster=True
                 )
             _, y_max_2 = ax2.get_ylim()
             plt.close(f)
@@ -171,35 +172,118 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
         plt.subplots_adjust(bottom=0.2, top=0.8)
         
         # Save
-        plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', 'GoalNeurons', f'{region}',
-                         f'{subject}_{date}_{probe}_neuron{neuron_id}.jpg'), dpi=300)
+        plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{region}',
+                         f'{subject}_{date}_{probe}_neuron{neuron_id}_time.jpg'), dpi=300)
         plt.close(f)
         
-    # %% Environment
-    
-    these_neurons = neuron_df[(neuron_df['subject'] == subject)
-                              & (neuron_df['date'] == date)
-                              & (neuron_df['probe'] == probe)
-                              & (neuron_df['sig_obj_onset'] | neuron_df['sig_goal'])]
-    
-    for i, neuron_id in enumerate(these_neurons['neuron_id']):
-      
-        # Get region
-        region = clusters['region'][clusters['cluster_id'] == neuron_id][0]
-       
+        # %% Object distance
+        
         # Plot object conditioned on sound
-        if not isdir(join(path_dict['fig_path'], 'ExampleNeurons', 'Environment', f'{region}')):
-            os.mkdir(join(path_dict['fig_path'], 'ExampleNeurons', 'Environment', f'{region}'))
-        if isfile(join(path_dict['fig_path'], 'ExampleNeurons', 'Environment', f'{region}',
+        if isfile(join(path_dict['fig_path'], 'ExampleNeurons', f'{region}',
+                       f'{subject}_{date}_{probe}_neuron{neuron_id}_distance.jpg')) and not OVERWRITE:
+            continue
+        
+        # First get y limits of both plots
+        try:
+            f, (ax1, ax2) = plt.subplots(1, 2)
+            peri_multiple_events_time_histogram(
+                spikes_dist, clusters_dist, 
+                all_obj_df.loc[all_obj_df['object'] == 1, 'distances'], 
+                all_obj_df.loc[all_obj_df['object'] == 1, 'goal'],
+                [neuron_id], t_before=D_BEFORE_OBJ, t_after=D_AFTER_OBJ, bin_size=D_BIN_SIZE,
+                smoothing=D_SMOOTHING, ax=ax1,
+                pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
+                errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
+                raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
+                include_raster=True
+                )
+            _, y_max_1 = ax1.get_ylim()
+            peri_multiple_events_time_histogram(
+                spikes_dist, clusters_dist, 
+                all_obj_df.loc[all_obj_df['object'] == 2, 'distances'], 
+                all_obj_df.loc[all_obj_df['object'] == 2, 'goal'],
+                [neuron_id], t_before=D_BEFORE_OBJ, t_after=D_AFTER_OBJ, bin_size=D_BIN_SIZE,
+                smoothing=D_SMOOTHING, ax=ax2,
+                pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}, {'color': colors['control'], 'lw': 1}],
+                errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['control'], 'alpha': 0.3, 'lw': 0}],
+                raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}, {'color': colors['control'], 'lw': 0.5}],
+                include_raster=True
+                )
+            _, y_max_2 = ax2.get_ylim()
+            plt.close(f)
+            y_max_use = np.ceil(np.max([y_max_1, y_max_2]))
+        except Exception:
+            continue
+        
+        f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(4, 2), dpi=dpi)
+ 
+        peri_multiple_events_time_histogram(
+            spikes_dist, clusters_dist, 
+            all_obj_df.loc[all_obj_df['object'] == 1, 'distances'], 
+            all_obj_df.loc[all_obj_df['object'] == 1, 'goal'],
+            [neuron_id], t_before=D_BEFORE_OBJ, t_after=D_AFTER_OBJ, bin_size=D_BIN_SIZE, ax=ax1,
+            smoothing = D_SMOOTHING, ylim=y_max_use,
+            pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}],
+            errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
+            raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
+            eventline_kwargs={'lw': 0}, include_raster=True)
+        ax1.set(title='Object 1', ylabel='Firing rate (spks/cm)', yticks=[0, np.ceil(ax1.get_ylim()[1])],
+                xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
+        ax1.yaxis.set_label_coords(-0.3, 0.75)
+        ax1.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+            
+        peri_multiple_events_time_histogram(
+            spikes_dist, clusters_dist, 
+            all_obj_df.loc[all_obj_df['object'] == 2, 'distances'], 
+            all_obj_df.loc[all_obj_df['object'] == 2, 'goal'],
+            [neuron_id], t_before=D_BEFORE_OBJ, t_after=D_AFTER_OBJ, bin_size=D_BIN_SIZE, ax=ax2,
+            smoothing = D_SMOOTHING, ylim=y_max_use,
+            pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}],
+            errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
+            raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
+            eventline_kwargs={'lw': 0}, include_raster=True)
+        ax2.set(title='Object 2', yticks=[0, np.ceil(ax2.get_ylim()[1])], ylabel='',
+                xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
+        ax2.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+            
+        peri_multiple_events_time_histogram(
+            spikes_dist, clusters_dist, 
+            all_obj_df.loc[all_obj_df['object'] == 3, 'distances'], 
+            all_obj_df.loc[all_obj_df['object'] == 3, 'sound'],
+            [neuron_id], t_before=D_BEFORE_OBJ, t_after=D_AFTER_OBJ, bin_size=D_BIN_SIZE, ax=ax3,
+            smoothing = D_SMOOTHING, ylim=y_max_use,
+            pethline_kwargs=[{'color': colors['sound1'], 'lw': 1}, {'color': colors['sound2'], 'lw': 1}],
+            errbar_kwargs=[{'color': colors['sound1'], 'alpha': 0.3, 'lw': 0}, {'color': colors['sound2'], 'alpha': 0.3, 'lw': 0}],
+            raster_kwargs=[{'color': colors['sound1'], 'lw': 0.5}, {'color': colors['sound2'], 'lw': 0.5}],
+            eventline_kwargs={'lw': 0}, include_raster=True)
+        ax3.set(title='Object 3', yticks=[0, np.ceil(ax3.get_ylim()[1])], ylabel='',
+                xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
+        ax3.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+        
+        f.text(0.5, 0.05, 'Distance from object entry (cm)', ha='center')
+        plt.suptitle(allen_acronym)
+        plt.subplots_adjust(bottom=0.2, top=0.8)
+        
+        # Save
+        plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{region}',
+                         f'{subject}_{date}_{probe}_neuron{neuron_id}_distance.jpg'), dpi=300)
+        plt.close(f)
+        
+        
+        
+        
+        # %% Environment
+        
+        # Plot object conditioned on sound
+        if isfile(join(path_dict['fig_path'], 'ExampleNeurons', f'{region}',
                        f'{subject}_{date}_{probe}_neuron{neuron_id}.jpg')):
             continue
-        print(f'Plotting neuron {i} of {these_neurons.shape[0]}')
         
         f, ax1 = plt.subplots(1, 1, figsize=(2, 2), dpi=dpi)
         
         peri_multiple_events_time_histogram(spikes_dist, clusters_dist,
                                   trials['enterEnvPos'], trials['soundId'], [neuron_id],
-                                  t_before=D_BEFORE, t_after=D_AFTER, bin_size=D_BIN_SIZE, 
+                                  t_before=D_BEFORE_ENV, t_after=D_AFTER_ENV, bin_size=D_BIN_SIZE, 
                                   smoothing=D_SMOOTHING, ax=ax1,
                                   pethline_kwargs=[{'color': colors['sound1'], 'lw': 1},
                                                    {'color': colors['sound2'], 'lw': 1}],
@@ -221,6 +305,6 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
         plt.tight_layout()
         
         # Save
-        plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', 'Environment', f'{region}',
-                         f'{subject}_{date}_{probe}_neuron{neuron_id}.jpg'), dpi=300)
+        plt.savefig(join(path_dict['fig_path'], 'ExampleNeurons', f'{region}',
+                         f'{subject}_{date}_{probe}_neuron{neuron_id}_environment.jpg'), dpi=300)
         plt.close(f)

@@ -39,7 +39,7 @@ def run_zetatest2(neuron_id, event_times1, event_times2):
     these_spikes = spikes['times'][spikes['clusters'] == neuron_id]
     try:
         p_value, zeta_dict = zetatest2(these_spikes, event_times1, these_spikes, event_times2,
-                                       dblUseMaxDur=max_dur)
+                                       dblUseMaxDur=T_BEFORE)
         zeta_score = zeta_dict['dblZETA']
     except Exception:
         p_value = np.nan    
@@ -74,6 +74,11 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     no_goal2_times = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 0), 'times']
     sound1_times = all_obj_df.loc[(all_obj_df['object'] == 3) & (all_obj_df['sound'] == 1), 'times']
     sound2_times = all_obj_df.loc[(all_obj_df['object'] == 3) & (all_obj_df['sound'] == 2), 'times']
+    sound1_onset = trials.loc[trials['soundId'] == 1, 'soundOnset'].values
+    sound2_onset = trials.loc[trials['soundId'] == 2, 'soundOnset'].values
+    reward_times = all_obj_df.loc[(all_obj_df['goal'] == 1) & (all_obj_df['rewarded'] == 1), 'times'].values
+    no_reward_times = all_obj_df.loc[(all_obj_df['goal'] == 0) & (all_obj_df['rewarded'] == 0), 'times'].values
+    omission_times = all_obj_df.loc[(all_obj_df['goal'] == 1) & (all_obj_df['rewarded'] == 0), 'times'].values
     
     # Difference between contexts for the second rewarded object (goal)
     print('Calculating difference between goal/distractor context')
@@ -81,12 +86,10 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         delayed(run_zetatest2)(neuron_id, goal1_times, no_goal1_times)
         for i, neuron_id in enumerate(clusters['cluster_id']))
     goal1_p = np.array([result[0] for result in results])
-    goal1_z = np.array([result[1] for result in results])
     results = Parallel(n_jobs=-1)(
         delayed(run_zetatest2)(neuron_id, goal2_times, no_goal2_times)
         for i, neuron_id in enumerate(clusters['cluster_id']))
     goal2_p = np.array([result[0] for result in results])
-    goal2_z = np.array([result[1] for result in results])
     
     # Difference between the two sounds for the control object
     print('Calculating difference between sound context for control object')
@@ -94,7 +97,18 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         delayed(run_zetatest2)(neuron_id, sound1_times, sound2_times)
         for i, neuron_id in enumerate(clusters['cluster_id']))
     control_sound_p = np.array([result[0] for result in results])
-    control_sound_z = np.array([result[1] for result in results])
+    
+    print('Calculating difference between sounds at onset')
+    results = Parallel(n_jobs=-1)(
+        delayed(run_zetatest2)(neuron_id, sound1_onset, sound2_onset)
+        for i, neuron_id in enumerate(clusters['cluster_id']))
+    sound_onset_p = np.array([result[0] for result in results])
+    
+    print('Calculating difference between reward vs no reward')
+    results = Parallel(n_jobs=-1)(
+        delayed(run_zetatest2)(neuron_id, reward_times, no_reward_times)
+        for i, neuron_id in enumerate(clusters['cluster_id']))
+    reward_p = np.array([result[0] for result in results])
     
     # Get neurons which significantly respond to any object appearance 
     print('Calculating significant object onset responses')
@@ -102,76 +116,29 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         delayed(run_zetatest)(neuron_id, all_obj_df['times'])
         for i, neuron_id in enumerate(clusters['cluster_id']))
     obj_p = np.array([result[0] for result in results])
-    obj_z = np.array([result[1] for result in results])
     
-    # Difference between the pairs of two objects (per sound)
-    print('Calculating difference between objects')
-    results = Parallel(n_jobs=-1)(
-        delayed(run_zetatest2)(
-            neuron_id,
-            all_obj_df.loc[(all_obj_df['sound'] == 1) & (all_obj_df['object'] == 1), 'times'],
-            all_obj_df.loc[(all_obj_df['sound'] == 1) & (all_obj_df['object'] == 2), 'times'])
-        for i, neuron_id in enumerate(clusters['cluster_id']))
-    obj12_sound1_p = np.array([result[0] for result in results])
-    
-    results = Parallel(n_jobs=-1)(
-        delayed(run_zetatest2)(
-            neuron_id,
-            all_obj_df.loc[(all_obj_df['sound'] == 1) & (all_obj_df['object'] == 1), 'times'],
-            all_obj_df.loc[(all_obj_df['sound'] == 1) & (all_obj_df['object'] == 3), 'times'])
-        for i, neuron_id in enumerate(clusters['cluster_id']))
-    obj13_sound1_p = np.array([result[0] for result in results])
-    
-    results = Parallel(n_jobs=-1)(
-        delayed(run_zetatest2)(
-            neuron_id,
-            all_obj_df.loc[(all_obj_df['sound'] == 1) & (all_obj_df['object'] == 2), 'times'],
-            all_obj_df.loc[(all_obj_df['sound'] == 1) & (all_obj_df['object'] == 3), 'times'])
-        for i, neuron_id in enumerate(clusters['cluster_id']))
-    obj23_sound1_p = np.array([result[0] for result in results])
-    
-    results = Parallel(n_jobs=-1)(
-        delayed(run_zetatest2)(
-            neuron_id,
-            all_obj_df.loc[(all_obj_df['sound'] == 2) & (all_obj_df['object'] == 1), 'times'],
-            all_obj_df.loc[(all_obj_df['sound'] == 2) & (all_obj_df['object'] == 2), 'times'])
-        for i, neuron_id in enumerate(clusters['cluster_id']))
-    obj12_sound2_p = np.array([result[0] for result in results])
-    
-    results = Parallel(n_jobs=-1)(
-        delayed(run_zetatest2)(
-            neuron_id,
-            all_obj_df.loc[(all_obj_df['sound'] == 2) & (all_obj_df['object'] == 1), 'times'],
-            all_obj_df.loc[(all_obj_df['sound'] == 2) & (all_obj_df['object'] == 3), 'times'])
-        for i, neuron_id in enumerate(clusters['cluster_id']))
-    obj13_sound2_p = np.array([result[0] for result in results])
-    
-    results = Parallel(n_jobs=-1)(
-        delayed(run_zetatest2)(
-            neuron_id,
-            all_obj_df.loc[(all_obj_df['sound'] == 2) & (all_obj_df['object'] == 2), 'times'],
-            all_obj_df.loc[(all_obj_df['sound'] == 2) & (all_obj_df['object'] == 3), 'times'])
-        for i, neuron_id in enumerate(clusters['cluster_id']))
-    obj23_sound2_p = np.array([result[0] for result in results])
-    
-    # Get significance
-    sig_goal = (goal1_p < ALPHA) | (goal2_p < ALPHA)
-    sig_control = control_sound_p < ALPHA
-    sig_obj_onset = obj_p < ALPHA
-    sig_obj_diff = ((obj12_sound1_p < ALPHA / 6) | (obj13_sound1_p < ALPHA / 6) | (obj23_sound1_p < ALPHA / 6)
-                    | (obj12_sound1_p < ALPHA / 6) | (obj13_sound1_p < ALPHA / 6) | (obj23_sound1_p < ALPHA / 6))
-    
+    # Get neurons which significantly respond to reward omissions
+    if omission_times.shape[0] > 10:
+        print('Calculating significant object onset responses')
+        results = Parallel(n_jobs=-1)(
+            delayed(run_zetatest)(neuron_id, omission_times)
+            for i, neuron_id in enumerate(clusters['cluster_id']))
+        omission_p = np.array([result[0] for result in results])
+    else:
+        omission_p = np.ones(clusters['cluster_id'].shape[0])
+        
     # Add to dataframe
     stats_df = pd.concat((stats_df, pd.DataFrame(data={
         'subject': subject, 'date': date, 'probe': probe, 'neuron_id': clusters['cluster_id'],
         'region': clusters['region'], 'allen_acronym': clusters['acronym'],
         'x': clusters['x'], 'y': clusters['y'], 'z': clusters['z'],
-        'sig_goal': sig_goal, 'sig_obj_onset': sig_obj_onset, 'sig_control': sig_control,
-        'sig_obj_diff': sig_obj_diff, 'p_goal': np.min(np.vstack((goal1_p, goal2_p)), axis=0),
-        'z_goal': np.max(np.vstack((goal1_z, goal2_z)), axis=0), 
-        'p_control_sound': control_sound_p, 'p_obj_onset': obj_p, 'z_obj_onset': obj_z,
-        'p_obj12_sound1': obj12_sound1_p, 'p_obj23_sound1': obj23_sound1_p, 'p_obj13_sound1': obj13_sound1_p,
-        'p_obj12_sound2': obj12_sound2_p, 'p_obj23_sound2': obj23_sound2_p, 'p_obj13_sound2': obj13_sound2_p
+        'sig_context_obj1': goal1_p < ALPHA, 'sig_context_obj2': goal2_p < ALPHA,
+        'sig_obj_onset': obj_p < ALPHA, 'sig_control': control_sound_p < ALPHA,
+        'sig_reward': reward_p < ALPHA, 'sig_omission': omission_p < ALPHA,
+        'sig_sound_onset': sound_onset_p < ALPHA, 'p_sound_onset': sound_onset_p,
+        'p_goal_obj1': goal1_p, 'p_goal_obj2': goal2_p,
+        'p_control_sound': control_sound_p, 'p_obj_onset': obj_p,
+        'p_reward': reward_p, 'p_omission': omission_p
         })))
         
     # Save to disk
