@@ -125,8 +125,8 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             for i, neuron_id in enumerate(clusters['cluster_id']))
         omission_p = np.array([result[0] for result in results])
     else:
-        omission_p = np.ones(clusters['cluster_id'].shape[0])
-        
+        omission_p = np.empty(clusters['cluster_id'].shape[0]) * np.nan
+                
     # Add to dataframe
     stats_df = pd.concat((stats_df, pd.DataFrame(data={
         'subject': subject, 'date': date, 'probe': probe, 'neuron_id': clusters['cluster_id'],
