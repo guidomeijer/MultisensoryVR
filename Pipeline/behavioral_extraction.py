@@ -28,8 +28,8 @@ else:
 # Search for spikesort_me.flag
 print('Looking for extract_me.flag..')
 for root, directory, files in chain.from_iterable(os.walk(path) for path in search_folders):
-    if 'extract_me.flag' in files:
-        print(f'\nFound extract_me.flag in {root}')
+    if 'ephys_session.flag' in files:
+        print(f'\nFound ephys_session.flag in {root}')
 
         data_files = glob(join(root, 'raw_behavior_data', '*.b64'))
         if len(data_files) == 0:
@@ -107,7 +107,7 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         # Extract trial onsets
         if compute_onsets(data['digitalIn'][:, 4])[0] < compute_offsets(data['digitalIn'][:, 12])[0]:
             # Missed the first environment TTL so first trial starts at 0 s
-            env_start = np.concatenate(([0], time_s[compute_offsets(data['digitalIn'][:, 12])]))
+            env_start = np.concatenate(([np.nan], time_s[compute_offsets(data['digitalIn'][:, 12])]))
         else:
             env_start = time_s[compute_offsets(data['digitalIn'][:, 12])]
 
@@ -137,15 +137,12 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         
         all_sound1_onsets = time_s[compute_onsets(data['digitalIn'][:, 9])]
         all_sound2_onsets = time_s[compute_onsets(data['digitalIn'][:, 10])]
-        all_sound1_offsets = time_s[compute_onsets(data['digitalIn'][:, 9])]
-        all_sound2_offsets = time_s[compute_onsets(data['digitalIn'][:, 10])]
         
         all_obj1_appear = time_s[compute_onsets(data['digitalIn'][:, 13])]
         all_obj2_appear = time_s[compute_onsets(data['digitalIn'][:, 14])]
         all_obj3_appear = time_s[compute_onsets(data['digitalIn'][:, 15])]
         
         # Only keep environment entries which have a first object appear event and a trial end event
-        # TO DO: change to object appear
         discard_env_start = np.zeros(env_start.shape[0])
         for i, ts in enumerate(env_start[:-1]):
             if len(all_obj1_enter[(all_obj1_enter > ts)
@@ -185,7 +182,6 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         obj3_position = np.zeros(env_start.shape[0]-1).astype(int)
         
         sound_onset = np.empty(env_start.shape[0]-1)
-        sound_offset = np.empty(env_start.shape[0]-1)
         sound_id = np.zeros(env_start.shape[0]-1).astype(int)
 
         # Loop over trials and get events per trial
@@ -272,18 +268,14 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
                 sound_id[i] = 1
                 sound_onset[i] = all_sound1_onsets[(all_sound1_onsets > ts) & (
                     all_sound1_onsets < env_start[i+1])][0]
-                sound_offset[i] = all_sound1_offsets[(all_sound1_offsets > ts) & (
-                    all_sound1_offsets < env_start[i+1])][0]
             elif all_sound2_onsets[(all_sound2_onsets > ts) & (all_sound2_onsets < env_start[i+1])].shape[0] > 0:
                 sound_id[i] = 2
                 sound_onset[i] = all_sound2_onsets[(all_sound2_onsets > ts) & (
                     all_sound2_onsets < env_start[i+1])][0]
-                sound_offset[i] = all_sound2_offsets[(all_sound2_offsets > ts) & (
-                    all_sound2_offsets < env_start[i+1])][0]
 
             # End of environment
             env_end[i] = all_env_end[(all_env_end > ts) & (all_env_end < env_start[i+1])][0]
-
+        
         # Get camera timestamps
         camera_times = time_s[compute_onsets(data['digitalIn'][:, 11])]
 
@@ -309,18 +301,28 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         breathing = data['analog'][:, 6]
         
         # Get event positions
-        print('Converting times into positions..')
-        lick_pos = [wheel_distance[np.argmin(np.abs(time_s - i))] for i in lick_times]
-        env_start_pos = [wheel_distance[np.argmin(np.abs(time_s - i))] for i in env_start[:-1]]
-        env_end_pos = [wheel_distance[np.argmin(np.abs(time_s - i))] for i in env_end]
-        obj1_enter_pos = [wheel_distance[np.argmin(np.abs(time_s - i))] for i in obj1_enter]
-        obj2_enter_pos = [wheel_distance[np.argmin(np.abs(time_s - i))] for i in obj2_enter]
-        obj3_enter_pos = [wheel_distance[np.argmin(np.abs(time_s - i))] for i in obj3_enter]
+        lick_pos = wheel_distance[np.clip(
+            np.searchsorted(time_s, lick_times, side='right') - 1, 0, wheel_distance.shape[0] - 1)]    
+        reward_pos = wheel_distance[np.clip(
+            np.searchsorted(time_s, reward_times, side='right') - 1, 0, wheel_distance.shape[0] - 1)]                 
+        env_end_pos = wheel_distance[np.clip(
+            np.searchsorted(time_s, env_end, side='right') - 1, 0, wheel_distance.shape[0] - 1)]
+        obj1_enter_pos = wheel_distance[np.clip(
+            np.searchsorted(time_s, obj1_enter, side='right') - 1, 0, wheel_distance.shape[0] - 1)]
+        obj2_enter_pos = wheel_distance[np.clip(
+            np.searchsorted(time_s, obj2_enter, side='right') - 1, 0, wheel_distance.shape[0] - 1)]
+        obj3_enter_pos = wheel_distance[np.clip(
+            np.searchsorted(time_s, obj3_enter, side='right') - 1, 0, wheel_distance.shape[0] - 1)]
+        sound_onset_pos = wheel_distance[np.clip(
+            np.searchsorted(time_s, sound_onset, side='right') - 1, 0, wheel_distance.shape[0] - 1)]
+        env_start_pos = wheel_distance[np.clip(
+            np.searchsorted(time_s, env_start[:-1], side='right') - 1, 0, wheel_distance.shape[0] - 1)]
+        if np.isnan(env_start[0]):
+            env_start_pos[0] = sound_onset_pos[0] - 25
             
         # Get spike positions
-        probe_dirs = glob(join(root, 'probe*'))
+        probe_dirs = glob(join(root, 'probe0*'))
         if len(probe_dirs) > 0:
-            print('Converting spike times into spike positions..')
             for this_probe in probe_dirs:
                 
                 # Find for each spike its corresponding distance
@@ -339,23 +341,24 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         np.save(join(root, 'lick.times.npy'), lick_times)
         np.save(join(root, 'lick.positions.npy'), lick_pos)
         np.save(join(root, 'reward.times.npy'), reward_times)
+        np.save(join(root, 'reward.positions.npy'), reward_pos)
 
         # Build trial dataframe
         trials = pd.DataFrame(data={
             'enterEnvTime': env_start[:-1], 'exitEnvTime': env_end,
             'enterEnvPos': env_start_pos, 'exitEnvPos': env_end_pos,
-            'soundOnset': sound_onset, 'soundOffset': sound_offset, 'soundId': sound_id,
-            'appearObj1': obj1_appear,
-            'enterObj1': obj1_enter, 'enterObj2': obj2_enter, 'enterObj3': obj3_enter,
+            'soundOnsetTime': sound_onset, 'soundOnsetPos': sound_onset_pos, 'soundId': sound_id,
+            'appearObj1Time': obj1_appear,
+            'enterObj1Time': obj1_enter, 'enterObj2Time': obj2_enter, 'enterObj3Time': obj3_enter,
             'enterObj1Pos': obj1_enter_pos, 'enterObj2Pos': obj2_enter_pos, 'enterObj3Pos': obj3_enter_pos,
-            'exitObj1': obj1_exit, 'exitObj2': obj2_exit, 'exitObj3': obj3_exit,
+            'exitObj1Time': obj1_exit, 'exitObj2Time': obj2_exit, 'exitObj3Time': obj3_exit,
             'rewardsObj1': obj1_rewards, 'rewardsObj2': obj2_rewards, 'rewardsObj3': obj3_rewards,
             'positionObj1': obj1_position, 'positionObj2': obj2_position, 'positionObj3': obj3_position
         })
         trials.to_csv(join(root, 'trials.csv'), index=False)
 
         # Delete extraction flag
-        os.remove(join(root, 'extract_me.flag'))
+        #os.remove(join(root, 'extract_me.flag'))
         if np.sum(np.isnan(obj1_enter)) > 0:
             print(f'{np.sum(np.isnan(obj1_enter))} missing enterObj1 events')
         if np.sum(np.isnan(obj2_enter)) > 0:

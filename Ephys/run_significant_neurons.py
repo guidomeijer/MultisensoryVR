@@ -13,7 +13,7 @@ from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 
 # Settings
 T_BEFORE = 1  # s
-T_AFTER = 2
+T_AFTER = 1
 ALPHA = 0.05
 OVERWRITE = True
 max_dur = T_BEFORE + T_AFTER
@@ -74,8 +74,8 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     no_goal2_times = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 0), 'times']
     sound1_times = all_obj_df.loc[(all_obj_df['object'] == 3) & (all_obj_df['sound'] == 1), 'times']
     sound2_times = all_obj_df.loc[(all_obj_df['object'] == 3) & (all_obj_df['sound'] == 2), 'times']
-    sound1_onset = trials.loc[trials['soundId'] == 1, 'soundOnset'].values
-    sound2_onset = trials.loc[trials['soundId'] == 2, 'soundOnset'].values
+    sound1_onset = trials.loc[trials['soundId'] == 1, 'soundOnsetTime'].values
+    sound2_onset = trials.loc[trials['soundId'] == 2, 'soundOnsetTime'].values
     reward_times = all_obj_df.loc[(all_obj_df['goal'] == 1) & (all_obj_df['rewarded'] == 1), 'times'].values
     no_reward_times = all_obj_df.loc[(all_obj_df['goal'] == 0) & (all_obj_df['rewarded'] == 0), 'times'].values
     omission_times = all_obj_df.loc[(all_obj_df['goal'] == 1) & (all_obj_df['rewarded'] == 0), 'times'].values

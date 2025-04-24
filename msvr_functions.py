@@ -239,21 +239,37 @@ def load_objects(subject, date):
     sound2_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound2Obj'].values[0]
     control_obj = subjects.loc[subjects['SubjectID'] == subject, 'ControlObject'].values[0]
 
+    # Reorder rewarded objects such that object 1 is the first encountered rewarded object
+    sound1_obj_pos = trials[f'positionObj{sound1_obj}'][0]
+    sound2_obj_pos = trials[f'positionObj{sound2_obj}'][0]
+    if sound1_obj_pos < sound2_obj_pos:
+        sound1_obj_id = 1
+        sound2_obj_id = 2
+    else:
+        sound1_obj_id = 2
+        sound2_obj_id = 1        
+
+    # Object id mapping
+    obj_mapping = {1: 'house', 2: 'bridge', 3: 'desert'}
+
     # Prepare trial data
-    rew_obj1_df = pd.DataFrame(data={'times': trials[f'enterObj{sound1_obj}'],
+    rew_obj1_df = pd.DataFrame(data={'times': trials[f'enterObj{sound1_obj}Time'],
                                      'distances': trials[f'enterObj{sound1_obj}Pos'],
-                                     'object': 1, 'sound': trials['soundId'],
+                                     'object': sound1_obj_id, 'sound': trials['soundId'],
                                      'goal': (trials['soundId'] == 1).astype(int),
-                                     'rewarded': trials[f'rewardsObj{sound1_obj}']})
-    rew_obj2_df = pd.DataFrame(data={'times': trials[f'enterObj{sound2_obj}'],
+                                     'rewarded': trials[f'rewardsObj{sound1_obj}'],
+                                     'object_appearance': obj_mapping[sound1_obj]})
+    rew_obj2_df = pd.DataFrame(data={'times': trials[f'enterObj{sound2_obj}Time'],
                                      'distances': trials[f'enterObj{sound2_obj}Pos'],
-                                     'object': 2, 'sound': trials['soundId'],
+                                     'object': sound2_obj_id, 'sound': trials['soundId'],
                                      'goal': (trials['soundId'] == 2).astype(int),
-                                     'rewarded': trials[f'rewardsObj{sound2_obj}']})
-    control_obj_df = pd.DataFrame(data={'times': trials[f'enterObj{control_obj}'],
+                                     'rewarded': trials[f'rewardsObj{sound2_obj}'],
+                                     'object_appearance': obj_mapping[sound2_obj]})
+    control_obj_df = pd.DataFrame(data={'times': trials[f'enterObj{control_obj}Time'],
                                         'distances': trials[f'enterObj{control_obj}Pos'],
                                         'object': 3, 'sound': trials['soundId'],
-                                        'goal': 0, 'rewarded': trials[f'rewardsObj{control_obj}']})
+                                        'goal': 0, 'rewarded': trials[f'rewardsObj{control_obj}'],
+                                        'object_appearance': obj_mapping[control_obj]})
     all_obj_df = pd.concat((rew_obj1_df, rew_obj2_df, control_obj_df))
     all_obj_df = all_obj_df.sort_values(by='times').reset_index(drop=True)
     
@@ -290,6 +306,7 @@ def figure_style(font_size=7):
                 })
     matplotlib.rcParams['pdf.fonttype'] = 42
     matplotlib.rcParams['ps.fonttype'] = 42
+    matplotlib.rcParams['backend'] = 'QtAgg'
 
     colors = {
         'obj1': sns.color_palette('Set2')[0],
@@ -532,6 +549,23 @@ def load_multiple_probes(session_path, probes=[], **kwargs):
     
 
 def remap(acronyms, source='Allen', dest='Beryl', brainregions=None):
+    """
+    Remaps a list of brain region acronyms from one mapping source to another.
+    Parameters:
+        acronyms (list or array-like): A list of brain region acronyms to be remapped.
+        source (str, optional): The source mapping to use for remapping. Default is 'Allen'.
+        dest (str, optional): The destination mapping to remap to. Default is 'Beryl'.
+        brainregions (BrainRegions, optional): An instance of the BrainRegions class. 
+            If not provided, a new instance will be created.
+    Returns:
+        list: A list of remapped brain region acronyms corresponding to the destination mapping.
+    Notes:
+        - The function uses the `BrainRegions` class to handle mappings and acronym conversions.
+        - The `ismember` function is used to find indices of the acronyms in the source mapping.
+        - Ensure that the `BrainRegions` class and its methods (`acronym2id`, `get`, etc.) 
+          are properly implemented and accessible.
+    """
+
     br = brainregions or BrainRegions()
     _, inds = ismember(br.acronym2id(acronyms), br.id[br.mappings[source]])
     remapped_acronyms = br.get(br.id[br.mappings[dest][inds]])['acronym']
@@ -539,6 +573,24 @@ def remap(acronyms, source='Allen', dest='Beryl', brainregions=None):
 
 
 def get_full_region_name(acronyms, brainregions=None):
+    """
+    Retrieve the full region names corresponding to a list of acronyms.
+    This function takes a list of brain region acronyms and returns their full names
+    using the provided `BrainRegions` object. If an acronym is not found, it is returned
+    as-is in the output.
+    Args:
+        acronyms (list of str): A list of brain region acronyms to look up.
+        brainregions (BrainRegions, optional): An instance of the `BrainRegions` class 
+            that contains mapping information for acronyms and full region names. 
+            If not provided, a new instance of `BrainRegions` will be created.
+    Returns:
+        list of str or str: A list of full region names corresponding to the input acronyms.
+        If the input list contains only one acronym, the function returns a single string
+        instead of a list.
+    Raises:
+        IndexError: If an acronym is not found in the `BrainRegions` object, it is handled
+        by appending the acronym itself to the output list.
+    """
     br = brainregions or BrainRegions()
     full_region_names = []
     for i, acronym in enumerate(acronyms):
@@ -554,6 +606,31 @@ def get_full_region_name(acronyms, brainregions=None):
     
     
 def combine_regions(allen_acronyms, split_peri=True, abbreviate=True, brainregions=None):
+    """
+    Maps Allen Brain Atlas acronyms to broader brain region categories.
+    This function remaps a list of Allen Brain Atlas acronyms to broader brain 
+    region categories, either in abbreviated or full form. It also allows for 
+    splitting the perirhinal cortex into areas 35 and 36.
+    Parameters:
+    -----------
+    allen_acronyms : list or array-like
+        A list or array of Allen Brain Atlas acronyms to be remapped.
+    split_peri : bool, optional
+        If True, splits the perirhinal cortex into areas 35 and 36. 
+        Defaults to True.
+    abbreviate : bool, optional
+        If True, returns abbreviated region names. If False, returns full 
+        region names. Defaults to True.
+    brainregions : BrainRegions, optional
+        An instance of the BrainRegions class. If None, a new instance is 
+        created. Defaults to None.
+    Returns:
+    --------
+    regions : numpy.ndarray
+        An array of remapped brain region names corresponding to the input 
+        acronyms.
+    """
+
     br = brainregions or BrainRegions()
     acronyms = remap(allen_acronyms)  # remap to Beryl
     regions = np.array(['root'] * len(acronyms), dtype=object)

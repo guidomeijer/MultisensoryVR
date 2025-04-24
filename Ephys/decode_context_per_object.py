@@ -25,7 +25,7 @@ T_AFTER = 2
 BIN_SIZE = 0.3
 STEP_SIZE = 0.05
 MIN_NEURONS = 10
-MIN_TRIALS = 50
+MIN_TRIALS = 80
 
 # Create time array
 t_centers = np.arange(-T_BEFORE + (BIN_SIZE/2), T_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
@@ -37,12 +37,7 @@ kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
 
-clf = RandomForestClassifier(random_state=42, n_estimators=50, max_depth=20,
-                             max_features='sqrt', min_samples_split=5, min_samples_leaf=2)
-#clf = GaussianNB()
-#clf = LogisticRegression(solver='liblinear', max_iter=1000, random_state=42)
-#clf = LinearDiscriminantAnalysis()
-#clf = SVC(probability=True)
+clf = RandomForestClassifier(random_state=42, n_estimators=50, max_depth=4, min_samples_leaf=5)
 
 # Function for parallelization
 def decode_context(bin_center, spikes, region_neurons, all_obj_df):
@@ -84,7 +79,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     
     if trials.shape[0] < MIN_TRIALS:
         continue
-        
+    
     # %% Loop over regions
     for r, region in enumerate(np.unique(clusters['region'])):
         if region == 'root':

@@ -2,3 +2,8 @@
 __pycache__/
 
 paths.json
+
+.idea
+
+.env
+.spyproject/config/

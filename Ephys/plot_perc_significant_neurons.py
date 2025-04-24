@@ -82,6 +82,7 @@ ax6.tick_params(axis='x', labelrotation=90)
 
 sns.despine(trim=False)
 plt.tight_layout()
+plt.show(block=False)
 
 plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_swarm.jpg'), dpi=600)
 
@@ -100,7 +101,7 @@ this_order = per_ses_df[['region', 'perc_context_obj1']].groupby('region').mean(
     'perc_context_obj1', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_context_obj1', ax=ax2, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax2.set(xlabel='', title='Context first landmark', yticks=[0, 3, 6, 9, 12], ylim=[0, 12], ylabel='')
+ax2.set(xlabel='', title='Context first landmark', yticks=[0, 1, 2, 3, 4, 5, 6], ylim=[0, 6], ylabel='')
 ax2.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_obj2']].groupby('region').mean().sort_values(
@@ -114,7 +115,7 @@ this_order = per_ses_df[['region', 'perc_context_onset']].groupby('region').mean
     'perc_context_onset', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_context_onset', ax=ax4, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax4.set(xlabel='', title='Context onset', yticks=[0, 10, 20, 30, 40], ylim=[0, 40], ylabel='')
+ax4.set(xlabel='', title='Context onset', yticks=[0, 10, 20, 30, 40, 50], ylim=[0, 50], ylabel='')
 ax4.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_reward']].groupby('region').mean().sort_values(
@@ -128,11 +129,66 @@ this_order = per_ses_df[['region', 'perc_omission']].groupby('region').mean().so
     'perc_omission', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_omission', ax=ax6, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax6.set(xlabel='', title='Reward omission', yticks=[0, 10, 20, 30, 40, 50, 60], ylim=[0, 60], ylabel='')
+ax6.set(xlabel='', title='Reward omission', yticks=[0, 10, 20, 30, 40], ylim=[0, 40], ylabel='')
 ax6.tick_params(axis='x', labelrotation=90)
 
 sns.despine(trim=False)
 plt.tight_layout()
+plt.show(block=False)
 
 plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_errorbars.jpg'), dpi=600)
 
+
+# %%
+
+sig_cols = [
+    'sig_context_obj1',
+    'sig_context_obj2',
+    'sig_reward',
+    'sig_omission',
+    'sig_obj_onset'
+]
+
+# Initialize an empty DataFrame to store percentage overlaps
+overlap_matrix = pd.DataFrame(index=sig_cols, columns=sig_cols, dtype=float)
+
+for col1 in sig_cols:
+    for col2 in sig_cols:
+        intersection = (stats_df[col1] & stats_df[col2]).sum()
+        union = (stats_df[col1] | stats_df[col2]).sum()
+        overlap_percent = 100 * intersection / union if union > 0 else 0
+        overlap_matrix.loc[col1, col2] = overlap_percent
+        
+# Assume overlap_matrix is your symmetric matrix of floats
+# Get lower triangle indices (excluding diagonal if desired)
+lower_triangle_indices = np.tril_indices_from(overlap_matrix, k=-1)  # use k=0 to include diagonal
+
+# Find the rows and columns that actually have values
+rows_to_keep = sorted(set(lower_triangle_indices[0]))
+cols_to_keep = sorted(set(lower_triangle_indices[1]))
+
+# Subset the matrix
+trimmed_matrix = overlap_matrix.iloc[rows_to_keep, cols_to_keep]
+
+# Create new mask for upper triangle (on the trimmed matrix)
+mask = np.triu(np.ones_like(trimmed_matrix, dtype=bool), k=1)
+
+# Plot
+plt.figure(figsize=(3.5, 3), dpi=dpi)
+ax = sns.heatmap(
+        trimmed_matrix.astype(float),
+        annot=True,
+        fmt=".1f",
+        cmap="viridis",
+        vmin=0,
+        vmax=30,
+        mask=mask,
+        cbar=None,
+        linewidths=0.5,
+        linecolor='white'
+        )
+ax.set_xticklabels(['Object 1', 'Object 2', 'Outcome', 'Omission'], rotation=0)
+ax.set_yticklabels(['Object 2', 'Outcome', 'Omission', 'Landmark entry'], rotation=0)
+plt.tight_layout()
+
+plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_overlap.jpg'), dpi=600)

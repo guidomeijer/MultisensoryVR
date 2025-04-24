@@ -20,12 +20,13 @@ from joblib import Parallel, delayed
 from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 
 # Settings
-D_BEFORE = 300  # mm
-D_AFTER = 300
-BIN_SIZE = 20
+D_BEFORE = 150  # mm
+D_AFTER = 150
+BIN_SIZE = 10
 STEP_SIZE = 2
 MIN_NEURONS = 10
 MIN_SPEED = 25  # mm/s
+N_CORES = 6
 
 # Create time array
 d_centers = np.arange(-D_BEFORE + (BIN_SIZE/2), D_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
@@ -36,12 +37,7 @@ subjects = load_subjects()
 kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 
-#clf = RandomForestClassifier(random_state=42, n_estimators=50, max_depth=20,
-#                             max_features='sqrt', min_samples_split=5, min_samples_leaf=2)
-#clf = GaussianNB()
-clf = LogisticRegression(solver='liblinear', max_iter=1000, random_state=42)
-#clf = LinearDiscriminantAnalysis()
-#clf = SVC(probability=True)
+clf = RandomForestClassifier(random_state=42, n_estimators=50, max_depth=4, min_samples_leaf=5)
 
 # Function for parallelization
 def decode_context(bin_center, spikes, region_neurons, all_obj_df):
@@ -97,7 +93,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             continue
         
         # Do decoding with with parallel processing
-        results = Parallel(n_jobs=-1)(
+        results = Parallel(n_jobs=N_CORES)(
             delayed(decode_context)(bin_center, spikes, region_neurons, all_obj_df) for bin_center in d_centers)
         
         # Add to dataframe
