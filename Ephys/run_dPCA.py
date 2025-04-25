@@ -31,7 +31,9 @@ for i, region in enumerate(env_act_dict.keys()):
     # Fit dPCA
     dpca = dPCA.dPCA(labels='ds', n_components=1)
     Z = dpca.fit_transform(this_act)
-    dpca_region[region] = np.squeeze(Z['s'])[:, 0]
+ 
+    dpca_region[region] = np.squeeze(Z['ds'])[:, 1]
+
     
 # %% Plot
 

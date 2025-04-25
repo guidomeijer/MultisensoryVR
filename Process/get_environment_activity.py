@@ -62,8 +62,6 @@ rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 results = Parallel(n_jobs=-1)(delayed(process_session)(subject, date, probe, path_dict)
                               for subject, date, probe in zip(rec['subject'], rec['date'], rec['probe']))
 
-# Get distance bin ids
-np.arange(-CM_BEFORE)
 
 # Merge the results
 env_act_dict = defaultdict(lambda: None)
@@ -76,6 +74,9 @@ for region_dict in results:
             env_act_dict[region] = envR
         else:
             env_act_dict[region] = np.vstack((env_act_dict[region], envR))
+
+# Get distance bin ids
+env_act_dict['position'] = np.arange(-CM_BEFORE, 150 + CM_AFTER + 0.5, step=CM_BIN_SIZE)
 
 # Save results
 with open(join(path_dict['save_path'], 'env_act_dict.pkl'), 'wb') as f:
