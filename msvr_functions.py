@@ -669,6 +669,27 @@ def bandpass_filter(data, lowcut, highcut, fs, order=5):
 
 
 def bin_signal(timestamps, signal, bin_edges):
+    """
+    Bin a signal based on provided timestamps and bin edges.
+    This function groups the `signal` values into bins defined by `bin_edges` 
+    based on their corresponding `timestamps`. It computes the mean value of 
+    the signal within each bin.
+    Parameters:
+    -----------
+    timestamps : numpy.ndarray
+        Array of timestamps corresponding to the signal values.
+    signal : numpy.ndarray
+        Array of signal values to be binned.
+    bin_edges : numpy.ndarray
+        Array defining the edges of the bins. The bins are defined as 
+        [bin_edges[i], bin_edges[i+1]) for i in range(len(bin_edges) - 1).
+    Returns:
+    --------
+    numpy.ndarray
+        Array of mean signal values for each bin. If a bin contains no 
+        timestamps, its mean value will be zero.
+    """
+
     bin_indices = np.digitize(timestamps[(timestamps >= bin_edges[0]) & (timestamps <= bin_edges[-1])],
                               bins=bin_edges, right=False) - 1
     bin_sums = np.bincount(
@@ -676,6 +697,57 @@ def bin_signal(timestamps, signal, bin_edges):
     bin_means = np.divide(bin_sums, np.bincount(bin_indices), out=np.zeros_like(bin_sums),
                           where=np.bincount(bin_indices)!=0)
     return bin_means
+
+def event_aligned_averages(signal, timestamps, events, timebins, return_df=False):
+    """
+    Aligns a 1D signal to events and computes the average for each time bin relative to the events.
+
+    Parameters:
+    -----------
+    signal : numpy.ndarray
+        1D array of signal values.
+    timestamps : numpy.ndarray
+        1D array of timestamps corresponding to the signal values.
+    events : numpy.ndarray
+        1D array of event timestamps.
+    timebins : numpy.ndarray
+        1D array of time bin edges (in seconds) relative to the events.
+    return_df : boolean
+        Wether to return the result as a dataframe
+
+    Returns:
+    --------
+    averages : numpy.ndarray
+        2D array of shape (len(events), len(timebins) - 1) containing the average signal
+        for each event and time bin.
+        
+    OR
+    
+    df_long : DataFrame
+        A long form DataFrame
+    """
+    num_bins = len(timebins) - 1
+    num_events = len(events)
+    averages = np.zeros((num_events, num_bins))
+
+    for i, event in enumerate(events):
+        # Shift timebins relative to the current event
+        bin_edges = timebins + event
+        # Mask signal values within the bin edges
+        for j in range(num_bins):
+            bin_mask = (timestamps >= bin_edges[j]) & (timestamps < bin_edges[j + 1])
+            averages[i, j] = np.mean(signal[bin_mask]) if np.any(bin_mask) else 0
+
+    if return_df:
+        time_ax = timebins[:-1] + (np.mean(np.diff(timebins)) / 2)
+        df_long = pd.DataFrame({
+            'event': np.repeat(np.arange(events.shape[0]), time_ax.shape[0]),
+            'time': np.tile(time_ax, events.shape[0]),  
+            'value': averages.flatten()
+        })
+        return df_long
+    else:
+        return averages
 
 
 def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, t_after=3,
