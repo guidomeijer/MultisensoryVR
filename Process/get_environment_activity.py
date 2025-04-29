@@ -14,16 +14,16 @@ from brainbox.singlecell import calculate_peths
 from msvr_functions import paths, load_neural_data, load_subjects
 
 # Settings
-MIN_SPEED = 50  # mm/s
+MIN_SPEED = 20  # mm/s
 CM_BEFORE = 10
 CM_AFTER = 10
 CM_BIN_SIZE = 1
 CM_SMOOTHING = 2
+N_CORES = 10
 
 
 def process_session(subject, date, probe, path_dict):    
     try:
-        
         # Load data
         session_path = join(path_dict['local_data_path'], 'Subjects', f'{subject}', f'{date}')
         spikes, clusters, channels = load_neural_data(session_path, probe)
@@ -36,10 +36,8 @@ def process_session(subject, date, probe, path_dict):
         obj_locations = np.array([trials.loc[0, 'positionObj1'],
                                   trials.loc[0, 'positionObj2'],
                                   trials.loc[0, 'positionObj3']])
-        reward_locations = obj_locations[rewarded_objects]
-        if np.all(reward_locations != [1, 3]):
-            return None            
-        
+        reward_locations = tuple(obj_locations[rewarded_objects])  # make it hashable
+
         # Apply speed threshold
         spikes_dist = spikes['distances'][spikes['speeds'] >= MIN_SPEED] / 10
         clusters_dist = spikes['clusters'][spikes['speeds'] >= MIN_SPEED]
@@ -48,7 +46,7 @@ def process_session(subject, date, probe, path_dict):
         region_dict = defaultdict(lambda: None)
 
         for region in np.unique(clusters['region']):
-            if (region == 'root') | (region == 'ENT'):
+            if region in ['root', 'ENT']:
                 continue
             region_neurons = clusters['cluster_id'][clusters['region'] == region]
             
@@ -61,36 +59,40 @@ def process_session(subject, date, probe, path_dict):
             envR = np.dstack((context1['means'], context2['means']))
             region_dict[region] = envR
         
-        return region_dict
+        return reward_locations, region_dict
 
     except Exception as e:
         print(f"Error in {subject} {date} {probe}: {e}")
         return None
-    
-    
+
 # Initialize
 path_dict = paths()
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 
 # Run in parallel
-results = Parallel(n_jobs=-1)(delayed(process_session)(subject, date, probe, path_dict)
-                              for subject, date, probe in zip(rec['subject'], rec['date'], rec['probe']))
+results = Parallel(n_jobs=N_CORES)(
+    delayed(process_session)(subject, date, probe, path_dict)
+    for subject, date, probe in zip(rec['subject'], rec['date'], rec['probe'])
+)
 
-# Merge the results
-env_act_dict = defaultdict(lambda: None)
+# Group results by reward_locations
+split_env_dicts = defaultdict(lambda: defaultdict(lambda: None))
 
-for region_dict in results:
-    if region_dict is None:
+for result in results:
+    if result is None:
         continue
+    reward_locations, region_dict = result
     for region, envR in region_dict.items():
-        if env_act_dict[region] is None:
-            env_act_dict[region] = envR
+        if split_env_dicts[reward_locations][region] is None:
+            split_env_dicts[reward_locations][region] = envR
         else:
-            env_act_dict[region] = np.vstack((env_act_dict[region], envR))
+            split_env_dicts[reward_locations][region] = np.vstack((split_env_dicts[reward_locations][region], envR))
 
-# Get distance bin ids
-env_act_dict['position'] = np.arange(-CM_BEFORE, 150 + CM_AFTER, step=CM_BIN_SIZE) + (CM_BIN_SIZE / 2)
+# Add bin position to each and save
+position_axis = np.arange(-CM_BEFORE, 150 + CM_AFTER, step=CM_BIN_SIZE) + (CM_BIN_SIZE / 2)
 
-# Save results
-with open(join(path_dict['save_path'], 'env_act_dict.pkl'), 'wb') as f:
-    pickle.dump(dict(env_act_dict), f)
+for reward_loc, env_act_dict in split_env_dicts.items():
+    env_act_dict['position'] = position_axis
+    filename = f"env_act_dict_{'_'.join(map(str, reward_loc))}.pkl"
+    with open(join(path_dict['save_path'], filename), 'wb') as f:
+        pickle.dump(dict(env_act_dict), f)

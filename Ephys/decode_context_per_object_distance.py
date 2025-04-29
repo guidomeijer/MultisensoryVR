@@ -21,12 +21,12 @@ from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 
 # Settings
 D_BEFORE = 150  # mm
-D_AFTER = 150
-BIN_SIZE = 10
-STEP_SIZE = 2
+D_AFTER = 300
+BIN_SIZE = 20
+STEP_SIZE = 5
 MIN_NEURONS = 10
-MIN_SPEED = 25  # mm/s
-N_CORES = 6
+MIN_SPEED = 20  # mm/s
+N_CORES = -2
 
 # Create time array
 d_centers = np.arange(-D_BEFORE + (BIN_SIZE/2), D_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
@@ -34,7 +34,7 @@ d_centers = np.arange(-D_BEFORE + (BIN_SIZE/2), D_AFTER - ((BIN_SIZE/2) - STEP_S
 # Initialize
 path_dict = paths(sync=False)
 subjects = load_subjects()
-kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
+kfold_cv = KFold(n_splits=10, shuffle=False)
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 
 clf = RandomForestClassifier(random_state=42, n_estimators=50, max_depth=4, min_samples_leaf=5)
@@ -78,8 +78,8 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     all_obj_df = load_objects(subject, date)
     
     # Speed threshold on neural activity
-    spikes['times'] = spikes['times'][spikes['speeds'] > MIN_SPEED]
     spikes['distances'] = spikes['distances'][spikes['speeds'] > MIN_SPEED]
+    spikes['clusters'] = spikes['clusters'][spikes['speeds'] > MIN_SPEED]
         
     # %% Loop over regions
     for r, region in enumerate(np.unique(clusters['region'])):

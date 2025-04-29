@@ -17,7 +17,7 @@ colors, dpi = figure_style()
 
 # Load in data
 path_dict = paths()
-with open(join(path_dict['save_path'], 'env_act_dict.pkl'), 'rb') as f:
+with open(join(path_dict['save_path'], 'env_act_dict_1_3.pkl'), 'rb') as f:
     env_act_dict = pickle.load(f)
     
 # Loop over regions

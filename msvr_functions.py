@@ -698,6 +698,7 @@ def bin_signal(timestamps, signal, bin_edges):
                           where=np.bincount(bin_indices)!=0)
     return bin_means
 
+
 def event_aligned_averages(signal, timestamps, events, timebins, return_df=False):
     """
     Aligns a 1D signal to events and computes the average for each time bin relative to the events.
