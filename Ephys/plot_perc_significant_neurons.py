@@ -41,7 +41,7 @@ per_ses_df.loc[per_ses_df.set_index(['region', 'ses_id']).index.isin(all_nan_omi
 
 
 # %%
-f, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4, figsize=(1.75*4, 4), dpi=dpi, sharey=False) 
+f, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4, figsize=(1.75*4, 4), dpi=dpi, sharey=False)
 
 sns.barplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, hue='region', errorbar=None,
             palette=colors)
@@ -87,28 +87,29 @@ plt.show(block=False)
 plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_swarm.jpg'), dpi=600)
 
 # %%
-f, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4, figsize=(1.75*4, 4), dpi=dpi, sharey=False) 
+f, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4, figsize=(1.75*4, 4), dpi=dpi, sharey=False)
 
 this_order = per_ses_df[['region', 'perc_obj_onset']].groupby('region').mean().sort_values(
     'perc_obj_onset', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, hue='region', errorbar='se',
             palette=colors, order=this_order)
 ax1.set(ylabel='Significant neurons (%)',  yticks=[0, 20, 40, 60, 80, 100], xlabel='',
-        title='Landmark entries', ylim=[0, 100])
+        title='Object modulation', ylim=[0, 100])
 ax1.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_obj1']].groupby('region').mean().sort_values(
     'perc_context_obj1', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_context_obj1', ax=ax2, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax2.set(xlabel='', title='Context first landmark', yticks=[0, 1, 2, 3, 4, 5, 6], ylim=[0, 6], ylabel='')
+#ax2.set(xlabel='', title='Context first landmark', yticks=[0, 1, 2, 3, 4, 5, 6], ylim=[0, 6], ylabel='')
+ax2.set(xlabel='', title='Context modulation (first object)', yticks=[0, 5, 10, 15, 20, 25, 30], ylim=[0, 30], ylabel='')
 ax2.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_obj2']].groupby('region').mean().sort_values(
     'perc_context_obj2', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_context_obj2', ax=ax3, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax3.set(xlabel='', title='Context second landmark', yticks=[0, 5, 10, 15, 20, 25, 30], ylim=[0, 30], ylabel='')
+ax3.set(xlabel='', title='Context modulation (second object)', yticks=[0, 5, 10, 15, 20, 25, 30], ylim=[0, 30], ylabel='')
 ax3.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_onset']].groupby('region').mean().sort_values(
@@ -122,7 +123,7 @@ this_order = per_ses_df[['region', 'perc_reward']].groupby('region').mean().sort
     'perc_reward', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_reward', ax=ax5, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax5.set(xlabel='', title='Outcome', yticks=[0, 10, 20, 30, 40], ylim=[0, 40], ylabel='')
+ax5.set(xlabel='', title='Outcome modulation', yticks=[0, 10, 20, 30, 40], ylim=[0, 40], ylabel='')
 ax5.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_omission']].groupby('region').mean().sort_values(
@@ -145,7 +146,6 @@ sig_cols = [
     'sig_context_obj1',
     'sig_context_obj2',
     'sig_reward',
-    'sig_omission',
     'sig_obj_onset'
 ]
 
@@ -158,7 +158,7 @@ for col1 in sig_cols:
         union = (stats_df[col1] | stats_df[col2]).sum()
         overlap_percent = 100 * intersection / union if union > 0 else 0
         overlap_matrix.loc[col1, col2] = overlap_percent
-        
+
 # Assume overlap_matrix is your symmetric matrix of floats
 # Get lower triangle indices (excluding diagonal if desired)
 lower_triangle_indices = np.tril_indices_from(overlap_matrix, k=-1)  # use k=0 to include diagonal
@@ -187,8 +187,8 @@ ax = sns.heatmap(
         linewidths=0.5,
         linecolor='white'
         )
-ax.set_xticklabels(['Object 1', 'Object 2', 'Outcome', 'Omission'], rotation=0)
-ax.set_yticklabels(['Object 2', 'Outcome', 'Omission', 'Landmark entry'], rotation=0)
+ax.set_xticklabels(['Object 1', 'Object 2', 'Outcome'], rotation=0)
+ax.set_yticklabels(['Object 2 ', 'Outcome', 'Objects'], rotation=0)
 plt.tight_layout()
 
 plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_overlap.jpg'), dpi=600)
