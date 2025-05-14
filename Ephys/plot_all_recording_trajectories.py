@@ -62,7 +62,8 @@ def add_mesh(fig, obj_file, color=(1., 1., 1.), opacity=0.4):
 
 # %%
 
-fig = rendering.figure(grid=False, size=(1024, 768))
+fig = rendering.figure(grid=False, size=(1024*2, 768*2))
+fig.scene.background = (1.0, 1.0, 1.0)  # Pure white
 for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
 
     # Load in data

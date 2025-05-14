@@ -58,4 +58,5 @@ ax.plot([135, 135], vert_line_y, color='k', lw=0.5)
     
 #ax.axis('off')
 plt.tight_layout()
+plt.savefig(join(path_dict['google_drive_fig_path'], 'eu_dist_context.jpg'), dpi=600)
     

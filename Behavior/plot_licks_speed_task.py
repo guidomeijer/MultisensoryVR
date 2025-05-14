@@ -20,13 +20,13 @@ T_BEFORE = 2
 T_AFTER = 3
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
-PLOT_SUBJECTS = ['472975']
+PLOT_SUBJECTS = ['478153', '478154']
 
 # Get subjects
 subjects = load_subjects()
 
 # Get paths
-path_dict = paths(force_sync=True)
+path_dict = paths(force_sync=False)
 data_path = path_dict['local_data_path']
 
 # Set figure style
@@ -41,14 +41,16 @@ for i, subject in enumerate(PLOT_SUBJECTS):
     control_obj = subjects.loc[subjects['SubjectID'] == subject, "ControlObject"].values[0]    
 
     # List sessions
-    sessions = os.listdir(join(data_path, 'Subjects', subject))
+    sessions = np.array(os.listdir(join(data_path, 'Subjects', subject)))
 
+    """
     # Discard sessions that don't have licks
     no_lick_ses = np.zeros(len(sessions))
     for j, ses in enumerate(sessions):
         if not isfile(join(data_path, 'Subjects', subject, ses, 'lick.times.npy')):
             no_lick_ses[j] = 1
     sessions = np.array(sessions)[~no_lick_ses.astype(int).astype(bool)]
+    """
 
     # Select final task sessions
     ses_date = np.array([datetime.datetime.strptime(i[:8], '%Y%m%d').date() for i in sessions])

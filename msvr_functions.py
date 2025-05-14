@@ -328,13 +328,13 @@ def figure_style(font_size=7):
         'CA1': sns.color_palette('Set3')[4],
         'vCA1': sns.color_palette('Set3')[4],
         'dCA1': sns.color_palette('Dark2')[4],
-        'DG': sns.color_palette('Dark2')[7],
-        'CA3': sns.color_palette('tab10')[9],
-        'TBA': sns.color_palette('Dark2')[0],
-        'TBA': sns.color_palette('Accent')[0],
-        'TBA': sns.color_palette('Accent')[1],
-        'TBA': sns.color_palette('Accent')[2],
-        'TBA': sns.color_palette('tab10')[8],
+        'TBD': sns.color_palette('tab10')[9],
+        'ENT': sns.color_palette('Dark2')[7],
+        'TBD': sns.color_palette('Dark2')[0],
+        'TBD': sns.color_palette('Accent')[0],
+        'TBD': sns.color_palette('Accent')[1],
+        'TBD': sns.color_palette('Accent')[2],
+        'TBD': sns.color_palette('tab10')[8],
         }
 
     screen_width = tk.Tk().winfo_screenwidth()

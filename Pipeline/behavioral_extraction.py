@@ -28,8 +28,8 @@ else:
 # Search for spikesort_me.flag
 print('Looking for extract_me.flag..')
 for root, directory, files in chain.from_iterable(os.walk(path) for path in search_folders):
-    if 'ephys_session.flag' in files:
-        print(f'\nFound ephys_session.flag in {root}')
+    if 'extract_me.flag' in files:
+        print(f'\nFound extract_me.flag in {root}')
 
         data_files = glob(join(root, 'raw_behavior_data', '*.b64'))
         if len(data_files) == 0:

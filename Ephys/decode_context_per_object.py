@@ -24,8 +24,8 @@ T_BEFORE = 2  # s
 T_AFTER = 2
 BIN_SIZE = 0.3
 STEP_SIZE = 0.05
-MIN_NEURONS = 10
-MIN_TRIALS = 80
+MIN_NEURONS = 5
+MIN_TRIALS = 30
 
 # Create time array
 t_centers = np.arange(-T_BEFORE + (BIN_SIZE/2), T_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
@@ -77,6 +77,12 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     trials = pd.read_csv(join(path_dict['local_data_path'], 'subjects', subject, date, 'trials.csv'))
     all_obj_df = load_objects(subject, date)
     
+    # Get goal coding neurons for this session
+    sig_neurons = neurons_df.loc[((neurons_df['sig_context_obj1'] | neurons_df['sig_context_obj2'])
+                                  & (neurons_df['subject'] == int(subject))
+                                  & (neurons_df['date'] == int(date))
+                                  & (neurons_df['probe'] == probe)), 'neuron_id'].values
+    
     if trials.shape[0] < MIN_TRIALS:
         continue
     
@@ -88,12 +94,15 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         
         # Get region neurons
         region_neurons = clusters['cluster_id'][clusters['region'] == region]
-        if region_neurons.shape[0] < MIN_NEURONS:
+             
+        # Use only significant neurons
+        use_neurons = region_neurons[np.isin(region_neurons, sig_neurons)]
+        if use_neurons.shape[0] < MIN_NEURONS:
             continue
         
         # Do decoding with with parallel processing
         results = Parallel(n_jobs=-1)(
-            delayed(decode_context)(bin_center, spikes, region_neurons, all_obj_df) for bin_center in t_centers)
+            delayed(decode_context)(bin_center, spikes, use_neurons, all_obj_df) for bin_center in t_centers)
         
         # Add to dataframe
         for j in [1, 2, 3]:

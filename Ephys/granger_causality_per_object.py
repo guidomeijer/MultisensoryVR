@@ -18,8 +18,8 @@ from msvr_functions import (paths, load_multiple_probes, load_subjects, load_obj
                             calculate_peths)
 
 # Settings
-T_BEFORE = 2  # s
-T_AFTER = 0
+T_BEFORE = 1  # s
+T_AFTER = 1
 BIN_SIZE = 0.05
 SMOOTHING = 0.1
 MIN_NEURONS = 10

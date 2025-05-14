@@ -21,13 +21,14 @@ T_AFTER = 2
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
 MIN_LICKS = 20
-PLOT_SUBJECTS = ['472977']
+PLOT_SUBJECTS = ['478153', '478154']
+
 
 # Get subjects
 subjects = load_subjects()
 
 # Get paths
-path_dict = paths(force_sync=True)
+path_dict = paths(force_sync=False)
 data_path = path_dict['local_data_path']
 
 # Set figure style
@@ -37,14 +38,16 @@ colors, dpi = figure_style()
 for i, subject in enumerate(PLOT_SUBJECTS):
 
     # List sessions
-    sessions = os.listdir(join(data_path, 'Subjects', subject))
+    sessions = np.array(os.listdir(join(data_path, 'Subjects', subject)))
 
+    """
     # Discard sessions that don't have licks
     lick_ses = np.zeros(len(sessions)).astype(int)
     for j, ses in enumerate(sessions):
         if isfile(join(data_path, 'Subjects', subject, ses, 'lick.times.npy')):
             lick_ses[j] = 1
     sessions = np.array(sessions)[lick_ses.astype(bool)]
+    """
 
     # Select training sessions
     ses_date = np.array([datetime.datetime.strptime(i[:8], '%Y%m%d').date() for i in sessions])
@@ -72,11 +75,11 @@ for i, subject in enumerate(PLOT_SUBJECTS):
 
         # Plot
         all_obj_enters = np.concatenate(
-            (trials['enterObj1'], trials['enterObj2'], trials['enterObj3']))
+            (trials['enterObj1Time'], trials['enterObj2Time'], trials['enterObj3Time']))
         all_obj_ids = np.concatenate(
-            (np.ones(trials['enterObj1'].shape),
-             np.ones(trials['enterObj2'].shape)*2,
-             np.ones(trials['enterObj3'].shape)*3))
+            (np.ones(trials['enterObj1Time'].shape),
+             np.ones(trials['enterObj2Time'].shape)*2,
+             np.ones(trials['enterObj3Time'].shape)*3))
         all_obj_ids = all_obj_ids[~np.isnan(all_obj_enters)]
         all_obj_enters = all_obj_enters[~np.isnan(all_obj_enters)]
 
@@ -135,11 +138,11 @@ for i, subject in enumerate(PLOT_SUBJECTS):
 
         # Plot
         all_obj_enters = np.concatenate(
-            (trials['enterObj1'], trials['enterObj2'], trials['enterObj3']))
+            (trials['enterObj1Time'], trials['enterObj2Time'], trials['enterObj3Time']))
         all_obj_ids = np.concatenate(
-            (np.ones(trials['enterObj1'].shape),
-             np.ones(trials['enterObj2'].shape)*2,
-             np.ones(trials['enterObj3'].shape)*3))
+            (np.ones(trials['enterObj1Time'].shape),
+             np.ones(trials['enterObj2Time'].shape)*2,
+             np.ones(trials['enterObj3Time'].shape)*3))
         if j == 0:
             peri_event_trace(wheel_speed, wheel_times, all_obj_enters,
                              event_ids=all_obj_ids, color_palette='Set2',
