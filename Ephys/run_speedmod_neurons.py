@@ -8,11 +8,12 @@ import numpy as np
 from os.path import join
 import pandas as pd
 from joblib import Parallel, delayed
-from zetapy import zetatest, zetatest2
-from msvr_functions import paths, load_neural_data, load_subjects, load_objects
+from msvr_functions import (paths, load_neural_data, load_subjects, bin_signal,
+                            get_spike_counts_in_bins, circ_shift)
 
 # Settings
 OVERWRITE = True
+BIN_SIZE = 0.5  # s
 
 # Initialize
 path_dict = paths()
@@ -28,6 +29,13 @@ else:
     merged = rec.merge(speed_df, on=['subject', 'date', 'probe'], how='left', indicator=True)
     rec = merged[merged['_merge'] == 'left_only'].drop(columns=['_merge'])
     
+# %% Function for parallelization
+
+def run_correlation(n, binned_speed, spike_counts):
+    r, p, r_null = circ_shift(binned_speed, spike_counts[n, :], n_shifts=1000, min_shift_percentage=0.2)
+    return r, p
+
+    
 # %%
 for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
     print(f'\nStarting {subject} {date} {probe}..')
@@ -38,29 +46,29 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     wheel_speed = np.load(join(session_path, 'continuous.wheelSpeed.npy'))
     timestamps = np.load(join(session_path, 'continuous.times.npy'))
     
+    # Get binned speed and neural activity per neuron
+    bin_edges = np.arange(timestamps[0], timestamps[-1], BIN_SIZE)
+    if bin_edges.shape[0] % 2 != 0:
+        bin_edges = bin_edges[:-1]
+    binned_speed = bin_signal(timestamps, wheel_speed, bin_edges)
+    intervals = np.vstack((bin_edges[:-1], bin_edges[1:])).T
+    spike_counts, neuron_ids = get_spike_counts_in_bins(spikes['times'], spikes['clusters'], intervals)
+        
+    # Parallellize over neurons and get significance
+    results = Parallel(n_jobs=-1)(
+        delayed(run_correlation)(n, binned_speed, spike_counts)
+        for n in range(spike_counts.shape[0]))
+    r_value = np.array([result[0] for result in results])
+    p_value = np.array([result[1] for result in results])
     
-    
-    
-   
-   
     # Add to dataframe
     speed_df = pd.concat((speed_df, pd.DataFrame(data={
         'subject': subject, 'date': date, 'probe': probe, 'neuron_id': clusters['cluster_id'],
         'region': clusters['region'], 'allen_acronym': clusters['acronym'],
         'x': clusters['x'], 'y': clusters['y'], 'z': clusters['z'],
-        'sig_context_obj1': goal1_p < ALPHA, 'sig_context_obj2': goal2_p < ALPHA,
-        'sig_obj_onset': obj_p < ALPHA, 'sig_control': control_sound_p < ALPHA,
-        'sig_reward': reward_p < ALPHA, 'sig_omission': omission_p < ALPHA,
-        'sig_sound_onset': sound_onset_p < ALPHA, 'p_sound_onset': sound_onset_p,
-        'p_goal_obj1': goal1_p, 'p_goal_obj2': goal2_p,
-        'p_control_sound': control_sound_p, 'p_obj_onset': obj_p,
-        'p_reward': reward_p, 'p_omission': omission_p
-        })))
+        'p': p_value, 'r': r_value})))
         
     # Save to disk
     speed_df.to_csv(join(path_dict['save_path'], 'speed_neurons.csv'), index=False)
         
            
-        
-    
-    

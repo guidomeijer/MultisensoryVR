@@ -90,6 +90,6 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             'time': t_centers, 'accuracy': [i for i in results], 
             'region': region, 'subject': subject, 'date': date, 'probe': probe})))
          
-    # Save to disk
-    decode_df.to_csv(join(path_dict['save_path'], 'decode_context_onset.csv'), index=False)
+# Save to disk
+decode_df.to_csv(join(path_dict['save_path'], 'decode_context_onset.csv'), index=False)
 

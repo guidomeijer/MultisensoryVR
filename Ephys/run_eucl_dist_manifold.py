@@ -17,32 +17,57 @@ colors, dpi = figure_style()
 
 # Load in data
 path_dict = paths()
-with open(join(path_dict['save_path'], 'env_act_dict_1_3.pkl'), 'rb') as f:
+with open(join(path_dict['local_data_path'], 'env_act_dict_1-3.pkl'), 'rb') as f:
     env_act_dict = pickle.load(f)
+with open(join(path_dict['local_data_path'], 'env_act_dict_shuf_1-3.pkl'), 'rb') as f:
+    env_act_dict_shuf = pickle.load(f)
     
 # Loop over regions
-distance_region = dict()
+distance_region, dist_shuf_region = dict(), dict()
 for i, region in enumerate(env_act_dict.keys()):
     if region == 'position':
         continue
     
-    # this_act: shape (neurons, distance_bins, context) → (415, 150, 2)
-    this_act = env_act_dict[region]  
-    n_bins = this_act.shape[1]
+    # Calculate Eucledian distance
+    n_bins = env_act_dict[region].shape[1]
+    n_shuffles = env_act_dict_shuf[region].shape[3]
     distances = np.zeros(n_bins)
-    
+    dist_shuf = np.zeros((n_shuffles, n_bins))
     for i in range(n_bins):
-        vec1 = this_act[:, i, 0]  # shape: (neurons,)
-        vec2 = this_act[:, i, 1]  # shape: (neurons,)
-        distances[i] = np.linalg.norm(vec1 - vec2)
-    
+        distances[i] = np.linalg.norm(env_act_dict[region][:, i, 0] - env_act_dict[region][:, i, 1])
+        for j in range(n_shuffles):
+            dist_shuf[j, i] = np.linalg.norm(env_act_dict_shuf[region][:, i, 0, j]
+                                             - env_act_dict_shuf[region][:, i, 1, j])
     distance_region[region] = distances
+    dist_shuf_region[region] = dist_shuf
+    
 
+# %% Plot each region in a separate subplot
+n_regions = len(distance_region)
+fig, axes = plt.subplots(n_regions, 1, figsize=(6, 3 * n_regions), dpi=dpi, sharex=True)
+
+x = env_act_dict['position']
+
+for idx, (region, distances) in enumerate(distance_region.items()):
+    
+    ax = axes[idx]
+    # Plot main line
+    ax.plot(x, distances, color=colors[region], label=region)
+    # Compute 95% CI for null distribution
+    lower = np.percentile(dist_shuf_region[region], 2.5, axis=0)
+    upper = np.percentile(dist_shuf_region[region], 97.5, axis=0)
+    ax.fill_between(x, lower, upper, color='grey', alpha=0.3, label='95% CI (null)')
+    ax.set_ylabel('Eucledian distance')
+    ax.set_title(region)
+    ax.legend()
+
+axes[-1].set_xlabel('Position')
+plt.tight_layout()
+
+"""
 # Order regions by effect
 sorted_regions = sorted(distance_region.keys(), key=lambda k: np.max(distance_region[k]))
     
-# %% Plot
-
 f, ax = plt.subplots(1, 1, figsize=(2, 4.5), dpi=dpi)
 offset = 0
 for i, region in enumerate(sorted_regions):
@@ -59,4 +84,4 @@ ax.plot([135, 135], vert_line_y, color='k', lw=0.5)
 #ax.axis('off')
 plt.tight_layout()
 plt.savefig(join(path_dict['google_drive_fig_path'], 'eu_dist_context.jpg'), dpi=600)
-    
+"""    

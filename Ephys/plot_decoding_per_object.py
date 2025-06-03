@@ -16,7 +16,7 @@ colors, dpi = figure_style()
 
 # Load in data
 path_dict = paths()
-per_obj_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_per_object.csv'))
+per_obj_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_per_object_reward_times.csv'))
 per_obj_df = per_obj_df[per_obj_df['region'] != 'ENT']
 
 per_obj_dist_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_per_object_distance.csv'))

@@ -20,7 +20,7 @@ T_BEFORE = 2
 T_AFTER = 2
 BIN_SIZE = 0.2
 SMOOTHING = 0.1
-MIN_LICKS = 20
+MIN_LICKS = 30
 PLOT_SUBJECTS = ['478153', '478154']
 
 
@@ -82,7 +82,7 @@ for i, subject in enumerate(PLOT_SUBJECTS):
              np.ones(trials['enterObj3Time'].shape)*3))
         all_obj_ids = all_obj_ids[~np.isnan(all_obj_enters)]
         all_obj_enters = all_obj_enters[~np.isnan(all_obj_enters)]
-
+        
         peri_multiple_events_time_histogram(
             lick_times, np.ones(lick_times.shape[0]), all_obj_enters, all_obj_ids,
             [1], t_before=T_BEFORE, t_after=T_AFTER, bin_size=BIN_SIZE, smoothing=SMOOTHING, ax=axs[j],

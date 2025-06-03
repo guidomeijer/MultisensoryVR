@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from brainbox import singlecell
 from scipy.signal import convolve
 from scipy.signal.windows import gaussian
+from scipy.stats import pearsonr
 import json, shutil, datetime
 from glob import glob
 from os.path import join, realpath, dirname, isfile, split, isdir
@@ -270,6 +271,17 @@ def load_objects(subject, date):
                                         'object': 3, 'sound': trials['soundId'],
                                         'goal': 0, 'rewarded': trials[f'rewardsObj{control_obj}'],
                                         'object_appearance': obj_mapping[control_obj]})
+    
+    # Add reward times per object
+    reward_times = np.load(join(path_dict['local_data_path'], 'Subjects', subject, date, 'reward.times.npy'))
+    rew_obj1_df.loc[rew_obj1_df['rewarded'] == 1, 'reward_times'] = [
+        reward_times[np.argmin(np.abs(i - reward_times))]
+        for i in rew_obj1_df.loc[rew_obj1_df['rewarded'] == 1, 'times']]
+    rew_obj2_df.loc[rew_obj2_df['rewarded'] == 1, 'reward_times'] = [
+        reward_times[np.argmin(np.abs(i - reward_times))]
+        for i in rew_obj2_df.loc[rew_obj2_df['rewarded'] == 1, 'times']]
+    
+    # Create dataframe
     all_obj_df = pd.concat((rew_obj1_df, rew_obj2_df, control_obj_df))
     all_obj_df = all_obj_df.sort_values(by='times').reset_index(drop=True)
     
@@ -690,10 +702,13 @@ def bin_signal(timestamps, signal, bin_edges):
         timestamps, its mean value will be zero.
     """
 
-    bin_indices = np.digitize(timestamps[(timestamps >= bin_edges[0]) & (timestamps <= bin_edges[-1])],
+    bin_indices = np.digitize(timestamps[(timestamps >= bin_edges[0]) & (timestamps < bin_edges[-1])],
                               bins=bin_edges, right=False) - 1
     bin_sums = np.bincount(
-        bin_indices, weights=signal[(timestamps >= bin_edges[0]) & (timestamps <= bin_edges[-1])])
+        bin_indices,
+        weights=signal[(timestamps >= bin_edges[0]) & (timestamps < bin_edges[-1])],
+        minlength=len(bin_edges) - 1
+        )
     bin_means = np.divide(bin_sums, np.bincount(bin_indices), out=np.zeros_like(bin_sums),
                           where=np.bincount(bin_indices)!=0)
     return bin_means
@@ -1091,3 +1106,191 @@ def peri_multiple_events_time_histogram(
     ax.spines['right'].set_visible(False)
     ax.set_xlabel('Time (s) after event')
     return ax
+
+
+def circ_shift(series1, series2, n_shifts=10000, min_shift_percentage=0.05):
+    """
+    Calculates the Pearson correlation between two time series and assesses its
+    significance using a linear (circular) shift permutation test.
+
+    This method preserves the auto-correlation within each series while
+    breaking the temporal relationship between them to form a null distribution.
+
+    Parameters:
+    ----------
+    series1 : np.ndarray
+        First time series (e.g., binned spike counts).
+    series2 : np.ndarray
+        Second time series of the same length (e.g., running speed).
+    n_shifts : int, optional
+        Number of random shifts to perform for the null distribution.
+        Default is 10000.
+    min_shift_percentage : float, optional
+        The minimum percentage of the series length to shift by. This helps
+        avoid very small shifts that might not adequately break the relationship
+        if there's very slow autocorrelation. Value between 0 and 0.5.
+        Default is 0.05 (5%). If set to 0, shifts can be as small as 1.
+    verbose : bool, optional
+        Whether to print results. Default is True.
+
+    Returns:
+    -------
+    observed_r : float
+        The Pearson correlation coefficient of the original data.
+    p_value : float
+        The p-value calculated from the shifted null distribution.
+    null_distribution_r : np.ndarray
+        An array of correlation coefficients from the shifted data.
+    """
+    if len(series1) != len(series2):
+        raise ValueError("Input series must have the same length.")
+    if len(series1) < 2:
+        raise ValueError("Input series must have at least 2 data points.")
+
+    n = len(series1)
+
+    # 1. Calculate the observed correlation
+    observed_r, _ = pearsonr(series1, series2) # We don't need the parametric p-value from pearsonr
+
+    # 2. Generate the null distribution by circularly shifting one series
+    null_distribution_r = np.zeros(n_shifts)
+    
+    # Determine the minimum and maximum shift amounts
+    min_shift = max(1, int(n * min_shift_percentage))
+    max_shift = n - min_shift # Symmetrical to avoid wrapping back to small effective shifts
+
+    if min_shift >= max_shift : # Handles very short series or high min_shift_percentage
+        print(f"Warning: min_shift ({min_shift}) is too close to series length ({n}). "
+              f"Using shifts between 1 and n-1.")
+        possible_shifts = np.arange(1, n)
+    else:
+        possible_shifts = np.concatenate((
+            np.arange(min_shift, max_shift + 1),
+        ))
+        if len(possible_shifts) == 0: # Fallback for extremely short series
+             possible_shifts = np.arange(1, n)
+
+    for i in range(n_shifts):
+        # Randomly choose a shift amount (excluding 0, and respecting min_shift)
+        shift_amount = np.random.choice(possible_shifts)
+        
+        # Circularly shift series1
+        shifted_series1 = np.roll(series1, shift_amount)
+        
+        # Calculate correlation for this shifted pair
+        r_null, _ = pearsonr(shifted_series1, series2)
+        null_distribution_r[i] = r_null
+        
+    # The p-value is the sum of probabilities in both tails if looking for any modulation
+    p_value = np.sum(np.abs(null_distribution_r) >= np.abs(observed_r)) / n_shifts
+
+    return observed_r, p_value, null_distribution_r
+
+
+def load_lfp(probe_path, channels, timewin='passive'):
+    """
+    """
+    
+    # Import SpikeInterface
+    import spikeinterface.full as si
+    
+    # Load in raw data using SpikeInterface 
+    rec = si.read_cbin_ibl(probe_path)
+    
+    # Filter out LFP band
+    rec_lfp = si.bandpass_filter(rec, freq_min=1, freq_max=400)
+    
+    # Correct for inter-sample shift
+    rec_shifted = si.phase_shift(rec_lfp)    
+    
+    # Interpolate over bad channels  
+    rec_car_temp = si.common_reference(rec_lfp)
+    _, all_channels = si.detect_bad_channels(
+        rec_car_temp, method='mad', std_mad_threshold=3, seed=42)
+    noisy_channel_ids = rec_car_temp.get_channel_ids()[all_channels == 'noise']           
+    rec_interpolated = si.interpolate_bad_channels(rec_shifted, noisy_channel_ids)
+    
+    # Do common average reference
+    rec_car = si.common_reference(rec_interpolated)
+    
+    # Downsample to 2500 Hz
+    rec_final = si.resample(rec_car, 2500)
+        
+    # Load in trials
+    trials = pd.read_csv(join(probe_path, '..', '..', 'trials.csv'))
+    
+    # Get LFP from the requested channels for the passive period
+    time_start = 3300
+    time_end = 3300 + 120
+    samples_start = int(time_start * rec_final.sampling_frequency)
+    samples_end = int(time_end * rec_final.sampling_frequency)
+    lfp_traces = rec_final.get_traces(start_frame=samples_start, end_frame=samples_end, 
+                                      channel_ids=channels)
+    
+    
+    # Load in LFP
+    sr = spikeglx.Reader(join(probe_path, '_spikeGLX_ephysData_g0_t0.imec1.lf.bin'))
+    #time_start = trials.loc[trials.index[-1], 'exitEnvTime'] + 60
+    #time_end = sr.shape[0] / sr.fs
+    time_start = 3300
+    time_end = 3300 + 120
+    samples_start = int(time_start * sr.fs)
+    samples_end = int(time_end * sr.fs)
+    signal = sr.read(nsel=slice(samples_start, samples_end, None), csel=channels)[0]
+    time = np.arange(samples_start, samples_end) / sr.fs
+    
+    # Do common average reference
+    common_avg = np.median(signal, axis=1, keepdims=True)
+    signal_car = signal - common_avg
+    
+    try:
+        lfp_paths, _ = one.load_datasets(eid, download_only=True, datasets=[
+            '_spikeglx_ephysData_g*_t0.imec*.lf.cbin', '_spikeglx_ephysData_g*_t0.imec*.lf.meta',
+            '_spikeglx_ephysData_g*_t0.imec*.lf.ch'], collections=[f'raw_ephys_data/{probe}'] * 3)
+        lfp_path = lfp_paths[0]
+        sr = spikeglx.Reader(lfp_path)
+    except Exception:
+        return [], []
+    
+    # Load in trials    
+    try:
+        trials = one.load_object(eid, 'trials')
+        trial_times = trials['stimOn_times'][~np.isnan(trials['stimOn_times'])]
+    except Exception:
+        print('Could not load trial table, trying another way')
+        if 'alf/_ibl_trials.stimOn_times.npy' in one.list_datasets(eid):
+            trial_times = one.load_dataset(eid, '_ibl_trials.stimOn_times.npy')
+        elif 'alf/_ibl_trials.stimOff_times.npy' in one.list_datasets(eid):
+            trial_times = one.load_dataset(eid, '_ibl_trials.stimOff_times.npy')[:-1]
+        elif 'alf/_ibl_trials.goCue_times.npy' in one.list_datasets(eid):
+            trial_times = one.load_dataset(eid, '_ibl_trials.goCue_times.npy')
+        else:
+            print('No luck, just using the last 15 minutes of the recording')
+            trial_times = (sr.shape[0] / sr.fs) - (60 * 15)
+    trial_times = trial_times[~np.isnan(trial_times)]
+    
+    if timewin == 'spont':
+        # Take 10 minutes of spontaneous activity starting 5 minutes after the last trial
+        time_start = trial_times[-1] + (60 * 5)
+        time_end = trial_times[-1] + (60 * 15)
+    elif timewin == 'passive':
+        # Take all time after the last trial until the end of the recording
+        time_start = trial_times[-1] + 60
+        time_end = sr.shape[0] / sr.fs
+    elif timewin == 'task':
+        # Take all time during the task
+        time_start = 0
+        time_end = trial_times[-1]
+    
+    # Convert seconds to samples
+    samples_start = int(time_start * sr.fs)
+    samples_end = int(time_end * sr.fs)
+    
+    # Load in lfp slice
+    signal = sr.read(nsel=slice(samples_start, samples_end, None), csel=channels)[0]
+    time = np.arange(samples_start, samples_end) / sr.fs
+
+    if signal.shape[0] == 0:
+        return [], []
+
+    return signal, time
