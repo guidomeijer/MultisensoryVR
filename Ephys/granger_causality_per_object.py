@@ -12,13 +12,13 @@ from itertools import combinations
 from statsmodels.tsa.api import VAR
 from scipy import stats
 from sklearn.linear_model import LogisticRegression
-from brainbox.population.decode import get_spike_counts_in_bins, classify
+from sklearn.utils import shuffle as sklearn_shuffle
 from joblib import Parallel, delayed
 from msvr_functions import (paths, load_multiple_probes, load_subjects, load_objects,
                             calculate_peths)
 
 # Settings
-T_BEFORE = 1  # s
+T_BEFORE = 2  # s
 T_AFTER = 1
 BIN_SIZE = 0.05
 SMOOTHING = 0.1
@@ -26,8 +26,10 @@ MIN_NEURONS = 10
 MIN_TRIALS = 30
 N_CORES = -1
 MAX_LAG = 0.5  # s
+N_SHUFFLES = 500
 
 # Initialize
+clf = LogisticRegression(solver='liblinear')
 path_dict = paths(sync=False)
 subjects = load_subjects()
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
@@ -36,44 +38,65 @@ neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv')
 
 
 # Functions for parallelization
-def get_decoding_probabilities(t, X, y):
+def decode_context(X, y, clf, shuffle=False):
     
-    X_t = X[:, :, t]  # shape: (n_trials, n_neurons)
-    decoding_probs = np.empty(X.shape[0])  # shape: (n_trials)
+    decoding_probs = np.empty((X.shape[0], X.shape[2]))  # shape: (n_trials, time)
+    
+    # Decode context per timebin
+    for tb in range(X.shape[2]):
+        
+        X_t = X[:, :, tb]  # shape: (n_trials, n_neurons)
+        if shuffle:
+            y = sklearn_shuffle(y)        
 
-    for i in range(X.shape[0]):  # loop over trials
-        # Leave-one-out
-        X_train = np.delete(X_t, i, axis=0)
-        y_train = np.delete(y, i)
-        X_test = X_t[i].reshape(1, -1)
-        y_test = y[i]
+        for tr in range(X.shape[0]):  # loop over trials
+        
+            # Leave-one-out
+            X_train = np.delete(X_t, tr, axis=0)
+            y_train = np.delete(y, tr)
+            X_test = X_t[tr].reshape(1, -1)
+            y_test = y[tr]
 
-        # Train logistic regression (use liblinear for small data)
-        clf = LogisticRegression(solver='liblinear')
-        clf.fit(X_train, y_train)
+            # Train logistic regression 
+            clf.fit(X_train, y_train)
 
-        # Predict probability for the correct class
-        prob = clf.predict_proba(X_test)[0, y_test]
-        decoding_probs[i] = prob
+            # Predict probability for the correct class
+            prob = clf.predict_proba(X_test)[0, y_test]
+            decoding_probs[tr, tb] = prob                    
+    
+    return decoding_probs
 
-    return decoding_probs  # shape: (n_trials, n_timebins)
 
-
-def granger_causality(trial, prob, this_obj, region1, region2):
+def granger_causality(trial_data):
                 
     # Region 1 to region 2
-    trial_data = pd.DataFrame({'region1': prob[this_obj][region1][trial],
-                               'region2': prob[this_obj][region2][trial]})  
     model = VAR(trial_data)
     res = model.fit(maxlags=int(MAX_LAG / BIN_SIZE))
     f_test = res.test_causality('region1', 'region2', kind='f')
-    p_12, f_12 = f_test.pvalue, f_test.test_statistic
+    f_12 = f_test.test_statistic
     
     # Region 2 to region 1
     f_test = res.test_causality('region2', 'region1', kind='f')
-    p_21, f_21 = f_test.pvalue, f_test.test_statistic
+    f_21 = f_test.test_statistic
 
-    return p_12, f_12, p_21, f_21
+    return f_12, f_21
+
+
+def granger_shuffled(i_shuf, prob_shuf, trial, this_obj, region1, region2):
+    trial_data = pd.DataFrame({'region1': prob_shuf[this_obj][region1][trial, :, i_shuf],
+                               'region2': prob_shuf[this_obj][region2][trial, :, i_shuf]})  
+    # Region 1 to region 2
+    model = VAR(trial_data)
+    res = model.fit(maxlags=int(MAX_LAG / BIN_SIZE))
+    f_test = res.test_causality('region1', 'region2', kind='f')
+    f_12 = f_test.test_statistic
+    
+    # Region 2 to region 1
+    f_test = res.test_causality('region2', 'region1', kind='f')
+    f_21 = f_test.test_statistic
+    
+    return f_12, f_21    
+
 
 # %% Loop over recordings
 granger_df = pd.DataFrame()
@@ -100,6 +123,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
     region_probes = np.concatenate(region_probes)
     
     prob, prob['object1'], prob['object2'], prob['object3'] = dict(), dict(), dict(), dict()
+    prob_shuf, prob_shuf['object1'], prob_shuf['object2'], prob_shuf['object3'] = dict(), dict(), dict(), dict()
     for r, (region, probe) in enumerate(zip(regions, region_probes)):
         if region == 'root':
             continue
@@ -110,55 +134,32 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         if region_neurons.shape[0] < MIN_NEURONS:
             continue
         
-        # Sound A versus sound B at object 1
-        _, obj1_soundA = calculate_peths(
-            spikes[probe]['times'], spikes[probe]['clusters'], region_neurons, 
-            all_obj_df.loc[(all_obj_df['object'] == 1) & (all_obj_df['sound'] == 1), 'times'].values,
-            T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING
-            )
-        _, obj1_soundB = calculate_peths(
-            spikes[probe]['times'], spikes[probe]['clusters'], region_neurons, 
-            all_obj_df.loc[(all_obj_df['object'] == 1) & (all_obj_df['sound'] == 2), 'times'].values,
-            T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING
-            )
+        # Loop over objects
+        for this_obj in [1, 2, 3]:
         
-        # Sound A versus sound B at object 2
-        _, obj2_soundA = calculate_peths(
-            spikes[probe]['times'], spikes[probe]['clusters'], region_neurons, 
-            all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['sound'] == 1), 'times'].values,
-            T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING
-            )
-        _, obj2_soundB = calculate_peths(
-            spikes[probe]['times'], spikes[probe]['clusters'], region_neurons, 
-            all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['sound'] == 2), 'times'].values,
-            T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING
-            )
+            # Sound A versus sound B 
+            _, soundA = calculate_peths(
+                spikes[probe]['times'], spikes[probe]['clusters'], region_neurons, 
+                all_obj_df.loc[(all_obj_df['object'] == this_obj) & (all_obj_df['sound'] == 1), 'times'].values,
+                T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING
+                )
+            _, soundB = calculate_peths(
+                spikes[probe]['times'], spikes[probe]['clusters'], region_neurons, 
+                all_obj_df.loc[(all_obj_df['object'] == this_obj) & (all_obj_df['sound'] == 2), 'times'].values,
+                T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING
+                )
+            
+            # Decode context per timebin and get decoding probabilities
+            X = np.concatenate([soundA, soundB], axis=0)  # shape: (trials, neurons, time)
+            y = np.concatenate([np.zeros(soundA.shape[0]), np.ones(soundB.shape[0])]).astype(int)
+            prob[f'object{this_obj}'][region] = decode_context(X, y, clf)
+            
+            # Do the decoding while shuffling the context ids, use parallel processing for shuffling
+            results = Parallel(n_jobs=N_CORES)(delayed(decode_context)(X, y, clf, shuffle=True)
+                                               for t in range(N_SHUFFLES))
+            prob_shuf[f'object{this_obj}'][region] = np.dstack(results) # shape: (trials, time, shuffles)
+            
         
-        # Sound A versus sound B at object 3
-        _, obj3_soundA = calculate_peths(
-            spikes[probe]['times'], spikes[probe]['clusters'], region_neurons, 
-            all_obj_df.loc[(all_obj_df['object'] == 3) & (all_obj_df['sound'] == 1), 'times'].values,
-            T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING
-            )
-        _, obj3_soundB = calculate_peths(
-            spikes[probe]['times'], spikes[probe]['clusters'], region_neurons, 
-            all_obj_df.loc[(all_obj_df['object'] == 3) & (all_obj_df['sound'] == 2), 'times'].values,
-            T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING
-            )
-        
-        # Prepare data for decoding
-        X = dict()
-        X['object1'] = np.concatenate([obj1_soundA, obj1_soundB], axis=0)  # shape: (n_trials_total, n_neurons, n_timebins)
-        X['object2'] = np.concatenate([obj2_soundA, obj2_soundB], axis=0)  
-        X['object3'] = np.concatenate([obj3_soundA, obj3_soundB], axis=0)
-        y = np.concatenate([np.zeros(obj1_soundA.shape[0]), np.ones(obj1_soundB.shape[0])]).astype(int)
-        
-        # Run decoding in parallel
-        for this_obj in ['object1', 'object2', 'object3']:
-            results = Parallel(n_jobs=N_CORES)(delayed(get_decoding_probabilities)(t, X[this_obj], y)
-                                               for t in range(X[this_obj].shape[2]))
-            prob[this_obj][region] = np.vstack(results).T  # shape: (trials x timebins)
-    
     # Do Granger causality for all region pairs
     print('Run Granger causality..')
     for this_obj in ['object1', 'object2', 'object3']:
@@ -166,22 +167,38 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             
             # Do Granger causality per trial
             n_trials = prob[this_obj][region1].shape[0]
-            results = Parallel(n_jobs=N_CORES)(delayed(granger_causality)(
-                trial, prob, this_obj, region1, region2) for trial in range(n_trials))
-            p_12, f_12 = np.array([i[0] for i in results]), np.array([i[1] for i in results])
-            p_21, f_21 = np.array([i[2] for i in results]), np.array([i[3] for i in results])
+            reg1_reg2, reg2_reg1 = np.empty(n_trials), np.empty(n_trials)
+            reg1_reg2_p, reg2_reg1_p = np.empty(n_trials), np.empty(n_trials) 
+            for trial in range(n_trials):
+                
+                # Granger causality
+                trial_data = pd.DataFrame({'region1': prob[this_obj][region1][trial],
+                                           'region2': prob[this_obj][region2][trial]})  
+                reg1_reg2[trial], reg2_reg1[trial] = granger_causality(trial_data)
+            
+                # Shuffles
+                results = Parallel(n_jobs=N_CORES)(delayed(granger_shuffled)(
+                    i_shuf, prob_shuf, trial, this_obj, region1, region2) for i_shuf in range(N_SHUFFLES))
+                reg1_reg2_shuf = np.array([i[0] for i in results])
+                reg2_reg1_shuf = np.array([i[1] for i in results])
+  
+                # Get p-value
+                z = (reg1_reg2[trial] - np.mean(reg1_reg2_shuf)) / np.std(reg1_reg2_shuf)
+                reg1_reg2_p[trial] = 2 * (1 - stats.norm.cdf(abs(z)))
+                z = (reg2_reg1[trial] - np.mean(reg2_reg1_shuf)) / np.std(reg2_reg1_shuf)
+                reg2_reg1_p[trial] = 2 * (1 - stats.norm.cdf(abs(z)))
             
             # Get p-value over trials by doing a binomial test
-            p_12_binom = stats.binomtest(np.sum(p_12 < 0.05), n_trials, 0.05).pvalue
-            p_21_binom = stats.binomtest(np.sum(p_21 < 0.05), n_trials, 0.05).pvalue
+            p_reg1_reg2 = stats.binomtest(np.sum(reg1_reg2_p < 0.05), n_trials, 0.05).pvalue
+            p_reg2_reg1 = stats.binomtest(np.sum(reg2_reg1_p < 0.05), n_trials, 0.05).pvalue
             
             # Add to dataframe
             granger_df = pd.concat((granger_df, pd.DataFrame(data={
                 'region_pair': [f'{region1} → {region2}', f'{region2} → {region1}'],
                 'region1': [region1, region2], 'region2': [region2, region1],
                 'object': this_obj,
-                'p_value': [p_12_binom, p_21_binom],
-                'f_stat': [np.median(f_12), np.median(f_21)],
+                'p_value': [p_reg1_reg2, p_reg2_reg1],
+                'f_stat': [np.median(reg1_reg2), np.median(reg2_reg1)],
                 'subject': subject, 'date': date})))
         
     # Save to disk

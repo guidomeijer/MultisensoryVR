@@ -65,8 +65,8 @@ for obj in ['object1', 'object2', 'object3']:
     
     # Filter your DataFrame
     df = mean_causality[mean_causality['object'] == obj].copy()
-    #df = df[df['p_value'] < 0.05]  
-    df = df[df['f_stat'] > 1.3]  
+    df = df[df['p_value'] < 0.1]  
+    #df = df[df['f_stat'] > 1.3]  
     
     # Build a directed graph
     G = nx.DiGraph()

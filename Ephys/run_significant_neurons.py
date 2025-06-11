@@ -15,7 +15,7 @@ from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 T_BEFORE = 1  # s
 T_AFTER = 1
 ALPHA = 0.05
-OVERWRITE = True
+OVERWRITE = False
 max_dur = T_BEFORE + T_AFTER
 
 # Initialize

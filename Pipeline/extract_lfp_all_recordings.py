@@ -21,19 +21,20 @@ def main():
     for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
         print(f'{subject} {date} {probe}')
         
-        # Get path to probe
-        probe_path = path.join(path_dict['server_path'], 'Subjects', subject, date, 'raw_ephys_data', probe)
+        # Get paths
+        server_path = path.join(path_dict['server_path'], 'Subjects', subject, date, 'raw_ephys_data', probe)
+        local_path = path.join(path_dict['local_data_path'], 'Subjects', subject, date, probe)
         
         # Check if there is a bin file
-        if len(glob(path.join(probe_path, '*bin'))) == 0:
+        if len(glob(path.join(server_path, '*bin'))) == 0:
             print('No bin file')
             continue
         
         # Load in raw data using SpikeInterface 
-        if len(glob(path.join(probe_path, '*.cbin'))) > 0:
-            rec = si.read_cbin_ibl(probe_path)
+        if len(glob(path.join(server_path, '*.cbin'))) > 0:
+            rec = si.read_cbin_ibl(server_path)
         else:
-            rec = si.read_spikeglx(probe_path, stream_id=f'imec{path.split(probe_path)[-1][-1]}.ap')
+            rec = si.read_spikeglx(server_path, stream_id=f'imec{path.split(server_path)[-1][-1]}.ap')
         
         # Check if NP2 recording
         if np.unique(rec.get_property('group')).shape[0] == 1:
@@ -41,7 +42,7 @@ def main():
             continue
         
         # Check if already done
-        if path.isdir(path.join(probe_path, 'lfp_raw_binary')):
+        if path.isdir(path.join(local_path, 'lfp_raw_binary')):
             print('Already done')
             continue
         
@@ -65,7 +66,7 @@ def main():
         rec_final = si.resample(rec_car, 2500)
         
         # Save raw binary to disk
-        rec_final.save(folder=path.join(probe_path, 'lfp_raw_binary'), format='binary', chunk_duration='1s',
+        rec_final.save(folder=path.join(local_path, 'lfp_raw_binary'), format='binary', chunk_duration='1s',
                        dtype='int16', n_jobs=-1)
     
 if __name__ == '__main__':

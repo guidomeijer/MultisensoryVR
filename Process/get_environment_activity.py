@@ -44,11 +44,10 @@ def get_shuffles(i, spikes_dist, clusters_dist, region_neurons, trials):
 
 
 # Loop over recordings
-region_dict = dict()
-region_dict_shuf = dict()
+region_dict, region_dict_shuf, info_dict = dict(), dict(), dict()
 for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
     
-    print(f'\nStarting {subject} {date} {probe}..')
+    print(f'{subject} {date} {probe}.. [{i} of {rec.shape[0]}]')
     
     # Load data
     session_path = join(path_dict['local_data_path'], 'Subjects', f'{subject}', f'{date}')
@@ -86,8 +85,12 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         envR = np.dstack((context1['means'], context2['means']))  # neurons x distance x context
         if region not in region_dict:
             region_dict[region] = envR
+            info_dict[f'{region}_subject'] = [[subject] * envR.shape[0]]
+            info_dict[f'{region}_date'] = [[date] * envR.shape[0]]
         else:
             region_dict[region] = np.vstack((region_dict[region], envR))
+            info_dict[f'{region}_subject'].append([subject] * envR.shape[0])
+            info_dict[f'{region}_date'].append([date] * envR.shape[0])
     
         # Run shuffles in parallel
         results = Parallel(n_jobs=N_CORES)(
@@ -99,10 +102,15 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         else:
             region_dict_shuf[region] = np.vstack((region_dict_shuf[region], env_shuffles))
                 
+# Convert list to array
+for key in info_dict.keys():
+    info_dict[key] = np.concatenate(info_dict[key])
+
 # Save to disk
-region_dict['position'] = position_axis
-region_dict_shuf['position'] = position_axis
-with open(join(path_dict['local_data_path'], 'env_act_dict_1-3.pkl'), 'wb') as f:
+info_dict['position'] = position_axis
+with open(join(path_dict['local_data_path'], 'environment_activity_1-3.pkl'), 'wb') as f:
     pickle.dump(dict(region_dict), f)
-with open(join(path_dict['local_data_path'], 'env_act_dict_shuf_1-3.pkl'), 'wb') as f:
+with open(join(path_dict['local_data_path'], 'environment_activity_shuf_1-3.pkl'), 'wb') as f:
     pickle.dump(dict(region_dict_shuf), f)
+with open(join(path_dict['local_data_path'], 'environment_info_1-3.pkl'), 'wb') as f:
+    pickle.dump(dict(info_dict), f)
