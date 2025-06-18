@@ -150,9 +150,8 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
             print('Channel 12 (environment) inverted!')
             data['digitalIn'][:, 12] = 1 - data['digitalIn'][:, 12]
         
-        # Inverted sound traces are harder to detect because they're normally high for longer
         # Sound traces should be zero in the tunnel, if not: invert them
-        for jj in [9, 10]:  # sound channels
+        for jj in [9, 10]:  
             first_half_ch = data['digitalIn'][:first_half, jj]
             if np.sum(first_half_ch[first_half_env == 1]) / np.sum(first_half_env == 1) > 0.1:
                 print(f'Channel {jj} inverted!')
