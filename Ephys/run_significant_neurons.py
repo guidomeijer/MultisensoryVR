@@ -16,6 +16,7 @@ T_BEFORE = 1  # s
 T_AFTER = 1
 ALPHA = 0.05
 OVERWRITE = False
+N_SHUFFLES = 100
 max_dur = T_BEFORE + T_AFTER
 
 # Initialize
@@ -35,6 +36,7 @@ else:
 
 # %% Function for parallel processing
 
+
 def run_zetatest2(neuron_id, event_times1, event_times2):
     these_spikes = spikes['times'][spikes['clusters'] == neuron_id]
     try:
@@ -46,11 +48,13 @@ def run_zetatest2(neuron_id, event_times1, event_times2):
         zeta_score = np.nan        
     return p_value, zeta_score
 
+
 def run_zetatest(neuron_id, event_times):
     these_spikes = spikes['times'][spikes['clusters'] == neuron_id]
     p_value, zeta_dict, _ = zetatest(these_spikes, event_times, dblUseMaxDur=max_dur)
     zeta_score = zeta_dict['dblZETA']
     return p_value, zeta_score
+
 
 # %%
 for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):

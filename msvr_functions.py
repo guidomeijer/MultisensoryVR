@@ -296,6 +296,7 @@ def figure_style(font_size=7):
             font="Arial",
             rc={"font.size": font_size,
                 "figure.titlesize": font_size,
+                "figure.labelweight": font_size,
                 "axes.titlesize": font_size,
                 "axes.labelsize": font_size,
                 "axes.linewidth": 0.5,

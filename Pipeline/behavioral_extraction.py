@@ -358,7 +358,7 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         trials.to_csv(join(root, 'trials.csv'), index=False)
 
         # Delete extraction flag
-        #os.remove(join(root, 'extract_me.flag'))
+        os.remove(join(root, 'extract_me.flag'))
         if np.sum(np.isnan(obj1_enter)) > 0:
             print(f'{np.sum(np.isnan(obj1_enter))} missing enterObj1 events')
         if np.sum(np.isnan(obj2_enter)) > 0:

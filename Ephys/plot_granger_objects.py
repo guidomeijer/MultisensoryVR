@@ -33,8 +33,8 @@ grouped = granger_df.groupby(['region1', 'region2', 'object'])
 for (region1, region2, obj), group in grouped:
     pvals = group['p_value'].dropna().values
     if len(pvals) > 0:
-        #_, combined_p = stats.combine_pvalues(pvals, method='fisher')
-        combined_p = stats.binomtest(np.sum(pvals < 0.05), pvals.shape[0], 0.05).pvalue
+        _, combined_p = stats.combine_pvalues(pvals, method='fisher')
+        #combined_p = stats.binomtest(np.sum(pvals < 0.05), pvals.shape[0], 0.05).pvalue
         combined_pval_list.append({
             'region1': region1,
             'region2': region2,
@@ -65,8 +65,8 @@ for obj in ['object1', 'object2', 'object3']:
     
     # Filter your DataFrame
     df = mean_causality[mean_causality['object'] == obj].copy()
-    df = df[df['p_value'] < 0.1]  
-    #df = df[df['f_stat'] > 1.3]  
+    df = df[df['p_value'] < 0.05]  
+    df = df[df['f_stat'] > 1]  
     
     # Build a directed graph
     G = nx.DiGraph()
@@ -92,11 +92,11 @@ for obj in ['object1', 'object2', 'object3']:
     
     nx.draw_networkx_edges(
         G, pos, edgelist=edges,
-        width=[w for w in scaled_weights],
+        width=scaled_weights,
         min_source_margin=18,
         min_target_margin=18,
         arrows=True,
-        arrowsize=15,
+        arrowsize=12,
         arrowstyle='-|>',
         connectionstyle='arc3,rad=0.15'  # helps with bidirectionality
     )

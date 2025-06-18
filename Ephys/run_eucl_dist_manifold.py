@@ -26,7 +26,7 @@ with open(join(path_dict['local_data_path'], 'environment_info_1-3.pkl'), 'rb') 
     
 # Loop over regions
 distance_region, dist_shuf_region = dict(), dict()
-for i, region in enumerate(env_act_dict.keys()):
+for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'dCA1', 'vCA1']):
     
     # Calculate Eucledian distance
     n_bins = env_act_dict[region].shape[1]
@@ -44,7 +44,7 @@ for i, region in enumerate(env_act_dict.keys()):
 
 # %% Plot each region in a separate subplot
 n_regions = len(distance_region)
-fig, axes = plt.subplots(4, 2, figsize=(5, 4.2), dpi=dpi, sharex=True)
+fig, axes = plt.subplots(2, 4, figsize=(8.5, 3), dpi=dpi)
 axes = np.concatenate(axes)
 x = env_info['position']
 
@@ -54,15 +54,19 @@ for idx, (region, distances) in enumerate(distance_region.items()):
     lower = np.percentile(dist_shuf_region[region], 2.5, axis=0)
     upper = np.percentile(dist_shuf_region[region], 97.5, axis=0)
     ax.fill_between(x, lower, upper, color='grey', alpha=0.3, lw=0)
-    ax.plot([45, 45], ax.get_ylim(), color='grey', lw=0.5, ls='--')
-    ax.plot([90, 90], ax.get_ylim(), color='grey', lw=0.5, ls='--')
-    ax.plot([135, 135], ax.get_ylim(), color='grey', lw=0.5, ls='--')
+    line_height = ax.get_ylim()
+    ax.plot([45, 45], line_height, color='grey', lw=0.5, ls='--')
+    ax.plot([90, 90], line_height, color='grey', lw=0.5, ls='--')
+    ax.plot([135, 135], line_height, color='grey', lw=0.5, ls='--')
     ax.plot([-12, -12], [0, 2], color='k')
     ax.set(title=region, xticks=np.arange(0, 151, 25), yticks=[])
+    if idx in [0, 1, 2]:
+        ax.set(xticklabels=[])
 
-axes[6].set(xlabel='Position (cm)')
 axes[0].text(-18, 1, '2 E.D.', rotation=90, ha='center', va='center')
 axes[-1].axis('off')
 sns.despine(trim=True, left=True)
+fig.supxlabel('Position (cm)', fontsize=7, y=0.04)
 plt.tight_layout()
+plt.savefig(join(path_dict['google_drive_fig_path'], 'eucl_dist_context.jpg'), dpi=600)
 
