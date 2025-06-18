@@ -134,27 +134,52 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
             continue
             
         # For some reason sometimes the traces are inverted, invert back if necessary
-        # If the trace is high for longer than low it's probably inverted
-        first_half = data['digitalIn'].shape[0] // 2
-        for jj in [1, 4, 5, 6, 7, 8, 13, 14, 15]:
-            first_half_ch = data['digitalIn'][:first_half, jj]
-            if np.sum(first_half_ch == 1) > np.sum(first_half_ch == 0):
+        # If the trace starts off high it started out inverted and should be reverted back
+        for jj in [1, 4, 5, 6, 7, 8, 9, 10, 13, 14, 15]:
+            if data['digitalIn'][0, jj] == 1:
                 print(f'Channel {jj} inverted!')
                 data['digitalIn'][:, jj] = 1 - data['digitalIn'][:, jj]
         
-        # Now check whether the environment trace is inverted, objects should appear when the
-        # environment trace is low (it's high in the tunnel and low in the env)
-        first_half_env = data['digitalIn'][:first_half, 12]
-        first_half_obj1 = data['digitalIn'][:first_half, 4]
-        if np.sum(first_half_env[first_half_obj1 == 1]) / np.sum(first_half_obj1 == 1) > 0.1:
-            print('Channel 12 (environment) inverted!')
-            data['digitalIn'][:, 12] = 1 - data['digitalIn'][:, 12]
-        
+        # Very rarely the audio trace is inverted in the middle of the session
+        last_trial = np.where(np.diff(env_trace) != 0)[0][-1]  
+        until_last_env = data['digitalIn'][:last_trial, 12]
+       
         # Sound traces should be zero in the tunnel, if not: invert them
         for jj in [9, 10]:  
-            first_half_ch = data['digitalIn'][:first_half, jj]
-            if np.sum(first_half_ch[first_half_env == 1]) / np.sum(first_half_env == 1) > 0.1:
-                print(f'Channel {jj} inverted!')
+            sound_trace = data['digitalIn'][:last_trial, jj]
+            tries = 0
+            tried_inverting = False
+            if np.sum(sound_trace[until_last_env == 1]) / np.sum(until_last_env == 1) > 0.1:
+                print(f'Channel {jj} inverted, patching..')
+                
+                # First try inverting the whole trace
+                inv_trace = 1 - sound_trace
+                if np.sum(inv_trace[until_last_env == 1]) / np.sum(until_last_env == 1) > 0.1:
+                    
+                    # Didn't work, the inversion is somewhere in the middle of the session
+                    # First check whether inverting the whole trace made it better
+                    if np.sum(inv_trace[until_last_env == 1]) < np.sum(sound_trace[until_last_env == 1])
+                    
+                    
+                    # Detect where it went wrong and invert the rest of the session
+                    fixed_trace = sound_trace.copy()
+                    while np.sum(fixed_trace[until_last_env == 1]) / np.sum(until_last_env == 1) > 0.1:
+                        first_flip = np.where((sound_trace == 1) & (until_last_env == 1))[0][0]
+                        fixed_trace[first_flip:] = 1 - fixed_trace[first_flip:]
+                        
+                    
+                else:
+                    # Did work
+                    sound_trace = inv_trace
+                    
+                
+                
+                tried_inverting = True
+                    
+                tries += 1
+                if tries > 10:
+                    break
+                
                 data['digitalIn'][:, jj] = 1 - data['digitalIn'][:, jj]
        
         # Extract trial onsets
