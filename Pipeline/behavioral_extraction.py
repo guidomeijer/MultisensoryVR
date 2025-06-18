@@ -1,8 +1,27 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Aug 21 15:08:20 2023
-
 @author: Guido Meijer
+
+Event mapping
+----------------------------
+
+Surprise                1
+Wheel A                 2
+Wheel B                 3
+Object 1 (house)        4
+Object 2 (bridge)       5
+Object 3 (desert)       6
+Object 4 (playground)   7
+Object 5 (nothing)      8
+Sound 1 (rain)          9
+Sound 2 (birds)         10
+Camera                  11
+Environment             12
+Object 1 appear         13
+Object 2 appear         14
+Object 3 appear         15
+
 """
 
 import os
@@ -28,7 +47,7 @@ else:
 # Search for spikesort_me.flag
 print('Looking for extract_me.flag..')
 for root, directory, files in chain.from_iterable(os.walk(path) for path in search_folders):
-    if 'extract_me.flag' in files:
+    if 'ephys_session.flag' in files:
         print(f'\nFound extract_me.flag in {root}')
 
         data_files = glob(join(root, 'raw_behavior_data', '*.b64'))
@@ -52,13 +71,23 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         
         # Get timestamps in seconds relative to first timestamp
         time_s = (data['startTS'] - data['startTS'][0]) / 1000000
-
+        
         # Unwind looped timestamps
         if np.where(np.diff(time_s) < 0)[0].shape[0] == 1:
             loop_point = np.where(np.diff(time_s) < 0)[0][0]
             time_s[loop_point+1:] = time_s[loop_point+1:] + time_s[loop_point]
         elif np.where(np.diff(time_s) < 0)[0].shape[0] > 1:
             print('Multiple time loop points detected! This is not supported yet.')
+        
+        # Get wheel distance (has to be floats for the smoothing step)
+        wheel_distance = data['longVar'][:, 1].astype(float)
+
+        # Calculate speed
+        dist_filt = gaussian_filter1d(wheel_distance, 100)  # smooth wheel distance
+        speed = np.abs(np.diff(dist_filt)) / np.diff(time_s)[0]
+
+        # Convert back to int
+        wheel_distance = wheel_distance.astype(int)
 
         # If this is an ephys session, synchronize timestamps with ephys
         if isdir(join(root, 'raw_ephys_data')):
@@ -104,6 +133,31 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
             os.remove(join(root, 'extract_me.flag'))
             continue
             
+        # For some reason sometimes the traces are inverted, invert back if necessary
+        # If the trace is high for longer than low it's probably inverted
+        first_half = data['digitalIn'].shape[0] // 2
+        for jj in [1, 4, 5, 6, 7, 8, 13, 14, 15]:
+            first_half_ch = data['digitalIn'][:first_half, jj]
+            if np.sum(first_half_ch == 1) > np.sum(first_half_ch == 0):
+                print(f'Channel {jj} inverted!')
+                data['digitalIn'][:, jj] = 1 - data['digitalIn'][:, jj]
+        
+        # Now check whether the environment trace is inverted, objects should appear when the
+        # environment trace is low (it's high in the tunnel and low in the env)
+        first_half_env = data['digitalIn'][:first_half, 12]
+        first_half_obj1 = data['digitalIn'][:first_half, 4]
+        if np.sum(first_half_env[first_half_obj1 == 1]) / np.sum(first_half_obj1 == 1) > 0.1:
+            print('Channel 12 (environment) inverted!')
+            data['digitalIn'][:, 12] = 1 - data['digitalIn'][:, 12]
+        
+        # Inverted sound traces are harder to detect because they're normally high for longer
+        # Sound traces should be zero in the tunnel, if not: invert them
+        for jj in [9, 10]:  # sound channels
+            first_half_ch = data['digitalIn'][:first_half, jj]
+            if np.sum(first_half_ch[first_half_env == 1]) / np.sum(first_half_env == 1) > 0.1:
+                print(f'Channel {jj} inverted!')
+                data['digitalIn'][:, jj] = 1 - data['digitalIn'][:, jj]
+       
         # Extract trial onsets
         if compute_onsets(data['digitalIn'][:, 4])[0] < compute_offsets(data['digitalIn'][:, 12])[0]:
             # Missed the first environment TTL so first trial starts at 0 s
@@ -112,13 +166,8 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
             env_start = time_s[compute_offsets(data['digitalIn'][:, 12])]
 
         # Extract reward times
-        reward_times = time_s[compute_onsets(data['digitalOut'][:, 0])]
-
-        # For some reason sometimes the traces are inverted, invert back if necessary
-        for jj in range(8, 11):
-            if np.sum(data['digitalIn'][:, jj] == 1) > np.sum(data['digitalIn'][:, jj] == 0):
-                data['digitalIn'][:, jj] = 1 - data['digitalIn'][:, jj]
-
+        reward_times = time_s[compute_onsets(data['digitalOut'][:, 0])] 
+       
         # Extract all event timings
         all_env_end = time_s[compute_onsets(data['digitalIn'][:, 12])]
         all_surprise = time_s[compute_onsets(data['digitalIn'][:, 1])]
@@ -142,7 +191,7 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         all_obj2_appear = time_s[compute_onsets(data['digitalIn'][:, 14])]
         all_obj3_appear = time_s[compute_onsets(data['digitalIn'][:, 15])]
         
-        # Only keep environment entries which have a first object appear event and a trial end event
+        # Only keep environment entries which have an object1 event and a trial end event
         discard_env_start = np.zeros(env_start.shape[0])
         for i, ts in enumerate(env_start[:-1]):
             if len(all_obj1_enter[(all_obj1_enter > ts)
@@ -279,16 +328,6 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         # Get camera timestamps
         camera_times = time_s[compute_onsets(data['digitalIn'][:, 11])]
 
-        # Get wheel distance (has to be floats for the smoothing step)
-        wheel_distance = data['longVar'][:, 1].astype(float)
-
-        # Calculate speed
-        dist_filt = gaussian_filter1d(wheel_distance, 100)  # smooth wheel distance
-        speed = np.abs(np.diff(dist_filt)) / np.diff(time_s)[0]
-
-        # Convert back to int
-        wheel_distance = wheel_distance.astype(int)
-
         # Get lick times
         lick_times = time_s[compute_onsets(data['digitalOut'][:, 5])]
         
@@ -319,7 +358,7 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
             np.searchsorted(time_s, env_start[:-1], side='right') - 1, 0, wheel_distance.shape[0] - 1)]
         if np.isnan(env_start[0]):
             env_start_pos[0] = sound_onset_pos[0] - 25
-            
+        
         # Get spike positions
         probe_dirs = glob(join(root, 'probe0*'))
         if len(probe_dirs) > 0:
@@ -358,7 +397,7 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         trials.to_csv(join(root, 'trials.csv'), index=False)
 
         # Delete extraction flag
-        os.remove(join(root, 'extract_me.flag'))
+        #os.remove(join(root, 'extract_me.flag'))
         if np.sum(np.isnan(obj1_enter)) > 0:
             print(f'{np.sum(np.isnan(obj1_enter))} missing enterObj1 events')
         if np.sum(np.isnan(obj2_enter)) > 0:

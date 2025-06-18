@@ -64,8 +64,10 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
 
     # Load in data
     session_path = join(path_dict['local_data_path'], 'subjects', f'{subject}', f'{date}')
-    spikes, clusters, channels = load_neural_data(session_path, probe)
+    #spikes, clusters, channels = load_neural_data(session_path, probe)
     trials = pd.read_csv(join(path_dict['local_data_path'], 'subjects', subject, date, 'trials.csv'))
+    print(f'{np.round(np.median(trials["soundOnsetTime"] - trials["enterEnvTime"]), 2)}')
+    
     
     if trials.shape[0] < MIN_TRIALS:
         continue
