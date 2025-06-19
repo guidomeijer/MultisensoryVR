@@ -28,6 +28,7 @@ import os
 from os.path import join, isdir, isfile
 import numpy as np
 import pandas as pd
+import time
 from glob import glob
 from scipy.ndimage import gaussian_filter1d
 from itertools import chain
@@ -145,24 +146,39 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         env_trace = data['digitalIn'][:last_trial, 12].copy()
         for jj in [9, 10]:  
             
-            # Detect invertions because they happen super close to the environment trigger
-            sound_trace = data['digitalIn'][:last_trial, jj].copy()
-            sound_toggles = np.where(np.diff(sound_trace) != 0)[0]
+            # Get traces
+            fixed_trace = data['digitalIn'][:last_trial, jj].copy()
+            sound_toggles = np.where(np.diff(fixed_trace) != 0)[0]
             env_toggles = np.where(np.diff(env_trace) != 0)[0]
             sound_env = np.array([np.min(np.abs(i - env_toggles)) for i in sound_toggles])
+            
+            # Detect invertions because they happen super close to the environment trigger
             inv_inds = sound_toggles[sound_env < 10]
             
             # Loop over all invertions and invert the trace after the invertion back
             for inv in inv_inds:
-                print(f'Channel {jj} inverted mid-session')
-                sound_trace[inv + 1:] = 1 - sound_trace[inv + 1:]
-            
-            # Check whether it worked 
-            if np.sum(sound_trace[env_trace == 1]) / np.sum(env_trace == 1) > 0.1:
-                print('Inversion patching failed for channel {jj}!')
-            
+                print(f'Channel {jj} inverted mid-session (type 1)')
+                fixed_trace[inv + 1:] = 1 - fixed_trace[inv + 1:]
+
+            # Sometimes a random inversion occurs in a trial
+            start_time = time.time()
+            while(np.sum((fixed_trace == 1) & (env_trace == 1))) > 0:
+                print(f'Channel {jj} inverted mid-session (type 2)')
+                
+                # Detect where it goes wrong (both traces are positive which should not happen)
+                # and invert from the last toggle before where it went wrong
+                went_wrong = np.where(np.diff((fixed_trace == 1) & (env_trace == 1)) != 0)[0][0]
+                sound_toggles = np.where(np.diff(fixed_trace) != 0)[0]
+                inv_ind = sound_toggles[np.where(went_wrong - sound_toggles > 0)[0][-1]]
+                fixed_trace[inv_ind + 1:] = 1 - fixed_trace[inv_ind + 1:]
+                
+                # Time-out 
+                if (time.time() - start_time) > 5:
+                    print(f'Inversion patching failed for channel {jj}!')
+                    break
+                            
             # Patch original trace
-            data['digitalIn'][:last_trial, jj] = sound_trace
+            data['digitalIn'][:last_trial, jj] = fixed_trace
             
         # Extract trial onsets
         if compute_onsets(data['digitalIn'][:, 4])[0] < compute_offsets(data['digitalIn'][:, 12])[0]:
