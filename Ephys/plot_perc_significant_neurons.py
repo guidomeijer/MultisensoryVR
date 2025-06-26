@@ -30,14 +30,10 @@ per_ses_df = stats_df.groupby(['region', 'ses_id']).sum(numeric_only=True)
 per_ses_df['n_neurons'] = stats_df.groupby(['region', 'ses_id']).size()
 per_ses_df['perc_context_obj1'] = (per_ses_df['sig_context_obj1'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_context_obj2'] = (per_ses_df['sig_context_obj2'] / per_ses_df['n_neurons']) * 100
-per_ses_df['perc_context_onset'] = (per_ses_df['sig_sound_onset'] / per_ses_df['n_neurons']) * 100
+per_ses_df['perc_context_onset'] = (per_ses_df['sig_context_onset'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_reward'] = (per_ses_df['sig_reward'] / per_ses_df['n_neurons']) * 100
-per_ses_df['perc_omission'] = (per_ses_df['sig_omission'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_obj_onset'] = (per_ses_df['sig_obj_onset'] / per_ses_df['n_neurons']) * 100
-per_ses_df['perc_control'] = (per_ses_df['sig_control'] / per_ses_df['n_neurons']) * 100
 per_ses_df = per_ses_df.reset_index()
-all_nan_omission = stats_df.groupby(['region', 'ses_id'])['p_omission'].apply(lambda x: x.isna().all())
-per_ses_df.loc[per_ses_df.set_index(['region', 'ses_id']).index.isin(all_nan_omission[all_nan_omission].index), 'perc_omission'] = np.nan
 
 
 # %%
@@ -74,12 +70,6 @@ sns.swarmplot(data=per_ses_df, x='region', y='perc_reward', ax=ax5, color='k', s
 ax5.set(xlabel='', title='Outcome', yticks=[0, 10, 20, 30, 40, 50], ylim=[0, 50], ylabel='')
 ax5.tick_params(axis='x', labelrotation=90)
 
-sns.barplot(data=per_ses_df, x='region', y='perc_omission', ax=ax6, hue='region', errorbar=None,
-            palette=colors)
-sns.swarmplot(data=per_ses_df, x='region', y='perc_omission', ax=ax6, color='k', size=2)
-ax6.set(xlabel='', title='Reward omission', yticks=[0, 10, 20, 30, 40, 50, 60], ylim=[0, 60], ylabel='')
-ax6.tick_params(axis='x', labelrotation=90)
-
 sns.despine(trim=False)
 plt.tight_layout()
 plt.show(block=False)
@@ -87,7 +77,7 @@ plt.show(block=False)
 plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_swarm.jpg'), dpi=600)
 
 # %%
-f, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4, figsize=(1.75*4, 4), dpi=dpi, sharey=False)
+f, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(1, 5, figsize=(1.6*5, 2), dpi=dpi, sharey=False)
 
 this_order = per_ses_df[['region', 'perc_obj_onset']].groupby('region').mean().sort_values(
     'perc_obj_onset', ascending=False).index.values
@@ -116,22 +106,15 @@ this_order = per_ses_df[['region', 'perc_context_onset']].groupby('region').mean
     'perc_context_onset', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_context_onset', ax=ax4, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax4.set(xlabel='', title='Context onset', yticks=[0, 10, 20, 30, 40, 50], ylim=[0, 50], ylabel='')
+ax4.set(xlabel='', title='Context onset', yticks=[0, 5, 10, 15, 20, 25, 30], ylim=[0, 30], ylabel='')
 ax4.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_reward']].groupby('region').mean().sort_values(
     'perc_reward', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_reward', ax=ax5, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax5.set(xlabel='', title='Outcome modulation', yticks=[0, 10, 20, 30, 40], ylim=[0, 40], ylabel='')
+ax5.set(xlabel='', title='Outcome modulation', yticks=[0, 10, 20, 30, 40, 50, 60], ylim=[0, 60], ylabel='')
 ax5.tick_params(axis='x', labelrotation=90)
-
-this_order = per_ses_df[['region', 'perc_omission']].groupby('region').mean().sort_values(
-    'perc_omission', ascending=False).index.values
-sns.barplot(data=per_ses_df, x='region', y='perc_omission', ax=ax6, hue='region', errorbar='se',
-            palette=colors, order=this_order)
-ax6.set(xlabel='', title='Reward omission', yticks=[0, 10, 20, 30, 40], ylim=[0, 40], ylabel='')
-ax6.tick_params(axis='x', labelrotation=90)
 
 sns.despine(trim=False)
 plt.tight_layout()

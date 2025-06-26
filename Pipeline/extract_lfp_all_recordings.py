@@ -34,7 +34,7 @@ def main():
         if len(glob(path.join(server_path, '*.cbin'))) > 0:
             rec = si.read_cbin_ibl(server_path)
         else:
-            rec = si.read_spikeglx(server_path, stream_id=f'imec{path.split(server_path)[-1][-1]}.ap')
+            rec = si.read_spikeglx(server_path, stream_id=si.get_neo_streams('spikeglx', server_path)[0][0])
         
         # Check if NP2 recording
         if np.unique(rec.get_property('group')).shape[0] == 1:

@@ -48,7 +48,7 @@ else:
 # Search for spikesort_me.flag
 print('Looking for extract_me.flag..')
 for root, directory, files in chain.from_iterable(os.walk(path) for path in search_folders):
-    if 'ephys_session.flag' in files:
+    if 'extract_me.flag' in files:
         print(f'\nFound extract_me.flag in {root}')
 
         data_files = glob(join(root, 'raw_behavior_data', '*.b64'))
@@ -134,9 +134,9 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
             os.remove(join(root, 'extract_me.flag'))
             continue
             
-        # For some reason sometimes the traces are inverted, invert back if necessary
+        # If the Teensy wasn't reset, the traces can be are inverted, invert back if necessary
         # If the trace starts off high it started out inverted and should be reverted back
-        for jj in [1, 4, 5, 6, 7, 8, 9, 10, 13, 14, 15]:
+        for jj in [1, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15]:
             if data['digitalIn'][0, jj] == 1:
                 print(f'Channel {jj} inverted')
                 data['digitalIn'][:, jj] = 1 - data['digitalIn'][:, jj]
@@ -419,7 +419,7 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         trials.to_csv(join(root, 'trials.csv'), index=False)
 
         # Delete extraction flag
-        #os.remove(join(root, 'extract_me.flag'))
+        os.remove(join(root, 'extract_me.flag'))
         if np.sum(np.isnan(obj1_enter)) > 0:
             print(f'{np.sum(np.isnan(obj1_enter))} missing enterObj1 events')
         if np.sum(np.isnan(obj2_enter)) > 0:

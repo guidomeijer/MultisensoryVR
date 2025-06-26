@@ -20,13 +20,13 @@ from joblib import Parallel, delayed
 from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 
 # Settings
-T_BEFORE = 2  # s
-T_AFTER = 2
-BIN_SIZE = 0.3
-STEP_SIZE = 0.025
+T_BEFORE = 1  # s
+T_AFTER = 3
+BIN_SIZE = 0.1
+STEP_SIZE = 0.05
 MIN_NEURONS = 10
 MIN_TRIALS = 30
-N_CORES = 6
+N_CORES = 10
 
 # Create time array
 t_centers = np.arange(-T_BEFORE + (BIN_SIZE/2), T_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
@@ -34,10 +34,10 @@ t_centers = np.arange(-T_BEFORE + (BIN_SIZE/2), T_AFTER - ((BIN_SIZE/2) - STEP_S
 # Initialize
 path_dict = paths(sync=False)
 subjects = load_subjects()
-kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
+kfold_cv = KFold(n_splits=10, shuffle=True, random_state=42)
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
-
-clf = RandomForestClassifier(random_state=42, n_estimators=50, max_depth=4, min_samples_leaf=5)
+neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
+clf = LogisticRegression(solver='liblinear', random_state=42)
 
 # Function for parallelization
 def decode_context(bin_center, spikes, region_neurons, trials):
@@ -57,6 +57,7 @@ def decode_context(bin_center, spikes, region_neurons, trials):
     
     return accuracy
 
+# %% Main script
 
 decode_df = pd.DataFrame()
 for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
@@ -64,15 +65,22 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
 
     # Load in data
     session_path = join(path_dict['local_data_path'], 'subjects', f'{subject}', f'{date}')
-    #spikes, clusters, channels = load_neural_data(session_path, probe)
-    trials = pd.read_csv(join(path_dict['local_data_path'], 'subjects', subject, date, 'trials.csv'))
-    print(f'{np.round(np.median(trials["soundOnsetTime"] - trials["enterEnvTime"]), 2)}')
+    spikes, clusters, channels = load_neural_data(session_path, probe)
+    trials = pd.read_csv(join(path_dict['local_data_path'], 'subjects', subject, date, 'trials.csv'))    
     
+    # Exclude trials with unreliable sound trigger times
+    trials = trials[np.abs(trials['soundOnsetPos'] - trials['enterEnvPos']) < 50].reset_index(drop=True)
     
     if trials.shape[0] < MIN_TRIALS:
         continue
-        
-    # %% Loop over regions
+    
+    # Get context coding neurons for this session
+    sig_neurons = neurons_df.loc[(neurons_df['sig_context_onset']
+                                  & (neurons_df['subject'] == int(subject))
+                                  & (neurons_df['date'] == int(date))
+                                  & (neurons_df['probe'] == probe)), 'neuron_id'].values
+    
+    # Loop over regions
     for r, region in enumerate(np.unique(clusters['region'])):
         if region == 'root':
             continue
@@ -80,9 +88,12 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         
         # Get region neurons
         region_neurons = clusters['cluster_id'][clusters['region'] == region]
-        if region_neurons.shape[0] < MIN_NEURONS:
-            continue
         
+        # Use only significant neurons
+        use_neurons = region_neurons[np.isin(region_neurons, sig_neurons)]
+        if use_neurons.shape[0] < MIN_NEURONS:
+            continue
+                
         # Do decoding with with parallel processing
         results = Parallel(n_jobs=N_CORES)(
             delayed(decode_context)(bin_center, spikes, region_neurons, trials) for bin_center in t_centers)

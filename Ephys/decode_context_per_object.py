@@ -37,7 +37,8 @@ kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
 
-clf = RandomForestClassifier(random_state=42, n_estimators=50, max_depth=4, min_samples_leaf=5)
+#clf = RandomForestClassifier(random_state=42, n_estimators=50, max_depth=4, min_samples_leaf=5)
+clf = LogisticRegression(solver='liblinear', random_state=42)
 
 # Function for parallelization
 def decode_context(bin_center, spikes, region_neurons, all_obj_df):

@@ -26,6 +26,7 @@ BIN_SIZE = 0.3
 STEP_SIZE = 0.05
 MIN_NEURONS = 5
 MIN_TRIALS = 30
+ONLY_SIG_NEURONS = False
 
 # Create time array
 t_centers = np.arange(-T_BEFORE + (BIN_SIZE/2), T_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
@@ -37,10 +38,11 @@ kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
 
-clf = RandomForestClassifier(random_state=42, n_estimators=50, max_depth=4, min_samples_leaf=5)
+#clf = RandomForestClassifier(random_state=42, n_estimators=50, max_depth=4, min_samples_leaf=5)
+clf = LogisticRegression(solver='liblinear', random_state=42)
 
 # Function for parallelization
-def decode_context(bin_center, spikes, region_neurons, all_obj_df):
+def decode_context(bin_center, spikes, use_neurons, all_obj_df):
     
     # Get spike counts per trial for all neurons during this time bin
     these_intervals = np.vstack((all_obj_df['reward_times'] + (bin_center - (BIN_SIZE/2)),
@@ -54,7 +56,7 @@ def decode_context(bin_center, spikes, region_neurons, all_obj_df):
     for ii, obj in enumerate([1, 2, 3]):
     
         # Select neurons from this region and trials of this object
-        use_counts = spike_counts[np.ix_(all_obj_df['object'] == obj, np.isin(neuron_ids, region_neurons))]
+        use_counts = spike_counts[np.ix_(all_obj_df['object'] == obj, np.isin(neuron_ids, use_neurons))]
         
         # Get whether this object was a goal or a distractor
         trial_labels = all_obj_df.loc[all_obj_df['object'] == obj, 'sound'].values
@@ -103,7 +105,10 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         region_neurons = clusters['cluster_id'][clusters['region'] == region]
              
         # Use only significant neurons
-        use_neurons = region_neurons[np.isin(region_neurons, sig_neurons)]
+        if ONLY_SIG_NEURONS:
+            use_neurons = region_neurons[np.isin(region_neurons, sig_neurons)]
+        else:
+            use_neurons = region_neurons
         if use_neurons.shape[0] < MIN_NEURONS:
             continue
         

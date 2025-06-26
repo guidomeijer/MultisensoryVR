@@ -20,6 +20,7 @@ from scipy.stats import pearsonr
 import json, shutil, datetime
 from glob import glob
 from os.path import join, realpath, dirname, isfile, split, isdir
+from pathlib import Path
 from iblutil.numerical import ismember
 from iblatlas.atlas import BrainRegions
 
@@ -60,6 +61,8 @@ def paths(sync=False, full_sync=False, force_sync=False):
         path_file.close()
     with open(join(dirname(realpath(__file__)), 'paths.json')) as json_file:
         path_dict = json.load(json_file)
+        path_dict = {key: Path(value) for key, value in path_dict.items()}
+        
 
     # Synchronize data from the server with the local data folder
 
@@ -210,6 +213,13 @@ def paths(sync=False, full_sync=False, force_sync=False):
     return path_dict
 
 
+def load_trials(subject, date):
+    path_dict = paths()
+    trials = pd.read_csv(join(path_dict['local_data_path'], 'subjects', subject, date, 'trials.csv'))
+    trials = trials[trials['soundId'] != 0]
+    return trials
+
+
 def load_objects(subject, date):
     """
     Parameters
@@ -235,6 +245,9 @@ def load_objects(subject, date):
     # Load in trials
     trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', subject, date, 'trials.csv'))
     
+    # Remove trials where the sound was not correctly detected
+    trials = trials[trials['soundId'] != 0]
+    
     # Get reward contingencies
     sound1_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound1Obj'].values[0]
     sound2_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound2Obj'].values[0]
@@ -259,27 +272,30 @@ def load_objects(subject, date):
                                      'object': sound1_obj_id, 'sound': trials['soundId'],
                                      'goal': (trials['soundId'] == 1).astype(int),
                                      'rewarded': trials[f'rewardsObj{sound1_obj}'],
-                                     'object_appearance': obj_mapping[sound1_obj]})
+                                     'object_appearance': obj_mapping[sound1_obj],
+                                     'trial_nr': trials.index.values})
     rew_obj2_df = pd.DataFrame(data={'times': trials[f'enterObj{sound2_obj}Time'],
                                      'distances': trials[f'enterObj{sound2_obj}Pos'],
                                      'object': sound2_obj_id, 'sound': trials['soundId'],
                                      'goal': (trials['soundId'] == 2).astype(int),
                                      'rewarded': trials[f'rewardsObj{sound2_obj}'],
-                                     'object_appearance': obj_mapping[sound2_obj]})
+                                     'object_appearance': obj_mapping[sound2_obj],
+                                     'trial_nr': trials.index.values})
     control_obj_df = pd.DataFrame(data={'times': trials[f'enterObj{control_obj}Time'],
                                         'distances': trials[f'enterObj{control_obj}Pos'],
                                         'object': 3, 'sound': trials['soundId'],
                                         'goal': 0, 'rewarded': trials[f'rewardsObj{control_obj}'],
-                                        'object_appearance': obj_mapping[control_obj]})
+                                        'object_appearance': obj_mapping[control_obj],
+                                        'trial_nr': trials.index.values})
     
     # Add reward times per object
     reward_times = np.load(join(path_dict['local_data_path'], 'Subjects', subject, date, 'reward.times.npy'))
-    rew_obj1_df.loc[rew_obj1_df['rewarded'] == 1, 'reward_times'] = [
+    rew_obj1_df.loc[rew_obj1_df['rewarded'] > 0, 'reward_times'] = [
         reward_times[np.argmin(np.abs(i - reward_times))]
-        for i in rew_obj1_df.loc[rew_obj1_df['rewarded'] == 1, 'times']]
-    rew_obj2_df.loc[rew_obj2_df['rewarded'] == 1, 'reward_times'] = [
+        for i in rew_obj1_df.loc[rew_obj1_df['rewarded'] > 0, 'times']]
+    rew_obj2_df.loc[rew_obj2_df['rewarded'] > 0, 'reward_times'] = [
         reward_times[np.argmin(np.abs(i - reward_times))]
-        for i in rew_obj2_df.loc[rew_obj2_df['rewarded'] == 1, 'times']]
+        for i in rew_obj2_df.loc[rew_obj2_df['rewarded'] > 0, 'times']]
     
     # Create dataframe
     all_obj_df = pd.concat((rew_obj1_df, rew_obj2_df, control_obj_df))
@@ -768,7 +784,7 @@ def event_aligned_averages(signal, timestamps, events, timebins, return_df=False
 
 
 def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, t_after=3,
-                     event_labels=None, color_palette='colorblind', ind_lines=False, kwargs=[]):
+                     event_labels=None, color_palette='colorblind', ind_lines=False, kwargs={}):
 
     # Construct dataframe for plotting
     plot_df = pd.DataFrame()
@@ -849,110 +865,112 @@ def calculate_peths(
         spike_times, spike_clusters, cluster_ids, align_times, pre_time=0.2,
         post_time=0.5, bin_size=0.025, smoothing=0.025, return_fr=True):
     """
-    From ibllib package    
+    Calculates peri-event time histograms for a set of clusters.
 
-    Calcluate peri-event time histograms; return means and standard deviations
-    for each time point across specified clusters
-
-    :param spike_times: spike times (in seconds)
+    :param spike_times: Spike times (in seconds).
     :type spike_times: array-like
-    :param spike_clusters: cluster ids corresponding to each event in `spikes`
+    :param spike_clusters: Cluster IDs for each spike.
     :type spike_clusters: array-like
-    :param cluster_ids: subset of cluster ids for calculating peths
+    :param cluster_ids: A unique, sorted list of cluster IDs to analyze.
     :type cluster_ids: array-like
-    :param align_times: times (in seconds) to align peths to
+    :param align_times: Times (in seconds) to align the PSTHs to.
     :type align_times: array-like
-    :param pre_time: time (in seconds) to precede align times in peth
+    :param pre_time: Time (in seconds) before the align time.
     :type pre_time: float
-    :param post_time: time (in seconds) to follow align times in peth
+    :param post_time: Time (in seconds) after the align time.
     :type post_time: float
-    :param bin_size: width of time windows (in seconds) to bin spikes
+    :param bin_size: Width of time bins (in seconds).
     :type bin_size: float
-    :param smoothing: standard deviation (in seconds) of Gaussian kernel for
-        smoothing peths; use `smoothing=0` to skip smoothing
+    :param smoothing: Standard deviation (in seconds) of Gaussian kernel for smoothing.
+                      Set to 0 for no smoothing.
     :type smoothing: float
-    :param return_fr: `True` to return (estimated) firing rate, `False` to return spike counts
+    :param return_fr: If True, returns firing rate (spikes/s). If False, returns spike counts.
     :type return_fr: bool
-    :return: peths, binned_spikes
-    :rtype: peths: Bunch({'mean': peth_means, 'std': peth_stds, 'tscale': ts, 'cscale': ids})
-    :rtype: binned_spikes: np.array (n_align_times, n_clusters, n_bins)
+    :return: A tuple of (peths, binned_spikes).
+             peths is a dictionary containing the mean, std, time scale, and cluster scale.
+             binned_spikes is a 3D numpy array (n_trials, n_clusters, n_bins).
     """
-
-    # initialize containers
-    n_offset = 5 * int(np.ceil(smoothing / bin_size))  # get rid of boundary effects for smoothing
-    n_bins_pre = int(np.ceil(pre_time / bin_size)) + n_offset
-    n_bins_post = int(np.ceil(post_time / bin_size)) + n_offset
-    n_bins = n_bins_pre + n_bins_post
-    binned_spikes = np.zeros(shape=(len(align_times), len(cluster_ids), n_bins))
-
-    # build gaussian kernel if requested
-    if smoothing > 0:
-        w = n_bins - 1 if n_bins % 2 == 0 else n_bins
-        window = gaussian(w, std=smoothing / bin_size)
-        # half (causal) gaussian filter
-        # window[int(np.ceil(w/2)):] = 0
-        window /= np.sum(window)
-        binned_spikes_conv = np.copy(binned_spikes)
-
+    # Ensure cluster_ids are unique and sorted, as this is assumed by the binning logic.
     ids = np.unique(cluster_ids)
+    
+    # Create a mapping from the original cluster ID to an index (0, 1, 2, ...)
+    cluster_map = {cid: i for i, cid in enumerate(ids)}
 
-    # filter spikes outside of the loop
-    idxs = np.bitwise_and(spike_times >= np.min(align_times) - (n_bins_pre + 1) * bin_size,
-                          spike_times <= np.max(align_times) + (n_bins_post + 1) * bin_size)
-    idxs = np.bitwise_and(idxs, np.isin(spike_clusters, cluster_ids))
-    spike_times = spike_times[idxs]
-    spike_clusters = spike_clusters[idxs]
+    # --- BUG FIX: Use np.linspace for robust bin creation ---
+    # Calculate the number of bins required in a numerically stable way
+    n_bins = int(round((pre_time + post_time) / bin_size))
+    # Create the bin edges using linspace to avoid floating point inaccuracies of arange
+    t_bin_edges = np.linspace(-pre_time, post_time, n_bins + 1)
 
-    # compute floating tscale
-    tscale = np.arange(-n_bins_pre, n_bins_post + 1) * bin_size
-    # bin spikes
-    for i, t_0 in enumerate(align_times):
-        # define bin edges
-        ts = tscale + t_0
-        # filter spikes
-        idxs = np.bitwise_and(spike_times >= ts[0], spike_times <= ts[-1])
-        i_spikes = spike_times[idxs]
-        i_clusters = spike_clusters[idxs]
+    # Initialize the main data array
+    binned_spikes = np.zeros((len(align_times), len(ids), n_bins))
 
-        # bin spikes similar to bincount2D: x = spike times, y = spike clusters
-        xscale = ts
-        xind = (np.floor((i_spikes - np.min(ts)) / bin_size)).astype(np.int64)
-        yscale, yind = np.unique(i_clusters, return_inverse=True)
-        nx, ny = [xscale.size, yscale.size]
-        ind2d = np.ravel_multi_index(np.c_[yind, xind].transpose(), dims=(ny, nx))
-        r = np.bincount(ind2d, minlength=nx * ny, weights=None).reshape(ny, nx)
+    # Pre-filter spikes to only those belonging to the clusters of interest
+    idx_spikes_in_clusters = np.isin(spike_clusters, ids)
+    s_times, s_clusts = spike_times[idx_spikes_in_clusters], spike_clusters[idx_spikes_in_clusters]
 
-        # store (ts represent bin edges, so there are one fewer bins)
-        bs_idxs = np.isin(ids, yscale)
-        binned_spikes[i, bs_idxs, :] = r[:, :-1]
-
-        # smooth
-        if smoothing > 0:
-            idxs = np.where(bs_idxs)[0]
-            for j in range(r.shape[0]):
-                binned_spikes_conv[i, idxs[j], :] = convolve(
-                    r[j, :], window, mode='same', method='auto')[:-1]
-
-    # average
-    if smoothing > 0:
-        binned_spikes = np.copy(binned_spikes_conv)
+    # Map the cluster IDs of the filtered spikes to their new indices (0, 1, 2, ...)
+    if len(s_clusts) > 0:
+        s_clusts_mapped = np.array([cluster_map[c] for c in s_clusts])
     else:
-        binned_spikes = np.copy(binned_spikes)
+        s_clusts_mapped = np.array([])
+
+
+    # Define the bins for the y-axis of the 2D histogram (the clusters)
+    y_bins = np.arange(len(ids) + 1) - 0.5
+
+    # Iterate over each alignment time (trial)
+    for i, t_0 in enumerate(align_times):
+        # Define the absolute time bin edges for the current trial
+        x_bins = t_bin_edges + t_0
+        
+        # Find the indices of spikes that fall ONLY within this trial's time window
+        trial_indices = np.where((s_times >= x_bins[0]) & (s_times < x_bins[-1]))[0]
+
+        # Select only the spikes and clusters for this specific trial
+        trial_s_times = s_times[trial_indices]
+        trial_s_clusts_mapped = s_clusts_mapped[trial_indices]
+        
+        # Use np.histogram2d to efficiently bin the spikes for this trial.
+        # It handles empty spike arrays correctly (returns all zeros).
+        counts, _, _ = np.histogram2d(
+            trial_s_times,           # Spikes for THIS trial only
+            trial_s_clusts_mapped,   # Clusters for THIS trial only
+            bins=[x_bins, y_bins]     # Time and cluster bins for this trial
+        )
+        
+        # The result needs to be transposed and stored in the main array
+        binned_spikes[i, :, :] = counts.T
+
+    # If smoothing is requested, apply it now to the binned counts
+    if smoothing > 0 and smoothing > bin_size: # smoothing must be greater than bin_size
+        win_size = int(np.ceil(4 * (smoothing / bin_size)))
+        window = gaussian(win_size, std=smoothing / bin_size)
+        window /= np.sum(window)
+
+        for i in range(binned_spikes.shape[0]):
+            for j in range(binned_spikes.shape[1]):
+                binned_spikes[i, j, :] = convolve(binned_spikes[i, j, :], window, mode='same')
+
+    # Convert to firing rate if requested
     if return_fr:
         binned_spikes /= bin_size
 
+    # Calculate final means and stds across trials
     peth_means = np.mean(binned_spikes, axis=0)
     peth_stds = np.std(binned_spikes, axis=0)
 
-    if smoothing > 0:
-        peth_means = peth_means[:, n_offset:-n_offset]
-        peth_stds = peth_stds[:, n_offset:-n_offset]
-        binned_spikes = binned_spikes[:, :, n_offset:-n_offset]
-        tscale = tscale[n_offset:-n_offset]
+    # Final time scale should be the center of each bin
+    tscale_final = t_bin_edges[:-1] + (bin_size / 2)
 
-    # package output
-    tscale = (tscale[:-1] + tscale[1:]) / 2
-    peths = dict({'means': peth_means, 'stds': peth_stds, 'tscale': tscale, 'cscale': ids})
+    # Package the output
+    peths = {
+        'means': peth_means,
+        'stds': peth_stds,
+        'tscale': tscale_final,
+        'cscale': ids
+    }
+
     return peths, binned_spikes
 
 

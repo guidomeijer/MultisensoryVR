@@ -19,7 +19,7 @@ from msvr_functions import paths, figure_style
 colors, dpi = figure_style()
 
 
-root = r'V:\imaging1\guido\Subjects\466395\20241115'
+root = r'V:\imaging1\guido\Subjects\478153\20250619'
 data_files = glob(join(root, 'raw_behavior_data', '*.b64'))
 data_file = data_files[0]   
 data = create_bp_structure(data_file)
@@ -57,13 +57,10 @@ while(np.sum((fixed_trace == 1) & (env_trace == 1))) > 0:
 # Check whether it worked 
 if np.sum(fixed_trace[env_trace == 1]) / np.sum(env_trace == 1) > 0.1:
     print('Inversion patching failed')
-
-    
-
     
 # %% Plot
 
-for inv in np.concatenate((inv_inds, [inv_ind])):
+for inv in inv_inds:
     f, ax = plt.subplots(1, 1, figsize=(7, 3), dpi=dpi)
     ax.plot(env_trace[inv - 50000 : inv + 50000], lw=1)
     ax.plot(sound_trace[inv - 50000 : inv + 50000], lw=1, ls='--')
@@ -73,3 +70,4 @@ for inv in np.concatenate((inv_inds, [inv_ind])):
 f, ax = plt.subplots(1, 1, figsize=(7, 3), dpi=dpi)
 ax.plot(env_trace)
 ax.plot(fixed_trace, ls='--', color='g')
+#ax.plot(data['digitalIn'][:last_trial, 9], ls='--', color='m')
