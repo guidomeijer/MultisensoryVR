@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.stats import pearsonr
+from zetapy import zetatstest
 import pickle
 from scipy.stats import zscore
 from pathlib import Path
@@ -185,7 +185,8 @@ for p, probe in enumerate(spikes.keys()):
         binned_time = peths_task['tscale'] + trials['enterEnvTime'].values[0]
 
         # Detect assemblies
-        assemblies, task_mean, task_std, n_assemblies, act_mask = detect_assemblies_from_task(binned_spikes_task)
+        assemblies, task_mean, task_std, n_assemblies, act_mask = detect_assemblies_from_task(
+            binned_spikes_task)
 
         # Get assembly activation strenght during the task itself
         assembly_activation_task = calculate_assembly_activation(
@@ -196,41 +197,49 @@ for p, probe in enumerate(spikes.keys()):
             np.searchsorted(time_s, binned_time, side='right') - 1, 0, distance.shape[0] - 1)]
 
         # Smooth assembly activity
-        strong_smoothed_act = gaussian_filter1d(assembly_activation_task, 2, axis=1)
-        weak_smoothed_act = gaussian_filter1d(assembly_activation_task, 1, axis=1)
+        smoothed_act = gaussian_filter1d(assembly_activation_task, 1.5, axis=1)
+
+        # Determine whether assemblies are task-activated
+        p_values = np.empty(n_assemblies)
+        print('Running ZETA tests')
+        for ia in range(n_assemblies):
+            print(f'{ia} of {n_assemblies}..')
+            p_values[ia], _ = zetatstest(binned_time, smoothed_act[ia, :], obj_df['times'] - 1,
+                                         dblUseMaxDur=3)
+        print(f'{np.sum(p_values < 0.05)} significant assemblies')
 
         # Plot assembly activity during task
-        for ia in range(n_assemblies):
+        for ia in np.where(p_values < 0.05)[0]:
             f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(1.75*3, 2.5), dpi=dpi, sharey=True)
-            peri_event_trace(weak_smoothed_act[ia, :], binned_time,
+            peri_event_trace(smoothed_act[ia, :], binned_time,
                              obj_df.loc[obj_df['object'] == 1, 'times'].values,
                              1 - obj_df.loc[obj_df['object'] == 1, 'goal'].values, ax=ax1,
                              t_before=T_BEFORE, t_after=T_AFTER, event_labels=['Goal', 'No goal'],
                              color_palette=[colors['goal'], colors['no-goal']])
             ax1.set(ylabel='Assembly activity', xlabel='Time from reward (s)', title='Object 1')
 
-            peri_event_trace(weak_smoothed_act[ia, :], binned_time,
+            peri_event_trace(smoothed_act[ia, :], binned_time,
                              obj_df.loc[obj_df['object'] == 2, 'times'].values,
                              1 - obj_df.loc[obj_df['object'] == 2, 'goal'].values, ax=ax2,
                              t_before=T_BEFORE, t_after=T_AFTER, event_labels=['Goal', 'No goal'],
                              color_palette=[colors['goal'], colors['no-goal']])
             ax2.set(xlabel='Time from reward (s)', title='Object 2')
 
-            peri_event_trace(weak_smoothed_act[ia, :], binned_time,
+            peri_event_trace(smoothed_act[ia, :], binned_time,
                              obj_df.loc[obj_df['object'] == 3, 'times'].values,
                              obj_df.loc[obj_df['object'] == 3, 'sound'].values, ax=ax3,
                              t_before=T_BEFORE, t_after=T_AFTER, event_labels=['Sound 1', 'Sound 2'],
                              color_palette=[colors['sound1'], colors['sound2']])
             ax3.set(xlabel='Time from reward (s)', title='Object 3')
 
-            plt.suptitle(f'{region}')
+            plt.suptitle(f'{region}; p={np.round(p_values[ia], 2)}')
             sns.despine(trim=True)
             plt.tight_layout()
             plt.savefig(path_dict['fig_path'] / 'Assemblies'
                         / f'{region}_{subject}_{date}_{ia}_time.jpg', dpi=600)
             plt.show()
 
-
+            """
             # Plot assembly activity over entire environmnet
             f, ax1 = plt.subplots(1, 1, figsize=(4, 2), dpi=dpi)
             peri_event_trace(strong_smoothed_act[ia, :], binned_dist,
@@ -243,5 +252,6 @@ for p, probe in enumerate(spikes.keys()):
             plt.savefig(path_dict['fig_path'] / 'Assemblies'
                         / f'{region}_{subject}_{date}_{ia}_dist.jpg', dpi=600)
             plt.show()
+            """
 
 
