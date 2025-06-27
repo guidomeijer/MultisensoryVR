@@ -9,11 +9,12 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from tqdm import tqdm
 from scipy.stats import pearsonr
 import pickle
 from scipy.stats import zscore
 from pathlib import Path
-from msvr_functions import (paths, load_multiple_probes, calculate_peths, load_trials, figure_style,
+from msvr_functions import (paths, load_neural_data, calculate_peths, load_trials, figure_style,
                             peri_event_trace, load_objects)
 colors, dpi = figure_style()
 
@@ -132,6 +133,91 @@ def calculate_assembly_activation(
     return assembly_activation_matrix
 
 
+def test_reactivation_significance(
+    rest_spike_matrix, assemblies, task_mean, task_std, active_neuron_mask, n_shuffles=1000,
+    percentile_threshold=99
+):
+    """
+    Tests if assembly reactivation is significant by counting threshold-crossing events.
+
+    This method defines a significance threshold from the surrogate data (e.g., 99th
+    percentile of all shuffled activation values). It then counts how many "reactivation
+    events" (contiguous periods above threshold) occur in the actual data vs. the
+    surrogate data.
+
+    Args:
+        rest_spike_matrix (np.ndarray): The spike matrix from the rest period.
+        assemblies (np.ndarray): The assembly patterns from the task.
+        task_mean (np.ndarray): Mean from the task period for z-scoring.
+        task_std (np.ndarray): Std dev from the task period for z-scoring.
+        active_neuron_mask (np.ndarray): Mask of active neurons from the task.
+        n_shuffles (int): The number of shuffles to perform.
+        percentile_threshold (int): Percentile to use for defining the event threshold.
+
+    Returns:
+        tuple: A tuple containing:
+            - np.ndarray: The number of reactivation events for each assembly in the actual data.
+            - np.ndarray: A matrix of surrogate event counts (n_assemblies, n_shuffles).
+            - np.ndarray: The p-value for each assembly, based on event counts.
+            - np.ndarray: The activation threshold used for each assembly.
+    """
+    print(f"\n--- Testing for significant reactivation using event-based analysis ({percentile_threshold}th percentile threshold) ---")
+    
+    # --- Part 1: Generate all surrogate activation traces ---
+    n_assemblies = assemblies.shape[1]
+    rest_spikes_squeezed = np.squeeze(rest_spike_matrix)
+    rest_spikes_active = rest_spikes_squeezed[active_neuron_mask, :]
+    n_neurons, n_timebins = rest_spikes_active.shape
+    
+    # Store all surrogate traces to compute the threshold later
+    all_surrogate_traces = np.zeros((n_assemblies, n_shuffles, n_timebins))
+
+    print(f"Generating null distribution with {n_shuffles} circular shifts...")
+    for i in tqdm(range(n_shuffles)):
+        shuffled_spikes = np.zeros_like(rest_spikes_active)
+        for j in range(n_neurons):
+            shift = np.random.randint(1, n_timebins) 
+            shuffled_spikes[j, :] = np.roll(rest_spikes_active[j, :], shift)
+
+        shuffled_full_matrix = np.zeros_like(rest_spikes_squeezed)
+        shuffled_full_matrix[active_neuron_mask, :] = shuffled_spikes
+        
+        all_surrogate_traces[:, i, :] = calculate_assembly_activation(
+            shuffled_full_matrix, assemblies, task_mean, task_std, active_neuron_mask
+        )
+
+    # --- Part 2: Define threshold and count events ---
+    
+    # Define a specific threshold for each assembly based on its own surrogate data
+    event_thresholds = np.percentile(all_surrogate_traces, percentile_threshold, axis=(1, 2))
+    
+    # Helper function to count events (contiguous blocks above threshold)
+    def count_events(trace, threshold):
+        above_threshold = trace > threshold
+        # An event starts when the signal crosses the threshold from below
+        crossings = np.diff(above_threshold.astype(int), prepend=0) == 1
+        return np.sum(crossings)
+
+    # Count events in actual data
+    actual_activation_matrix = calculate_assembly_activation(
+        rest_spike_matrix, assemblies, task_mean, task_std, active_neuron_mask
+    )
+    actual_event_counts = np.array([
+        count_events(actual_activation_matrix[i, :], event_thresholds[i]) for i in range(n_assemblies)
+    ])
+
+    # Count events in surrogate data
+    surrogate_event_counts = np.zeros((n_assemblies, n_shuffles))
+    for i in range(n_assemblies):
+        for j in range(n_shuffles):
+            surrogate_event_counts[i, j] = count_events(all_surrogate_traces[i, j, :], event_thresholds[i])
+
+    # --- Part 3: Calculate p-value based on event counts ---
+    p_values = np.sum(surrogate_event_counts >= actual_event_counts[:, np.newaxis], axis=1) / n_shuffles
+    
+    return actual_event_counts, surrogate_event_counts, p_values, event_thresholds
+
+
 # %% Main script
 # Settings
 subject = '459601'
@@ -140,13 +226,13 @@ BIN_SIZE = 0.05
 SMOOTHING = 0
 T_BEFORE = 1
 T_AFTER = 2
+MIN_NEURONS = 5
 
 # Get paths
 path_dict = paths()
-session_path = Path(path_dict['local_data_path']) / 'Subjects' / subject / date
 
 # Load in data
-spikes, clusters, channels = load_multiple_probes(session_path)
+rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)
 trials = load_trials(subject, date)
 obj_df = load_objects(subject, date)
 
@@ -158,21 +244,28 @@ obj_df.loc[obj_df['rewarded'] == 0, 'reward_times'] = (
     obj_df.loc[obj_df['rewarded'] == 0, 'times']
     + np.random.choice(reward_delays, size=np.sum(obj_df['rewarded'] == 0)))
 
-# Loop over probes
-for p, probe in enumerate(spikes.keys()):
+
+for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
+    print(f'\n{subject} {date} {probe} ({i} of {rec.shape[0]})')
     
+    # Load neural data
+    session_path = Path(path_dict['local_data_path']) / 'Subjects' / subject / date
+    spikes, clusters, channels = load_neural_data(session_path, probe)
+
     # Loop over regions
-    for r, region in enumerate(np.unique(clusters[probe]['region'])):
+    for r, region in enumerate(np.unique(clusters['region'])):
         if region == 'root':
             continue
         print(f'Region {region}')
     
         # Get neurons in this region
-        region_neurons = clusters[probe]['cluster_id'][clusters[probe]['region'] == region]
+        region_neurons = clusters['cluster_id'][clusters['region'] == region]
+        if region_neurons.shape[0] < MIN_NEURONS:
+            continue
         
         # Create binned spike matrix of entire task period
         peths_task, binned_spikes_task = calculate_peths(
-            spikes[probe]['times'], spikes[probe]['clusters'],
+            spikes['times'], spikes['clusters'],
             region_neurons, [trials['enterEnvTime'].values[0]],
             pre_time=0, post_time=trials['enterEnvTime'].values[-1],
             bin_size=BIN_SIZE, smoothing=SMOOTHING)
@@ -181,7 +274,8 @@ for p, probe in enumerate(spikes.keys()):
         time_ax = peths_task['tscale'] + trials['enterEnvTime'].values[0]
 
         # Detect assemblies
-        assemblies, task_mean, task_std, n_assemblies, act_mask = detect_assemblies_from_task(binned_spikes_task)
+        assemblies, task_mean, task_std, n_assemblies, act_mask = detect_assemblies_from_task(
+            binned_spikes_task)
         
         # Get assembly activation strenght during the task itself
         assembly_activation_task = calculate_assembly_activation(
@@ -189,13 +283,18 @@ for p, probe in enumerate(spikes.keys()):
         
         # Now project the detected assemblies on the rest period 
         peths_rest, binned_spikes_rest = calculate_peths(
-            spikes[probe]['times'], spikes[probe]['clusters'],
+            spikes['times'], spikes['clusters'],
             region_neurons, [trials['exitEnvTime'].values[-1] + 60],
-            pre_time=0, post_time=spikes[probe]['times'][-1] - 1,
+            pre_time=0, post_time=spikes['times'][-1] - 1,
             bin_size=BIN_SIZE, smoothing=SMOOTHING)
         binned_spikes_rest = np.squeeze(binned_spikes_rest)  # (neurons x timebins)
         assembly_activation_rest = calculate_assembly_activation(
             binned_spikes_rest, assemblies, task_mean, task_std, act_mask)    
+        
+        # Determine significance
+        actual_event_counts, surrogate_event_counts, p_values, event_thresholds = test_reactivation_significance(
+            binned_spikes_rest, assemblies, task_mean, task_std, act_mask, n_shuffles=500,
+            percentile_threshold=99)
         
         # Plot assembly activity during task
         for ia in range(n_assemblies):
@@ -221,13 +320,13 @@ for p, probe in enumerate(spikes.keys()):
                              color_palette=[colors['sound1'], colors['sound2']])
             ax3.set(xlabel='Time from reward (s)', title='Object 3')
             
-            plt.suptitle(f'{region}')
+            plt.suptitle(f'{region}; assembly {ia}; p={np.round(p_values[ia], 2)}')
             sns.despine(trim=True)
             plt.tight_layout()            
             plt.savefig(path_dict['google_drive_fig_path'] / 'Assemblies'
                         / f'{region}_{subject}_{date}_{ia}.jpg', dpi=600)
             plt.close(f)
-        
-        
-        
+    
+    
+    
 
