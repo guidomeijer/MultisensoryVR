@@ -13,6 +13,7 @@ from scipy.stats import pearsonr
 import pickle
 from scipy.stats import zscore
 from pathlib import Path
+from scipy.ndimage import gaussian_filter1d
 from msvr_functions import (paths, load_multiple_probes, calculate_peths, load_trials, figure_style,
                             peri_event_trace, load_objects)
 colors, dpi = figure_style()
@@ -149,6 +150,9 @@ session_path = Path(path_dict['local_data_path']) / 'Subjects' / subject / date
 spikes, clusters, channels = load_multiple_probes(session_path)
 trials = load_trials(subject, date)
 obj_df = load_objects(subject, date)
+distance = np.load(session_path / 'continuous.wheelDistance.npy')
+speed = np.load(session_path / 'continuous.wheelSpeed.npy')
+time_s = np.load(session_path / 'continuous.times.npy')
 
 # Generate pseudo reward times for unrewarded objects
 reward_delays = (obj_df.loc[obj_df['rewarded'] == 1, 'reward_times']
@@ -178,7 +182,7 @@ for p, probe in enumerate(spikes.keys()):
             bin_size=BIN_SIZE, smoothing=SMOOTHING)
         binned_spikes_task = np.squeeze(binned_spikes_task)  # (neurons x timebins)
         n_neurons, n_timebins = binned_spikes_task.shape
-        time_ax = peths_task['tscale'] + trials['enterEnvTime'].values[0]
+        binned_time = peths_task['tscale'] + trials['enterEnvTime'].values[0]
 
         # Detect assemblies
         assemblies, task_mean, task_std, n_assemblies, act_mask = detect_assemblies_from_task(binned_spikes_task)
@@ -187,34 +191,32 @@ for p, probe in enumerate(spikes.keys()):
         assembly_activation_task = calculate_assembly_activation(
             binned_spikes_task, assemblies, task_mean, task_std, act_mask)
 
-        # Now project the detected assemblies on the rest period
-        peths_rest, binned_spikes_rest = calculate_peths(
-            spikes[probe]['times'], spikes[probe]['clusters'],
-            region_neurons, [trials['exitEnvTime'].values[-1] + 60],
-            pre_time=0, post_time=spikes[probe]['times'][-1] - 1,
-            bin_size=BIN_SIZE, smoothing=SMOOTHING)
-        binned_spikes_rest = np.squeeze(binned_spikes_rest)  # (neurons x timebins)
-        assembly_activation_rest = calculate_assembly_activation(
-            binned_spikes_rest, assemblies, task_mean, task_std, act_mask)
+        # Get the position of each time bin of the binned spike matrix
+        binned_dist = distance[np.clip(
+            np.searchsorted(time_s, binned_time, side='right') - 1, 0, distance.shape[0] - 1)]
+
+        # Smooth assembly activity
+        strong_smoothed_act = gaussian_filter1d(assembly_activation_task, 2, axis=1)
+        weak_smoothed_act = gaussian_filter1d(assembly_activation_task, 1, axis=1)
 
         # Plot assembly activity during task
         for ia in range(n_assemblies):
             f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(1.75*3, 2.5), dpi=dpi, sharey=True)
-            peri_event_trace(assembly_activation_task[ia, :], time_ax,
+            peri_event_trace(weak_smoothed_act[ia, :], binned_time,
                              obj_df.loc[obj_df['object'] == 1, 'times'].values,
                              1 - obj_df.loc[obj_df['object'] == 1, 'goal'].values, ax=ax1,
                              t_before=T_BEFORE, t_after=T_AFTER, event_labels=['Goal', 'No goal'],
                              color_palette=[colors['goal'], colors['no-goal']])
             ax1.set(ylabel='Assembly activity', xlabel='Time from reward (s)', title='Object 1')
 
-            peri_event_trace(assembly_activation_task[ia, :], time_ax,
+            peri_event_trace(weak_smoothed_act[ia, :], binned_time,
                              obj_df.loc[obj_df['object'] == 2, 'times'].values,
                              1 - obj_df.loc[obj_df['object'] == 2, 'goal'].values, ax=ax2,
                              t_before=T_BEFORE, t_after=T_AFTER, event_labels=['Goal', 'No goal'],
                              color_palette=[colors['goal'], colors['no-goal']])
             ax2.set(xlabel='Time from reward (s)', title='Object 2')
 
-            peri_event_trace(assembly_activation_task[ia, :], time_ax,
+            peri_event_trace(weak_smoothed_act[ia, :], binned_time,
                              obj_df.loc[obj_df['object'] == 3, 'times'].values,
                              obj_df.loc[obj_df['object'] == 3, 'sound'].values, ax=ax3,
                              t_before=T_BEFORE, t_after=T_AFTER, event_labels=['Sound 1', 'Sound 2'],
@@ -224,11 +226,22 @@ for p, probe in enumerate(spikes.keys()):
             plt.suptitle(f'{region}')
             sns.despine(trim=True)
             plt.tight_layout()
+            plt.savefig(path_dict['fig_path'] / 'Assemblies'
+                        / f'{region}_{subject}_{date}_{ia}_time.jpg', dpi=600)
             plt.show()
-            #plt.savefig(path_dict['google_drive_fig_path'] / 'Assemblies'
-            #            / f'{region}_{subject}_{date}_{ia}.jpg', dpi=600)
-            #plt.close(f)
 
 
+            # Plot assembly activity over entire environmnet
+            f, ax1 = plt.subplots(1, 1, figsize=(4, 2), dpi=dpi)
+            peri_event_trace(strong_smoothed_act[ia, :], binned_dist,
+                             trials['enterEnvPos'], trials['soundId'], ax=ax1,
+                             t_before=0, t_after=1500, event_labels=['Sound 1', 'Sound 2'],
+                             color_palette=[colors['sound1'], colors['sound2']])
+            ax1.set(ylabel='Assembly activity', xlabel='Position (mm)', xticks=[0, 500, 1000, 1500])
+            sns.despine(trim=True)
+            plt.tight_layout()
+            plt.savefig(path_dict['fig_path'] / 'Assemblies'
+                        / f'{region}_{subject}_{date}_{ia}_dist.jpg', dpi=600)
+            plt.show()
 
 
