@@ -68,7 +68,9 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
             continue
 
         # Unpack log file
-        data = create_bp_structure(data_file)
+        print('Decoding log file..')
+        data = create_bp_structure(data_file, n_cpus=-1)
+        print('Done')
         
         # Get timestamps in seconds relative to first timestamp
         time_s = (data['startTS'] - data['startTS'][0]) / 1000000
@@ -169,6 +171,9 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
                 # and invert from the last toggle before where it went wrong
                 went_wrong = np.where(np.diff((fixed_trace == 1) & (env_trace == 1)) != 0)[0][0]
                 sound_toggles = np.where(np.diff(fixed_trace) != 0)[0]
+                if went_wrong == sound_toggles[0]:
+                    print('Something weird happened during the fixing..')
+                    break
                 inv_ind = sound_toggles[np.where(went_wrong - sound_toggles > 0)[0][-1]]
                 fixed_trace[inv_ind + 1:] = 1 - fixed_trace[inv_ind + 1:]
                 

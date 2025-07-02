@@ -10,9 +10,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
-from scipy.stats import pearsonr
-import pickle
-from scipy.stats import zscore
+from zetapy import zetatstest
+from scipy.ndimage import gaussian_filter1d
 from pathlib import Path
 from msvr_functions import (paths, load_neural_data, calculate_peths, load_trials, figure_style,
                             peri_event_trace, load_objects)
@@ -244,7 +243,7 @@ obj_df.loc[obj_df['rewarded'] == 0, 'reward_times'] = (
     obj_df.loc[obj_df['rewarded'] == 0, 'times']
     + np.random.choice(reward_delays, size=np.sum(obj_df['rewarded'] == 0)))
 
-
+assembly_df = pd.DataFrame()
 for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
     print(f'\n{subject} {date} {probe} ({i} of {rec.shape[0]})')
     
@@ -271,7 +270,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             bin_size=BIN_SIZE, smoothing=SMOOTHING)
         binned_spikes_task = np.squeeze(binned_spikes_task)  # (neurons x timebins)
         n_neurons, n_timebins = binned_spikes_task.shape
-        time_ax = peths_task['tscale'] + trials['enterEnvTime'].values[0]
+        binned_time = peths_task['tscale'] + trials['enterEnvTime'].values[0]
 
         # Detect assemblies
         assemblies, task_mean, task_std, n_assemblies, act_mask = detect_assemblies_from_task(
@@ -280,7 +279,24 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         # Get assembly activation strenght during the task itself
         assembly_activation_task = calculate_assembly_activation(
             binned_spikes_task, assemblies, task_mean, task_std, act_mask)
+ 
+        # Smooth assembly activity
+        smoothed_act = gaussian_filter1d(assembly_activation_task, 1.25, axis=1)
 
+        # Determine whether assemblies are task-activated
+        p_values = np.empty(n_assemblies)
+        print('Running ZETA tests')
+        for ia in range(n_assemblies):
+            print(f'{ia} of {n_assemblies}..')
+            p_values[ia], _ = zetatstest(binned_time, smoothed_act[ia, :], obj_df['times'] - 1,
+                                         dblUseMaxDur=3)
+        print(f'{np.sum(p_values < 0.05)} significant assemblies')
+        
+        # Add to dataframe
+        assembly_df = pd.concat((assembly_df, pd.DataFrame(data={
+            'p_value': p_values, 'region': region, 'subject': subject, 'date': date})))
+        
+        """
         # Now project the detected assemblies on the rest period
         peths_rest, binned_spikes_rest = calculate_peths(
             spikes['times'], spikes['clusters'],
@@ -289,31 +305,32 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             bin_size=BIN_SIZE, smoothing=SMOOTHING)
         binned_spikes_rest = np.squeeze(binned_spikes_rest)  # (neurons x timebins)
         assembly_activation_rest = calculate_assembly_activation(
-            binned_spikes_rest, assemblies, task_mean, task_std, act_mask)    
+            binned_spikes_rest, assemblies, task_mean, task_std, act_mask)   
         
         # Determine significance
         actual_event_counts, surrogate_event_counts, p_values, event_thresholds = test_reactivation_significance(
             binned_spikes_rest, assemblies, task_mean, task_std, act_mask, n_shuffles=500,
             percentile_threshold=99)
+        """
         
         # Plot assembly activity during task
-        for ia in range(n_assemblies):
+        for ia in np.where(p_values < 0.05)[0]:
             f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(1.75*3, 2.5), dpi=dpi, sharey=True)
-            peri_event_trace(assembly_activation_task[ia, :], time_ax,
+            peri_event_trace(smoothed_act[ia, :], binned_time,
                              obj_df.loc[obj_df['object'] == 1, 'times'].values,
                              1 - obj_df.loc[obj_df['object'] == 1, 'goal'].values, ax=ax1,
                              t_before=T_BEFORE, t_after=T_AFTER, event_labels=['Goal', 'No goal'],
                              color_palette=[colors['goal'], colors['no-goal']])
             ax1.set(ylabel='Assembly activity', xlabel='Time from reward (s)', title='Object 1')
 
-            peri_event_trace(assembly_activation_task[ia, :], time_ax,
+            peri_event_trace(smoothed_act[ia, :], binned_time,
                              obj_df.loc[obj_df['object'] == 2, 'times'].values,
                              1 - obj_df.loc[obj_df['object'] == 2, 'goal'].values, ax=ax2,
                              t_before=T_BEFORE, t_after=T_AFTER, event_labels=['Goal', 'No goal'],
                              color_palette=[colors['goal'], colors['no-goal']])
             ax2.set(xlabel='Time from reward (s)', title='Object 2')
 
-            peri_event_trace(assembly_activation_task[ia, :], time_ax,
+            peri_event_trace(smoothed_act[ia, :], binned_time,
                              obj_df.loc[obj_df['object'] == 3, 'times'].values,
                              obj_df.loc[obj_df['object'] == 3, 'sound'].values, ax=ax3,
                              t_before=T_BEFORE, t_after=T_AFTER, event_labels=['Sound 1', 'Sound 2'],
@@ -324,9 +341,11 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             sns.despine(trim=True)
             plt.tight_layout()            
             plt.savefig(path_dict['google_drive_fig_path'] / 'Assemblies'
-                        / f'{region}_{subject}_{date}_{ia}.jpg', dpi=600)
+                        / f'{region}_{subject}_{date}_{ia}.jpg', dpi=300)
             plt.close(f)
     
+    # Save results
+    assembly_df.to_csv(path_dict['save_path'] / 'assemblies_task.csv')
     
     
 

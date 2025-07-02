@@ -243,10 +243,7 @@ def load_objects(subject, date):
     subjects = load_subjects()
     
     # Load in trials
-    trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', subject, date, 'trials.csv'))
-    
-    # Remove trials where the sound was not correctly detected
-    trials = trials[trials['soundId'] != 0]
+    trials = load_trials(subject, date)
     
     # Get reward contingencies
     sound1_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound1Obj'].values[0]
@@ -254,8 +251,8 @@ def load_objects(subject, date):
     control_obj = subjects.loc[subjects['SubjectID'] == subject, 'ControlObject'].values[0]
 
     # Reorder rewarded objects such that object 1 is the first encountered rewarded object
-    sound1_obj_pos = trials[f'positionObj{sound1_obj}'][0]
-    sound2_obj_pos = trials[f'positionObj{sound2_obj}'][0]
+    sound1_obj_pos = trials[f'positionObj{sound1_obj}'].values[0]
+    sound2_obj_pos = trials[f'positionObj{sound2_obj}'].values[0]
     if sound1_obj_pos < sound2_obj_pos:
         sound1_obj_id = 1
         sound2_obj_id = 2

@@ -11,7 +11,7 @@ import struct
 from cobs import cobs
 from tqdm.notebook import tqdm
 from collections import namedtuple
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, cpu_count
 
 
 def invert_polarity(digital_channel):
@@ -110,7 +110,87 @@ def unpack_data_packet(dp, DataPacketStruct, DataPacket):
     return up
 
 
-def create_bp_structure(bp):
+def create_bp_structure(bp, n_cpus=1):
+    """
+    Reads and decodes a binary log file containing multisensory data packets, and returns a structured dictionary of the extracted data.
+    The function distinguishes between packets with and without digital data, decodes each line using COBS and base64, and unpacks the data into a structured NumPy array. It then extracts analog, digital input/output, timestamps, state variables, and packet numbers into a dictionary for further analysis.
+    Parameters:
+        bp (str): Path to the binary log file to be read and decoded.
+        n_cpus (int, optional): Number of CPUs to use for processing (-1 for all). Default is 1.
+    Returns:
+        dict: A dictionary containing the following keys:
+            - "analog": np.ndarray of analog sensor values.
+            - "digitalIn": np.ndarray of digital input states.
+            - "digitalOut": np.ndarray of digital output states.
+            - "startTS": np.ndarray of packet start timestamps (us_start).
+            - "transmitTS": np.ndarray of packet end/transmit timestamps (us_end).
+            - "longVar": np.ndarray of state variables.
+            - "packetNums": np.ndarray of packet IDs.
+    """
+    
+    if n_cpus == -1:
+        n_cpus = cpu_count()
+    
+    # package with non-digital data
+    dtype_no_digital = [
+        ('type', np.uint8),
+        ('size', np.uint8),
+        ('crc16', np.uint16),
+        ('packetID', np.uint32),
+        ('us_start', np.uint32),
+        ('us_end', np.uint32),
+        ('analog', np.uint16, (8, )),
+        ('states', np.uint32, (8, ))]
+
+    # DigitalIn and DigitalOut
+    dtype_w_digital = dtype_no_digital + [('digital_in', np.uint16, (16, )),
+                                          ('digital_out', np.uint16, (16, ))]
+
+    # Creating arrat with all the data (differenciation digital/non digital)
+    np_DataPacketType_noDigital = np.dtype(dtype_no_digital)
+    np_DataPacketType_withDigital = np.dtype(dtype_w_digital)
+    # Unpack the data as done on the teensy commander code
+
+    # function to count the packet number
+    def count_lines(fp):
+        def _make_gen(reader):
+            b = reader(2**17)
+            while b:
+                yield b
+                b = reader(2**17)
+        with open(fp, 'rb') as f:
+            count = sum(buf.count(b'\n') for buf in _make_gen(f.raw.read))
+        return count
+    
+    num_lines = count_lines(bp)
+    
+    # Decode and create new dataset
+    data = np.zeros(num_lines, dtype=np_DataPacketType_withDigital)
+    non_digital_names = list(np_DataPacketType_noDigital.names)
+
+    with open(bp, 'rb') as bf:
+        for nline, line in enumerate(tqdm(bf, total=num_lines)):
+            bl = cobs.decode(base64.b64decode(line[:-1])[:-1])
+            data[non_digital_names][nline] = np.frombuffer(bl[:-8], dtype=np_DataPacketType_noDigital)
+            digital_arr = np.frombuffer(bl[-8:], dtype=np.uint8)
+            data[nline]['digital_in'] = np.hstack([np.unpackbits(digital_arr[1]), np.unpackbits(digital_arr[0])])
+            data[nline]['digital_out'] = np.hstack([np.unpackbits(digital_arr[3]), np.unpackbits(digital_arr[2])])
+
+    data['digital_in']=np.flip(data['digital_in'], 1)
+    data['digital_out']=np.flip(data['digital_out'], 1)
+    decoded = {
+        "analog":data['analog'],
+        "digitalIn":data['digital_in'],
+        "digitalOut":data['digital_out'],
+        "startTS":data['us_start'],
+        "transmitTS":data['us_end'],
+        "longVar":data['states'],
+        "packetNums":data['packetID']
+        }
+    return decoded
+
+
+def create_bp_structure_16_8(bp):
     '''
     Decode the log file and create a VR channel data structure.
 

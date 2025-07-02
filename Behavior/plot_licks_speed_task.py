@@ -13,7 +13,7 @@ import datetime
 from os.path import join, isfile
 import pandas as pd
 from msvr_functions import (load_subjects, paths, peri_event_trace, figure_style, load_objects,
-                            peri_multiple_events_time_histogram)
+                            peri_multiple_events_time_histogram, load_trials)
 
 # Settings
 T_BEFORE = 2
@@ -71,7 +71,7 @@ for i, subject in enumerate(PLOT_SUBJECTS):
     for j, ses in enumerate(sessions):
 
         # Load in data
-        trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'))
+        trials = load_trials(subject, ses)
         obj_df = load_objects(subject, ses)
         lick_times = np.load(join(data_path, 'Subjects', subject, ses, 'lick.times.npy'))
         if lick_times.shape[0] < 100:
