@@ -33,8 +33,8 @@ grouped = granger_df.groupby(['region1', 'region2', 'object'])
 for (region1, region2, obj), group in grouped:
     pvals = group['p_value'].dropna().values
     if len(pvals) > 0:
-        _, combined_p = stats.combine_pvalues(pvals, method='fisher')
-        #combined_p = stats.binomtest(np.sum(pvals < 0.05), pvals.shape[0], 0.05).pvalue
+        #_, combined_p = stats.combine_pvalues(pvals, method='fisher')
+        combined_p = stats.binomtest(np.sum(pvals < 0.05), pvals.shape[0], 0.05).pvalue
         combined_pval_list.append({
             'region1': region1,
             'region2': region2,
@@ -65,8 +65,8 @@ for obj in ['object1', 'object2', 'object3']:
     
     # Filter your DataFrame
     df = mean_causality[mean_causality['object'] == obj].copy()
-    df = df[df['p_value'] < 0.05]  
-    df = df[df['f_stat'] > 1]  
+    df = df[df['p_value'] < 0.01]  
+    #df = df[df['f_stat'] > 1]  
     
     # Build a directed graph
     G = nx.DiGraph()
@@ -75,8 +75,11 @@ for obj in ['object1', 'object2', 'object3']:
     for _, row in df.iterrows():
         G.add_edge(row['region1'], row['region2'], weight=row['f_stat'])
     
-    # Layout
+    # Add all expected nodes explicitly to ensure isolated ones are included
     node_order = ['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'ENT', 'dCA1', 'vCA1']
+    G.add_nodes_from(node_order)
+    
+    # Layout
     pos = nx.circular_layout(dict(zip(node_order, range(len(node_order)))))
     
     # Draw nodes
@@ -98,13 +101,16 @@ for obj in ['object1', 'object2', 'object3']:
         arrows=True,
         arrowsize=12,
         arrowstyle='-|>',
-        connectionstyle='arc3,rad=0.15'  # helps with bidirectionality
+        connectionstyle='arc3,rad=0.175'  # helps with bidirectionality
     )
     
-    # Optional: Draw edge labels (f_stat values)
-    #edge_labels = {(u, v): f"{d['weight']:.2f}" for u, v, d in edges}
-    #nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8)
+    x_values, y_values = zip(*pos.values())
+    x_margin = 0.2
+    y_margin = 0.2
     
+    plt.xlim(min(x_values) - x_margin, max(x_values) + x_margin)
+    plt.ylim(min(y_values) - y_margin, max(y_values) + y_margin)
+        
     plt.axis('off')
     plt.tight_layout()
     plt.show()

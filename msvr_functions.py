@@ -728,9 +728,10 @@ def bin_signal(timestamps, signal, bin_edges):
     return bin_means
 
 
-def event_aligned_averages(signal, timestamps, events, timebins, return_df=False):
+def event_aligned_averages(signal, timestamps, events, timebins, baseline=None, return_df=False):
     """
     Aligns a 1D signal to events and computes the average for each time bin relative to the events.
+    Optionally normalizes by a baseline period and plots the results.
 
     Parameters:
     -----------
@@ -742,19 +743,25 @@ def event_aligned_averages(signal, timestamps, events, timebins, return_df=False
         1D array of event timestamps.
     timebins : numpy.ndarray
         1D array of time bin edges (in seconds) relative to the events.
+    baseline : numpy.ndarray, optional
+        A two-element array [start, end] defining the time period relative to each event
+        to use for baseline normalization. If None, no baseline normalization is performed.
+        Example: [-2, -1] for 2 seconds to 1 second before the event.
     return_df : boolean
-        Wether to return the result as a dataframe
+        Whether to return the result as a dataframe.
+    plot_averages : boolean
+        Whether to plot the event-aligned averages.
 
     Returns:
     --------
     averages : numpy.ndarray
         2D array of shape (len(events), len(timebins) - 1) containing the average signal
         for each event and time bin.
-        
+
     OR
-    
+
     df_long : DataFrame
-        A long form DataFrame
+        A long form DataFrame if return_df is True.
     """
     num_bins = len(timebins) - 1
     num_events = len(events)
@@ -768,14 +775,27 @@ def event_aligned_averages(signal, timestamps, events, timebins, return_df=False
             bin_mask = (timestamps >= bin_edges[j]) & (timestamps < bin_edges[j + 1])
             averages[i, j] = np.mean(signal[bin_mask]) if np.any(bin_mask) else 0
 
+        # Baseline normalization
+        if baseline is not None:
+            baseline_start, baseline_end = baseline + event
+            baseline_mask = (timestamps >= baseline_start) & (timestamps < baseline_end)
+            if np.any(baseline_mask):
+                baseline_mean = np.mean(signal[baseline_mask])
+                averages[i, :] = averages[i, :] - baseline_mean
+            else:
+                # If no data in baseline period, print a warning or handle as appropriate
+                # For now, we'll just leave the averages for this event un-normalized.
+                print(f"Warning: No signal data found in baseline period for event {i}.")
+
     if return_df:
         time_ax = timebins[:-1] + (np.mean(np.diff(timebins)) / 2)
         df_long = pd.DataFrame({
             'event': np.repeat(np.arange(events.shape[0]), time_ax.shape[0]),
-            'time': np.tile(time_ax, events.shape[0]),  
+            'time': np.tile(time_ax, events.shape[0]),
             'value': averages.flatten()
         })
         return df_long
+    
     else:
         return averages
 

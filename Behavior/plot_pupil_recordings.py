@@ -27,6 +27,7 @@ T_BEFORE = 2
 T_AFTER = 3
 BIN_SIZE = 0.2
 FREQ = [5, 10]
+BASELINE = [-2, -1]
 
 # Get subjects
 subjects = load_subjects()
@@ -45,7 +46,7 @@ time_ax = bin_edges[:-1] + (BIN_SIZE/2)
 # Load in recording sessions
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 
-both_obj_df, obj1_df, obj2_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+obj1_df, obj2_df = pd.DataFrame(), pd.DataFrame()
 for i, subject in enumerate(np.unique(rec['subject'])):
     print(f'Processing subject {subject}..')
     
@@ -54,33 +55,32 @@ for i, subject in enumerate(np.unique(rec['subject'])):
 
     for j, date in enumerate(np.unique(sub_rec['date'])):
            
+        if not (data_path / 'Subjects' / subject / date / 'pupil.csv').is_file():
+            print(f'No pupil data for {subject} {date}')
+            continue
+        
         # Load in data
-        trials = pd.read_csv(join(data_path, 'Subjects', subject, date, 'trials.csv'))
-        timestamps = np.load(join(data_path, 'Subjects', subject, date, 'continuous.times.npy'))
-        raw_sniffing = np.load(join(data_path, 'Subjects', subject, date, 'continuous.breathing.npy'))
+        trials_df = pd.read_csv(data_path / 'Subjects' / subject / date / 'trials.csv')
+        pupil_df = pd.read_csv(data_path / 'Subjects' / subject / date / 'pupil.csv')
+        timestamps = np.load(data_path / 'Subjects' / subject / date / 'camera.times.npy')
         all_obj_df = load_objects(subject, date)
     
-        # Process sniffing trace
-        sniffing_filt = butter_bandpass_filter(raw_sniffing, FREQ[0], FREQ[1], 1000, order=1)
-        analytic_signal = hilbert(sniffing_filt)  # hilbert transform
-        sniffing = np.abs(analytic_signal)  # amplitude envelope
-        ds_sniffing = sniffing[::50]  # downsample
-        smoothed_sniffing = gaussian_filter1d(ds_sniffing, 3, axis=0)
-        timestamps = timestamps[::50]  # downsample
-             
+        # Correct for timestamps difference
+        timestamps = timestamps[:pupil_df.shape[0]]
+    
         # Transform into percentage
-        perc_sniffing = ((smoothed_sniffing - np.percentile(smoothed_sniffing, 0.05))
-                         / np.percentile(smoothed_sniffing, 0.05))
+        perc_pupil = ((pupil_df['width_smooth'] - np.percentile(pupil_df['width_smooth'], 0.05))
+                      / np.percentile(pupil_df['width_smooth'], 0.05)) * 100
         
         # Do it per object
         obj1_goal_df = event_aligned_averages(
-            smoothed_sniffing, timestamps,
+            perc_pupil, timestamps,
             all_obj_df.loc[(all_obj_df['goal'] == 1) & (all_obj_df['object'] == 1), 'times'].values,
-            bin_edges, return_df=True)
+            bin_edges, return_df=True, baseline=BASELINE)
         obj1_no_goal_df = event_aligned_averages(
-            smoothed_sniffing, timestamps,
+            perc_pupil, timestamps,
             all_obj_df.loc[(all_obj_df['goal'] == 0) & (all_obj_df['object'] == 1), 'times'].values,
-            bin_edges, return_df=True)
+            bin_edges, return_df=True, baseline=BASELINE)
         obj1_goal_df['goal'] = 1
         obj1_goal_df['subject'] = subject
         obj1_no_goal_df['goal'] = 0
@@ -88,13 +88,13 @@ for i, subject in enumerate(np.unique(rec['subject'])):
         obj1_df = pd.concat([obj1_df, obj1_goal_df, obj1_no_goal_df], ignore_index=True)
         
         obj2_goal_df = event_aligned_averages(
-            smoothed_sniffing, timestamps,
+            perc_pupil, timestamps,
             all_obj_df.loc[(all_obj_df['goal'] == 1) & (all_obj_df['object'] == 2), 'times'].values,
-            bin_edges, return_df=True)
+            bin_edges, return_df=True, baseline=BASELINE)
         obj2_no_goal_df = event_aligned_averages(
-            smoothed_sniffing, timestamps,
+            perc_pupil, timestamps,
             all_obj_df.loc[(all_obj_df['goal'] == 0) & (all_obj_df['object'] == 2), 'times'].values,
-            bin_edges, return_df=True)
+            bin_edges, return_df=True, baseline=BASELINE)
         obj2_goal_df['goal'] = 1
         obj2_goal_df['subject'] = subject
         obj2_no_goal_df['goal'] = 0
@@ -108,14 +108,14 @@ for (i, subject) in enumerate(np.unique(obj1_df['subject'])):
     sns.lineplot(data=obj1_df[obj1_df['subject'] == subject], x='time', y='value', hue='goal',
                  ax=axs[i], hue_order=[1, 0], palette=[colors['goal'], colors['no-goal']],
                  errorbar='se', err_kws={'lw': 0}, legend=None)
-    axs[i].set(ylabel='Sniffing (a.u.)', xlabel='Time from object entry (s)',
+    axs[i].set(ylabel='Pupil size (%)', xlabel='Time from object entry (s)',
                title=subject, xticks=[-2, -1, 0, 1, 2, 3])
 
 plt.suptitle('First object')
 sns.despine(trim=True)
 plt.tight_layout()
 plt.show()
-plt.savefig(join(path_dict['google_drive_fig_path'], 'sniffing_recordings_obj1.pdf'))
+plt.savefig(join(path_dict['google_drive_fig_path'], 'pupil_recordings_obj1.pdf'))
 
 # %%
 
@@ -124,11 +124,11 @@ for (i, subject) in enumerate(np.unique(obj2_df['subject'])):
     sns.lineplot(data=obj2_df[obj2_df['subject'] == subject], x='time', y='value', hue='goal',
                  ax=axs[i], hue_order=[1, 0], palette=[colors['goal'], colors['no-goal']],
                  errorbar='se', err_kws={'lw': 0}, legend=None)
-    axs[i].set(ylabel='Sniffing (a.u.)', xlabel='Time from object entry (s)',
+    axs[i].set(ylabel='Pupil size (%)', xlabel='Time from object entry (s)',
                title=subject, xticks=[-2, -1, 0, 1, 2, 3])
 
 plt.suptitle('Second object')
 sns.despine(trim=True)
 plt.tight_layout()
 plt.show()
-plt.savefig(join(path_dict['google_drive_fig_path'], 'sniffing_recordings_obj2.pdf'))
+plt.savefig(join(path_dict['google_drive_fig_path'], 'pupil_recordings_obj2.pdf'))

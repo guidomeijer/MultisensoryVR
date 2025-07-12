@@ -17,10 +17,8 @@ colors, dpi = figure_style()
 # Load in data
 path_dict = paths()
 per_obj_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_per_object_reward_times.csv'))
-per_obj_df = per_obj_df[per_obj_df['region'] != 'ENT']
 
 per_obj_dist_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_per_object_distance.csv'))
-per_obj_dist_df = per_obj_dist_df[per_obj_dist_df['region'] != 'ENT']
 
 # %%
 f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(1.75*3, 1.75), dpi=dpi)
@@ -38,8 +36,8 @@ plt.tight_layout()
 
 # %%
 
-f, axs = plt.subplots(1, 7, figsize=(7, 1.75), dpi=dpi, sharey=True)
-for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'dCA1', 'vCA1']):
+f, axs = plt.subplots(1, 8, figsize=(8, 1.75), dpi=dpi, sharey=True)
+for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'ENT', 'dCA1', 'vCA1']):
     axs[i].plot([-2, 2], [0.5, 0.5], ls='--', color='grey')
     axs[i].plot([0,0], [0.4, 0.8], ls='--', color='grey')
     sns.lineplot(per_obj_df[(per_obj_df['object'] == 1) & (per_obj_df['region'] == region)],
@@ -59,8 +57,8 @@ plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_context_obj1.pdf'
 
 # %%
 
-f, axs = plt.subplots(1, 7, figsize=(7, 1.75), dpi=dpi, sharey=True)
-for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'dCA1', 'vCA1']):
+f, axs = plt.subplots(1, 8, figsize=(8, 1.75), dpi=dpi, sharey=True)
+for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'ENT', 'dCA1', 'vCA1']):
     axs[i].plot([-2, 2], [0.5, 0.5], ls='--', color='grey')
     axs[i].plot([0,0], [0.4, 0.8], ls='--', color='grey')
     sns.lineplot(per_obj_df[(per_obj_df['object'] == 2) & (per_obj_df['region'] == region)],
@@ -80,8 +78,8 @@ plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_context_obj2.pdf'
 
 # %%
 
-f, axs = plt.subplots(1, 7, figsize=(7, 1.75), dpi=dpi, sharey=True)
-for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'dCA1', 'vCA1']):
+f, axs = plt.subplots(1, 8, figsize=(8, 1.75), dpi=dpi, sharey=True)
+for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'ENT', 'dCA1', 'vCA1']):
     axs[i].plot([-2, 2], [0.5, 0.5], ls='--', color='grey')
     axs[i].plot([0,0], [0.4, 0.8], ls='--', color='grey')
     sns.lineplot(per_obj_df[(per_obj_df['object'] == 3) & (per_obj_df['region'] == region)],
