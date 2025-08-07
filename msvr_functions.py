@@ -352,10 +352,10 @@ def figure_style(font_size=7):
         'AUD': sns.color_palette('Set3')[6],
         'HPC': sns.color_palette('Set3')[4],
         'CA1': sns.color_palette('Set3')[4],
-        'vCA1': sns.color_palette('Set3')[4],
+        'iCA1': sns.color_palette('Set3')[4],
         'dCA1': sns.color_palette('Dark2')[4],
         'TBD': sns.color_palette('tab10')[9],
-        'ENT': sns.color_palette('Dark2')[7],
+        'LEC': sns.color_palette('Dark2')[7],
         'TBD': sns.color_palette('Dark2')[0],
         'TBD': sns.color_palette('Accent')[0],
         'TBD': sns.color_palette('Accent')[1],
@@ -502,11 +502,11 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
         clusters['z'] = channels['z'][clusters['channels']]
         clusters['acronym'] = channels['acronym'][clusters['channels']]
         clusters['region'] = combine_regions(clusters['acronym'], abbreviate=True, brainregions=BrainRegions())
-        clusters['region'][(clusters['region'] == 'CA1') & (clusters['z'] < -2000)] = 'vCA1'
+        clusters['region'][(clusters['region'] == 'CA1') & (clusters['z'] < -2000)] = 'iCA1'
         clusters['region'][(clusters['region'] == 'CA1') & (clusters['z'] > -2000)] = 'dCA1'
         clusters['full_region'] = combine_regions(clusters['acronym'], abbreviate=False, 
                                                   brainregions=BrainRegions())
-        clusters['full_region'][(clusters['full_region'] == 'CA1') & (clusters['z'] < -2000)] = 'ventral CA1'
+        clusters['full_region'][(clusters['full_region'] == 'CA1') & (clusters['z'] < -2000)] = 'intermediate CA1'
         clusters['full_region'][(clusters['full_region'] == 'CA1') & (clusters['z'] > -2000)] = 'dorsal CA1'
         
     # Exclude neurons that are not labelled good or with firing rates which are too low
@@ -667,7 +667,7 @@ def combine_regions(allen_acronyms, split_peri=True, abbreviate=True, brainregio
         else:
             regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'PERI'
             regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'PERI'
-        regions[np.in1d(acronyms, br.descendants(br.acronym2id('ENT'))['acronym'])] = 'ENT'
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('ENT'))['acronym'])] = 'LEC'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('VIS'))['acronym'])] = 'VIS'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('AUD'))['acronym'])] = 'AUD'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('TEa'))['acronym'])] = 'TEa'
@@ -679,7 +679,7 @@ def combine_regions(allen_acronyms, split_peri=True, abbreviate=True, brainregio
         else:
             regions[np.in1d(acronyms, br.descendants(br.acronym2id('ECT'))['acronym'])] = 'Perirhinal cortex'
             regions[np.in1d(acronyms, br.descendants(br.acronym2id('PERI'))['acronym'])] = 'Perirhinal cortex'
-        regions[np.in1d(acronyms, br.descendants(br.acronym2id('ENT'))['acronym'])] = 'Enthorhinal cortex'
+        regions[np.in1d(acronyms, br.descendants(br.acronym2id('ENT'))['acronym'])] = 'Lateral enthorhinal cortex'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('VIS'))['acronym'])] = 'Visual cortex'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('AUD'))['acronym'])] = 'Auditory cortex'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('TEa'))['acronym'])] = 'Temporal association area'
