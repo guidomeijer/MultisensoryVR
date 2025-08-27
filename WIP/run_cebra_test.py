@@ -36,7 +36,7 @@ cebra_pos_model = cebra.CEBRA(model_architecture='offset10-model',
                               max_iterations=500,
                               distance='cosine',
                               conditional='time_delta',
-                              device='cpu',
+                              device='cuda',
                               verbose=True,
                               time_offsets=10)
 pos_decoder = cebra.KNNDecoder(n_neighbors=36, metric='cosine')
