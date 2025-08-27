@@ -198,7 +198,7 @@ for i, subject in enumerate(PLOT_SUBJECTS):
         axs[j].plot([0, 0], [0, np.ceil(np.max(max_y))], color='grey', ls='--', lw=0.75, zorder=0)
         axs[j].set(ylim=[0, np.max(max_y)], yticks=[0, np.ceil(np.max(max_y))])
 
-    f.suptitle(f'{subject}')
+    f.suptitle(f'{subject}, object 1')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
     if int(np.ceil(len(sessions)/4)) > 1:
@@ -243,7 +243,7 @@ for i, subject in enumerate(PLOT_SUBJECTS):
         axs[j].plot([0, 0], [0, np.ceil(np.max(max_y))], color='grey', ls='--', lw=0.75, zorder=0)
         axs[j].set(ylim=[0, np.max(max_y)], yticks=[0, np.ceil(np.max(max_y))])
 
-    f.suptitle(f'{subject}')
+    f.suptitle(f'{subject}, object 2')
     f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
     sns.despine(trim=True)
     if int(np.ceil(len(sessions)/4)) > 1:

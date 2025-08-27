@@ -13,7 +13,6 @@ from scipy.signal import butter, filtfilt
 import tkinter as tk
 import matplotlib
 import matplotlib.pyplot as plt
-from brainbox import singlecell
 from scipy.signal import convolve
 from scipy.signal.windows import gaussian
 from scipy.stats import pearsonr
@@ -21,9 +20,8 @@ import json, shutil, datetime
 from glob import glob
 from os.path import join, realpath, dirname, isfile, split, isdir
 from pathlib import Path
-from iblutil.numerical import ismember
 from iblatlas.atlas import BrainRegions
-
+from iblutil.numerical import ismember
 
 def paths(sync=False, full_sync=False, force_sync=False):
     """
@@ -410,7 +408,7 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
         A dictionary containing data per cluster (i.e. neuron)
     channels : dict
         A dictionary containing data per channel 
-    """
+    """    
     
     # Load in spiking data
     spikes = dict()
@@ -590,8 +588,8 @@ def remap(acronyms, source='Allen', dest='Beryl', brainregions=None):
         - The `ismember` function is used to find indices of the acronyms in the source mapping.
         - Ensure that the `BrainRegions` class and its methods (`acronym2id`, `get`, etc.) 
           are properly implemented and accessible.
-    """
-
+    """    
+    
     br = brainregions or BrainRegions()
     _, inds = ismember(br.acronym2id(acronyms), br.id[br.mappings[source]])
     remapped_acronyms = br.get(br.id[br.mappings[dest][inds]])['acronym']
@@ -617,6 +615,7 @@ def get_full_region_name(acronyms, brainregions=None):
         IndexError: If an acronym is not found in the `BrainRegions` object, it is handled
         by appending the acronym itself to the output list.
     """
+    
     br = brainregions or BrainRegions()
     full_region_names = []
     for i, acronym in enumerate(acronyms):
@@ -656,7 +655,7 @@ def combine_regions(allen_acronyms, split_peri=True, abbreviate=True, brainregio
         An array of remapped brain region names corresponding to the input 
         acronyms.
     """
-
+    
     br = brainregions or BrainRegions()
     acronyms = remap(allen_acronyms)  # remap to Beryl
     regions = np.array(['root'] * len(acronyms), dtype=object)
@@ -1067,7 +1066,8 @@ def peri_multiple_events_time_histogram(
     -------
         ax : matplotlib axes
             Axes with all of the plots requested.
-    """
+    """    
+    from brainbox import singlecell
 
     # Check to make sure if we fail, we fail in an informative way
     if not len(spike_times) == len(spike_clusters):
