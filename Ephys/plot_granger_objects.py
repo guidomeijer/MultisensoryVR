@@ -114,4 +114,4 @@ for obj in ['object1', 'object2', 'object3']:
     plt.axis('off')
     plt.tight_layout()
     plt.show()
-    plt.savefig(join(path_dict['google_drive_fig_path'], f'granger_causality_{obj}.pdf'))
+    plt.savefig(join(path_dict['google_drive_fig_path'], f'granger_causality_{obj}.jpg'), dpi=600)

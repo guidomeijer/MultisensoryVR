@@ -93,5 +93,5 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         add_mesh(fig, mesh_path, color, opacity=0.5)
 
 
-rendering.rotating_video(join(path_dict['google_drive_fig_path'], 'rotation_brain_insertions.avi'), fig, fps=30, secs=12)
+#rendering.rotating_video(join(path_dict['google_drive_fig_path'], 'rotation_brain_insertions.avi'), fig, fps=30, secs=12)
 

@@ -321,9 +321,11 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
                                      & (reward_times < obj3_exit[i]))
 
             # Which position was the object in
-            obj1_position[i] = np.argsort([obj1_enter[i], obj2_enter[i], obj3_enter[i]])[0] + 1
-            obj2_position[i] = np.argsort([obj1_enter[i], obj2_enter[i], obj3_enter[i]])[1] + 1
-            obj3_position[i] = np.argsort([obj1_enter[i], obj2_enter[i], obj3_enter[i]])[2] + 1
+            object_entry = {'obj1': obj1_enter, 'obj2': obj2_enter, 'obj3': obj3_enter}
+            sorted_objects = sorted(object_entry.items(), key=lambda item: item[1])
+            positions = {}
+            for i, (obj, _) in enumerate(sorted_objects):
+                positions[f"{obj}_position"] = i + 1
 
             # Timestamp of appearance of object in first position
             these_obj1_appear = all_obj1_appear[(all_obj1_appear > ts)
@@ -419,7 +421,9 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
             'enterObj1Pos': obj1_enter_pos, 'enterObj2Pos': obj2_enter_pos, 'enterObj3Pos': obj3_enter_pos,
             'exitObj1Time': obj1_exit, 'exitObj2Time': obj2_exit, 'exitObj3Time': obj3_exit,
             'rewardsObj1': obj1_rewards, 'rewardsObj2': obj2_rewards, 'rewardsObj3': obj3_rewards,
-            'positionObj1': obj1_position, 'positionObj2': obj2_position, 'positionObj3': obj3_position
+            'positionObj1': positions['obj1_position'],
+            'positionObj2': positions['obj2_position'],
+            'positionObj3': positions['obj3_position']
         })
         trials.to_csv(join(root, 'trials.csv'), index=False)
 

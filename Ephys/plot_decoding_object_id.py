@@ -16,7 +16,7 @@ colors, dpi = figure_style()
 
 # Load in data
 path_dict = paths()
-decode_df = pd.read_csv(join(path_dict['save_path'], 'decode_object.csv'))
+decode_df = pd.read_csv(join(path_dict['save_path'], 'decode_object_svm.csv'))
 
 
 # %%
@@ -39,5 +39,5 @@ f.text(0.5, 0.04, 'Time from object entry (s)', ha='center', va='center')
 #sns.despine(trim=True)
 plt.subplots_adjust(left=0.05, bottom=0.2, right=0.99, top=0.85)
 
-plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_object.pdf'))
+plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_object.jpg'), dpi=600)
 

@@ -29,6 +29,6 @@ ax1.set(ylabel='', xlabel='Position decoding error (cm)')
 #ax1.tick_params(axis='x', labelrotation=90)
 sns.despine(trim=True)
 plt.tight_layout()
-plt.savefig(path_dict['fig_path'] / 'position_decoding_error.jpg', dpi=600)
+plt.savefig(path_dict['google_drive_fig_path'] / 'position_decoding_error.jpg', dpi=600)
 
 

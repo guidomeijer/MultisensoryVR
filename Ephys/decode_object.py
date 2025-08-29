@@ -38,7 +38,8 @@ rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
 
 #clf = RandomForestClassifier(random_state=42, n_estimators=50, max_depth=4, min_samples_leaf=5)
-clf = LogisticRegression(solver='liblinear', random_state=42)
+#clf = LogisticRegression(solver='liblinear', random_state=42)
+clf = SVC(random_state=42, probability=True)
 
 # Function for parallelization
 def decode_object(bin_center, spikes, all_obj_df):
@@ -91,7 +92,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             'region': region, 'subject': subject, 'date': date, 'probe': probe})))
          
     # Save to disk
-    decode_df.to_csv(join(path_dict['save_path'], 'decode_object.csv'), index=False)
+    decode_df.to_csv(join(path_dict['save_path'], 'decode_object_svm.csv'), index=False)
             
             
           

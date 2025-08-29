@@ -248,9 +248,18 @@ def load_objects(subject, date):
     sound2_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound2Obj'].values[0]
     control_obj = subjects.loc[subjects['SubjectID'] == subject, 'ControlObject'].values[0]
 
+    # Which position was the object in (there was a bug in extraction so recalculate it here)
+    object_entry = {'obj1': trials['enterObj1Time'][1],
+                    'obj2': trials['enterObj2Time'][1],
+                    'obj3': trials['enterObj3Time'][1]}
+    sorted_objects = sorted(object_entry.items(), key=lambda item: item[1])
+    positions = {}
+    for i, (obj, _) in enumerate(sorted_objects):
+        positions[f"{obj}_position"] = i + 1
+
     # Reorder rewarded objects such that object 1 is the first encountered rewarded object
-    sound1_obj_pos = trials[f'positionObj{sound1_obj}'].values[0]
-    sound2_obj_pos = trials[f'positionObj{sound2_obj}'].values[0]
+    sound1_obj_pos = positions[f'obj{sound1_obj}_position']
+    sound2_obj_pos = positions[f'obj{sound2_obj}_position']
     if sound1_obj_pos < sound2_obj_pos:
         sound1_obj_id = 1
         sound2_obj_id = 2
