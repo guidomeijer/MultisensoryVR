@@ -12,7 +12,9 @@ from itertools import combinations
 from statsmodels.tsa.api import VAR
 from scipy import stats
 from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
+from sklearn.model_selection import LeaveOneOut, cross_val_predict
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
 from sklearn.utils import shuffle as sklearn_shuffle
 from joblib import Parallel, delayed
 from msvr_functions import (paths, load_multiple_probes, load_subjects, load_objects,
@@ -25,13 +27,12 @@ BIN_SIZE = 0.05
 SMOOTHING = 0.1
 MIN_NEURONS = 10
 MIN_TRIALS = 30
-N_CORES = -1
+N_CORES = 18
 MAX_LAG = 0.5  # s
-N_SHUFFLES = 200
+N_SHUFFLES = 500
 
 # Initialize
-#clf = LogisticRegression(solver='sag', max_iter=500)
-clf = SVC(random_state=42, probability=True)
+clf = make_pipeline(StandardScaler(), LogisticRegression(solver='lbfgs', max_iter=500))
 path_dict = paths(sync=False)
 subjects = load_subjects()
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
@@ -40,64 +41,90 @@ neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv')
 
 
 # Functions for parallelization
-def decode_object(X, y, clf, shuffle=False):
+def decode_object(X, y, clf):
+    """
+    Decodes object identity per timebin using efficient leave-one-out cross-validation.
     
-    decoding_probs = np.empty((X.shape[0], X.shape[2]))  # shape: (n_trials, time)
+    Args:
+        X (np.array): Data of shape (n_trials, n_neurons, n_timebins)
+        y (np.array): Labels of shape (n_trials,)
+        clf: Scikit-learn classifier instance.
+        
+    Returns:
+        np.array: Decoding probabilities of shape (n_trials, n_timebins)
+    """
+    decoding_probs = np.empty((X.shape[0], X.shape[2]))
+    loo = LeaveOneOut()
     
-    # Decode context per timebin
+    # Get unique classes to correctly index probabilities
+    classes = np.unique(y)
+
     for tb in range(X.shape[2]):
+        X_t = X[:, :, tb] # shape: (n_trials, n_neurons)
         
-        X_t = X[:, :, tb]  # shape: (n_trials, n_neurons)
-        if shuffle:
-            y = sklearn_shuffle(y)        
-
-        for tr in range(X.shape[0]):  # loop over trials
+        # Get probabilities for all classes using cross-validation
+        all_probs = cross_val_predict(clf, X_t, y, cv=loo, method='predict_proba', n_jobs=N_CORES)
         
-            # Leave-one-out
-            X_train = np.delete(X_t, tr, axis=0)
-            y_train = np.delete(y, tr)
-            X_test = X_t[tr].reshape(1, -1)
-            y_test = y[tr]
-
-            # Train logistic regression 
-            clf.fit(X_train, y_train)
-
-            # Predict probability for the correct class
-            prob = clf.predict_proba(X_test)[0, y_test]
-            decoding_probs[tr, tb] = prob                    
-    
+        # Select the probability corresponding to the *true* label for each trial
+        true_class_indices = np.searchsorted(classes, y)
+        decoding_probs[:, tb] = all_probs[np.arange(len(y)), true_class_indices]
+        
     return decoding_probs
 
 
 def granger_causality(trial_data):
-                
-    # Region 1 to region 2
+    """
+    Calculates Granger causality between two time series in a NumPy array.
+    Assumes column 0 is the first region and column 1 is the second.
+    """
     model = VAR(trial_data)
     res = model.fit(maxlags=int(MAX_LAG / BIN_SIZE))
-    f_test = res.test_causality('region1', 'region2', kind='f')
+    
+    # Test causality from Region 1 -> Region 2
+    # This tests if the lagged values of column 0 help predict column 1.
+    # caused = 1 (region2), causing = 0 (region1)
+    f_test = res.test_causality(caused=1, causing=[0], kind='f')
     f_12 = f_test.test_statistic
     
-    # Region 2 to region 1
-    f_test = res.test_causality('region2', 'region1', kind='f')
+    # Test causality from Region 2 -> Region 1
+    # This tests if the lagged values of column 1 help predict column 0.
+    # caused = 0 (region1), causing = 1 (region2)
+    f_test = res.test_causality(caused=0, causing=[1], kind='f')
     f_21 = f_test.test_statistic
 
-    return f_12, f_21
+    return f_12, f_21 
 
 
-def granger_shuffled(i_shuf, prob_shuf, trial, region1, region2):
-    trial_data = pd.DataFrame({'region1': prob_shuf[region1][trial, :, i_shuf],
-                               'region2': prob_shuf[region2][trial, :, i_shuf]})  
-    # Region 1 to region 2
-    model = VAR(trial_data)
-    res = model.fit(maxlags=int(MAX_LAG / BIN_SIZE))
-    f_test = res.test_causality('region1', 'region2', kind='f')
-    f_12 = f_test.test_statistic
+def process_trial_granger(trial_idx, prob_dict, r1, r2, n_shuffles):
+    """
+    Performs Granger causality analysis for a single trial.
+    """
+    # Get the time series data for this trial
+    real_ts_r1 = prob_dict[r1][trial_idx]
+    real_ts_r2 = prob_dict[r2][trial_idx]
+
+    # Handle potential non-finite values from the decoding step
+    if not np.all(np.isfinite(real_ts_r1)) or not np.all(np.isfinite(real_ts_r2)):
+        return np.nan, np.nan, np.nan, np.nan
+
+    # Calculate real Granger causality
+    trial_data = np.vstack([real_ts_r1, real_ts_r2]).T
+    f_12, f_21 = granger_causality(trial_data)
+
+    # Generate null distribution by shuffling
+    reg1_reg2_shuf = np.empty(n_shuffles)
+    reg2_reg1_shuf = np.empty(n_shuffles)
+    for i in range(n_shuffles):
+        shuffled_ts_r1 = sklearn_shuffle(real_ts_r1)
+        shuffled_ts_r2 = sklearn_shuffle(real_ts_r2)
+        shuffled_trial_data = np.vstack([shuffled_ts_r1, shuffled_ts_r2]).T
+        reg1_reg2_shuf[i], reg2_reg1_shuf[i] = granger_causality(shuffled_trial_data)
+
+    # Calculate p-values from the null distribution
+    p_12 = (np.sum(reg1_reg2_shuf >= f_12) + 1) / (n_shuffles + 1)
+    p_21 = (np.sum(reg2_reg1_shuf >= f_21) + 1) / (n_shuffles + 1)
     
-    # Region 2 to region 1
-    f_test = res.test_causality('region2', 'region1', kind='f')
-    f_21 = f_test.test_statistic
-    
-    return f_12, f_21    
+    return f_12, f_21, p_12, p_21
 
 
 # %% Loop over recordings
@@ -157,45 +184,36 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         X = np.concatenate([obj1, obj2, obj3], axis=0)  # shape: (trials, neurons, time)
         y = np.concatenate([np.zeros(obj1.shape[0]), np.ones(obj2.shape[0]), np.ones(obj3.shape[0]) + 1]).astype(int)
         prob[region] = decode_object(X, y, clf)
-        
-        # Do the decoding while shuffling the context ids, use parallel processing for shuffling
-        results = Parallel(n_jobs=N_CORES)(delayed(decode_object)(X, y, clf, shuffle=True)
-                                           for t in range(N_SHUFFLES))
-        prob_shuf[region] = np.dstack(results) # shape: (trials, time, shuffles)
-        
-     
-        
+              
     # Do Granger causality for all region pairs
-    print('Run Granger causality..')
     for region1, region2 in combinations(prob.keys(), 2):
-        
-        # Do Granger causality per trial
+        print(f'Running Granger causality for {region1} → {region2}')
         n_trials = prob[region1].shape[0]
-        reg1_reg2, reg2_reg1 = np.empty(n_trials), np.empty(n_trials)
-        reg1_reg2_p, reg2_reg1_p = np.empty(n_trials), np.empty(n_trials) 
-        for trial in range(n_trials):
+    
+        # Use joblib to parallelize the loop over trials
+        # This will run 'process_trial_granger' for each trial on a different core
+        results = Parallel(n_jobs=N_CORES)(delayed(process_trial_granger)(
+            trial, prob, region1, region2, N_SHUFFLES) for trial in range(n_trials))
+    
+        # Unpack the list of tuples returned by Parallel into separate lists/tuples
+        reg1_reg2, reg2_reg1, reg1_reg2_p, reg2_reg1_p = zip(*results)
+    
+        # Convert the results back to numpy arrays for the subsequent analysis
+        reg1_reg2 = np.array(reg1_reg2)
+        reg2_reg1 = np.array(reg2_reg1)
+        reg1_reg2_p = np.array(reg1_reg2_p)
+        reg2_reg1_p = np.array(reg2_reg1_p)
+        
+        # Handle any NaN trials that may have occurred
+        # For example, if you need to perform the binomial test on valid trials only:
+        valid_trials = ~np.isnan(reg1_reg2_p)
+        p_reg1_reg2 = stats.binomtest(np.sum(reg1_reg2_p[valid_trials] < 0.05), 
+                                      np.sum(valid_trials), 0.05).pvalue
+                                      
+        valid_trials = ~np.isnan(reg2_reg1_p)
+        p_reg2_reg1 = stats.binomtest(np.sum(reg2_reg1_p[valid_trials] < 0.05), 
+                                      np.sum(valid_trials), 0.05).pvalue
             
-            # Granger causality
-            trial_data = pd.DataFrame({'region1': prob[region1][trial],
-                                       'region2': prob[region2][trial]})  
-            reg1_reg2[trial], reg2_reg1[trial] = granger_causality(trial_data)
-        
-            # Shuffles
-            results = Parallel(n_jobs=N_CORES)(delayed(granger_shuffled)(
-                i_shuf, prob_shuf, trial, region1, region2) for i_shuf in range(N_SHUFFLES))
-            reg1_reg2_shuf = np.array([i[0] for i in results])
-            reg2_reg1_shuf = np.array([i[1] for i in results])
-  
-            # Get p-value
-            z = (reg1_reg2[trial] - np.mean(reg1_reg2_shuf)) / np.std(reg1_reg2_shuf)
-            reg1_reg2_p[trial] = 2 * (1 - stats.norm.cdf(abs(z)))
-            z = (reg2_reg1[trial] - np.mean(reg2_reg1_shuf)) / np.std(reg2_reg1_shuf)
-            reg2_reg1_p[trial] = 2 * (1 - stats.norm.cdf(abs(z)))
-        
-        # Get p-value over trials by doing a binomial test
-        p_reg1_reg2 = stats.binomtest(np.sum(reg1_reg2_p < 0.05), n_trials, 0.05).pvalue
-        p_reg2_reg1 = stats.binomtest(np.sum(reg2_reg1_p < 0.05), n_trials, 0.05).pvalue
-        
         # Add to dataframe
         granger_df = pd.concat((granger_df, pd.DataFrame(data={
             'region_pair': [f'{region1} → {region2}', f'{region2} → {region1}'],

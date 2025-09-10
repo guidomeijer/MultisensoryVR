@@ -38,7 +38,9 @@ colors, dpi = figure_style()
 path_dict = paths(sync=False)
 subjects = load_subjects()
 rec_df = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
-neuron_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
+
+# Load in data
+neuron_df = pd.read_csv(path_dict['save_path'] / 'significant_neurons.csv')
 neuron_df['subject'] = neuron_df['subject'].astype(str)
 neuron_df['date'] = neuron_df['date'].astype(str)
 neuron_df = neuron_df[neuron_df['region'] != 'root']

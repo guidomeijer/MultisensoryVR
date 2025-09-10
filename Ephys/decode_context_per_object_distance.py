@@ -8,13 +8,10 @@ import numpy as np
 np.random.seed(42)
 from os.path import join
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
 from sklearn.model_selection import KFold
-from sklearn.utils import shuffle
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
 from brainbox.population.decode import get_spike_counts_in_bins, classify
 from joblib import Parallel, delayed
 from msvr_functions import paths, load_neural_data, load_subjects, load_objects
@@ -36,8 +33,7 @@ path_dict = paths(sync=False)
 subjects = load_subjects()
 kfold_cv = KFold(n_splits=10, shuffle=False)
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
-
-clf = RandomForestClassifier(random_state=42, n_estimators=50, max_depth=4, min_samples_leaf=5)
+clf = make_pipeline(StandardScaler(), LogisticRegression(solver='lbfgs', max_iter=500))
 
 # Function for parallelization
 def decode_context(bin_center, spikes, region_neurons, all_obj_df):

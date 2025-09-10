@@ -8,12 +8,10 @@ import numpy as np
 np.random.seed(42)
 from os.path import join
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
 from sklearn.model_selection import KFold
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
 from sklearn.utils import shuffle
 from brainbox.population.decode import get_spike_counts_in_bins, classify
 from joblib import Parallel, delayed
@@ -36,13 +34,10 @@ subjects = load_subjects()
 kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
-
-#clf = RandomForestClassifier(random_state=42, n_estimators=50, max_depth=4, min_samples_leaf=5)
-#clf = LogisticRegression(solver='liblinear', random_state=42)
-clf = SVC(random_state=42, probability=True)
+clf = make_pipeline(StandardScaler(), LogisticRegression(solver='lbfgs', max_iter=500))
 
 # Function for parallelization
-def decode_object(bin_center, spikes, all_obj_df):
+def decode_object(bin_center, spikes, all_obj_df, clf):
     
     # Get spike counts per trial for all neurons during this time bin
     these_intervals = np.vstack((all_obj_df['times'] + (bin_center - (BIN_SIZE/2)),
@@ -84,7 +79,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         
         # Do decoding with with parallel processing
         results = Parallel(n_jobs=-1)(
-            delayed(decode_object)(bin_center, spikes, all_obj_df) for bin_center in t_centers)
+            delayed(decode_object)(bin_center, spikes, all_obj_df, clf) for bin_center in t_centers)
         
         # Add to dataframe
         decode_df = pd.concat((decode_df, pd.DataFrame(data={
@@ -92,7 +87,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             'region': region, 'subject': subject, 'date': date, 'probe': probe})))
          
     # Save to disk
-    decode_df.to_csv(join(path_dict['save_path'], 'decode_object_svm.csv'), index=False)
+    decode_df.to_csv(join(path_dict['save_path'], 'decode_object_id.csv'), index=False)
             
             
           

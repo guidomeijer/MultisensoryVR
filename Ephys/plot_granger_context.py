@@ -18,7 +18,7 @@ colors, dpi = figure_style()
 
 # Load in data
 path_dict = paths()
-granger_df = pd.read_csv(join(path_dict['save_path'], 'granger_causality_objects.csv'))
+granger_df = pd.read_csv(join(path_dict['save_path'], 'granger_causality_context.csv'))
 
 session_avg = granger_df.groupby(['region1', 'region2', 'object', 'date'])['f_stat'].mean().reset_index()
 mean_causality = session_avg.groupby(['region1', 'region2', 'object'])['f_stat'].mean().reset_index()
@@ -33,8 +33,8 @@ grouped = granger_df.groupby(['region1', 'region2', 'object'])
 for (region1, region2, obj), group in grouped:
     pvals = group['p_value'].dropna().values
     if len(pvals) > 0:
-        #_, combined_p = stats.combine_pvalues(pvals, method='fisher')
-        combined_p = stats.binomtest(np.sum(pvals < 0.05), pvals.shape[0], 0.05).pvalue
+        _, combined_p = stats.combine_pvalues(pvals, method='fisher')
+        #combined_p = stats.binomtest(np.sum(pvals < 0.05), pvals.shape[0], 0.05).pvalue
         combined_pval_list.append({
             'region1': region1,
             'region2': region2,
@@ -65,7 +65,7 @@ for obj in ['object1', 'object2', 'object3']:
     
     # Filter your DataFrame
     df = mean_causality[mean_causality['object'] == obj].copy()
-    df = df[df['p_value'] < 0.01]  
+    df = df[df['p_value'] < 0.05]  
     #df = df[df['f_stat'] > 1]  
     
     # Build a directed graph
@@ -76,7 +76,7 @@ for obj in ['object1', 'object2', 'object3']:
         G.add_edge(row['region1'], row['region2'], weight=row['f_stat'])
     
     # Add all expected nodes explicitly to ensure isolated ones are included
-    node_order = ['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'ENT', 'dCA1', 'vCA1']
+    node_order = ['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'dCA1', 'iCA1']
     G.add_nodes_from(node_order)
     
     # Layout

@@ -320,13 +320,6 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
             obj3_rewards[i] = np.sum((reward_times >= obj3_enter[i]-0.1)
                                      & (reward_times < obj3_exit[i]))
 
-            # Which position was the object in
-            object_entry = {'obj1': obj1_enter, 'obj2': obj2_enter, 'obj3': obj3_enter}
-            sorted_objects = sorted(object_entry.items(), key=lambda item: item[1])
-            positions = {}
-            for i, (obj, _) in enumerate(sorted_objects):
-                positions[f"{obj}_position"] = i + 1
-
             # Timestamp of appearance of object in first position
             these_obj1_appear = all_obj1_appear[(all_obj1_appear > ts)
                                                 & (all_obj1_appear < env_start[i+1])]
@@ -353,6 +346,13 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
 
             # End of environment
             env_end[i] = all_env_end[(all_env_end > ts) & (all_env_end < env_start[i+1])][0]
+        
+        # Which position was the object in
+        object_entry = {'obj1': obj1_enter[1], 'obj2': obj2_enter[1], 'obj3': obj3_enter[1]}
+        sorted_objects = sorted(object_entry.items(), key=lambda item: item[1])
+        positions = {}
+        for i, (obj, _) in enumerate(sorted_objects):
+            positions[f"{obj}_position"] = i + 1
         
         # Get camera timestamps
         camera_times = time_s[compute_onsets(data['digitalIn'][:, 11])]
