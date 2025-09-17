@@ -51,8 +51,8 @@ plt.figure(figsize=(3, 3), dpi=300)
 
 # Filter your DataFrame
 df = mean_causality.copy()
-#df = df[df['p_value'] < 0.000001]  
-df = df[df['f_stat'] > 1.22]  
+df = df[df['p_value'] < 0.05]  
+#df = df[df['f_stat'] > 1.22]  
 
 # Build a directed graph
 G = nx.DiGraph()

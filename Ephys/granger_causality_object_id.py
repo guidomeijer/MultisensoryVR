@@ -97,30 +97,37 @@ def granger_causality(trial_data):
 
 def process_trial_granger(trial_idx, prob_dict, r1, r2, n_shuffles):
     """
-    Performs Granger causality analysis for a single trial.
+    Performs Granger causality using a time-shifting surrogate method.
     """
-    # Get the time series data for this trial
+    # ... (Get real_ts_r1, real_ts_r2, check for NaNs, etc.) ...
     real_ts_r1 = prob_dict[r1][trial_idx]
     real_ts_r2 = prob_dict[r2][trial_idx]
+    n_timepoints = len(real_ts_r1)
 
-    # Handle potential non-finite values from the decoding step
     if not np.all(np.isfinite(real_ts_r1)) or not np.all(np.isfinite(real_ts_r2)):
         return np.nan, np.nan, np.nan, np.nan
+        
+    # 1. Calculate REAL Granger causality
+    real_trial_data = np.vstack([real_ts_r1, real_ts_r2]).T
+    f_12, f_21 = granger_causality(real_trial_data)
 
-    # Calculate real Granger causality
-    trial_data = np.vstack([real_ts_r1, real_ts_r2]).T
-    f_12, f_21 = granger_causality(trial_data)
-
-    # Generate null distribution by shuffling
+    # 2. Generate NULL distribution by circularly shifting one time series
     reg1_reg2_shuf = np.empty(n_shuffles)
     reg2_reg1_shuf = np.empty(n_shuffles)
-    for i in range(n_shuffles):
-        shuffled_ts_r1 = sklearn_shuffle(real_ts_r1)
-        shuffled_ts_r2 = sklearn_shuffle(real_ts_r2)
-        shuffled_trial_data = np.vstack([shuffled_ts_r1, shuffled_ts_r2]).T
-        reg1_reg2_shuf[i], reg2_reg1_shuf[i] = granger_causality(shuffled_trial_data)
 
-    # Calculate p-values from the null distribution
+    for i in range(n_shuffles):
+        # Generate a random shift. It must not be 0.
+        # Ensure shift is > max_lag to break short-term relationships.
+        shift = np.random.randint(MAX_LAG + 1, n_timepoints - (MAX_LAG + 1))
+        
+        # Shift the SECOND time series
+        shifted_ts_r2 = np.roll(real_ts_r2, shift)
+        
+        # Now create the surrogate pair using the original r1 and the shifted r2
+        surrogate_data = np.vstack([real_ts_r1, shifted_ts_r2]).T
+        reg1_reg2_shuf[i], reg2_reg1_shuf[i] = granger_causality(surrogate_data)
+
+    # 3. Calculate p-values
     p_12 = (np.sum(reg1_reg2_shuf >= f_12) + 1) / (n_shuffles + 1)
     p_21 = (np.sum(reg2_reg1_shuf >= f_21) + 1) / (n_shuffles + 1)
     
@@ -219,7 +226,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             'region_pair': [f'{region1} → {region2}', f'{region2} → {region1}'],
             'region1': [region1, region2], 'region2': [region2, region1],
             'p_value': [p_reg1_reg2, p_reg2_reg1],
-            'f_stat': [np.median(reg1_reg2), np.median(reg2_reg1)],
+            'f_stat': [np.mean(reg1_reg2), np.mean(reg2_reg1)],
             'subject': subject, 'date': date})))
         
     # Save to disk

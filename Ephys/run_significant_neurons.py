@@ -125,7 +125,6 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         for i, neuron_id in enumerate(clusters['cluster_id']))
     obj_p = np.array([result[0] for result in results])
     
-
     results = Parallel(n_jobs=N_CORES)(
         delayed(run_zetatest)(neuron_id, all_obj_df['times'], t_before=2, t_after=0, do_jitter=True)
         for i, neuron_id in enumerate(clusters['cluster_id']))
@@ -135,10 +134,22 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     results = Parallel(n_jobs=N_CORES)(
         delayed(run_zetatest2)(neuron_id, sound1_onsets, sound2_onsets, t_before=0, t_after=2)
         for i, neuron_id in enumerate(clusters['cluster_id']))
-    sound_onset_p = np.array([result[0] for result in results])
+    sound_diff_p = np.array([result[0] for result in results])
      
     results = Parallel(n_jobs=N_CORES)(
         delayed(run_zetatest2)(neuron_id, sound1_onsets, sound2_onsets, t_before=0, t_after=2, do_shuffle=True)
+        for i, neuron_id in enumerate(clusters['cluster_id']))
+    sound_diff_p_shuf = np.array([result[0] for result in results])
+    
+    # Get neurons which significantly respond to sound onset
+    print('Calculating significant object responses')
+    results = Parallel(n_jobs=N_CORES)(
+        delayed(run_zetatest)(neuron_id, trials['soundOnsetTime'].values, t_before=0, t_after=2)
+        for i, neuron_id in enumerate(clusters['cluster_id']))
+    sound_onset_p = np.array([result[0] for result in results])
+    
+    results = Parallel(n_jobs=N_CORES)(
+        delayed(run_zetatest)(neuron_id, trials['soundOnsetTime'].values, t_before=0, t_after=2, do_jitter=True)
         for i, neuron_id in enumerate(clusters['cluster_id']))
     sound_onset_p_shuf = np.array([result[0] for result in results])
         
@@ -151,7 +162,8 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         'p_context_obj2': goal2_p, 'p_context_obj2_shuf': goal2_p_shuf,
         'p_obj_onset': obj_p, 'p_obj_onset_shuf': obj_p_shuf,
         'p_reward': reward_p, 'p_reward_onset_shuf': reward_p_shuf, 
-        'p_sound_onset': sound_onset_p,  'p_sound_onset_shuf': sound_onset_p_shuf
+        'p_sound_onset': sound_onset_p,  'p_sound_onset_shuf': sound_onset_p_shuf,
+        'p_sound_diff': sound_diff_p,  'p_sound_diff_shuf': sound_diff_p_shuf
         })))
     
     # Save to disk

@@ -13,6 +13,7 @@ from msvr_functions import paths, figure_style
 colors, dpi = figure_style()
 path_dict = paths()
 
+"""
 waveform_df = pd.read_csv(path_dict['save_path'] / 'waveform_metrics.csv')
 waveform_df['spike_width'] = waveform_df['peak_to_valley'] * 1000
 waveform_df['neuron_type'] = 'Und.'
@@ -22,6 +23,18 @@ waveform_df.to_csv(path_dict['save_path'] / 'waveform_metrics.csv', index=False)
 waveform_df = waveform_df[waveform_df['good'] == 1]
 waveform_df['recovery_slope'] = waveform_df['recovery_slope'] / 1000
 waveform_df['repolarization_slope'] = waveform_df['repolarization_slope'] / 1000
+"""
+
+
+waveform_df = pd.read_csv(path_dict['save_path'] / 'waveform_metrics_calc.csv')
+waveform_df['neuron_type'] = 'Und.'
+waveform_df.loc[waveform_df['spike_width'] < 0.45, 'neuron_type'] = 'INT'
+waveform_df.loc[waveform_df['spike_width'] > 0.45, 'neuron_type'] = 'PYR'
+waveform_df.to_csv(path_dict['save_path'] / 'waveform_metrics.csv', index=False)
+waveform_df = waveform_df[waveform_df['good'] == 1]
+waveform_df['peak_trough_ratio'] = waveform_df['pt_ratio']
+waveform_df['recovery_slope'] = waveform_df['rc_slope']
+waveform_df['repolarization_slope'] = waveform_df['rp_slope']
 
 
 # %% Plot spike with per region
@@ -33,7 +46,7 @@ for i, region in enumerate(regions):
     if region == 'root':
         continue
     sns.histplot(data=waveform_df[waveform_df['region'] == region], x='spike_width', ax=axs[i],
-                 binwidth=0.02)
+                 binwidth=0.032)
     axs[i].set(title=region, xlim=[0, 1.5], ylabel='', xlabel='')
 f.suptitle('Spike width (ms)')
 sns.despine(trim=True)

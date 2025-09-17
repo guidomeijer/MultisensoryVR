@@ -95,64 +95,44 @@ def granger_causality(trial_data):
     return f_12, f_21   
 
 
-def process_trial_granger(trial_idx, prob_dict, r1, r2, n_pseudo, all_time_series):
+def process_trial_granger(trial_idx, prob_dict, r1, r2, n_shuffles):
     """
-    Performs Granger causality for a single trial using a trial-swapping
-    surrogate method for the null distribution.
-
-    Args:
-        trial_idx (int): The index of the trial to analyze.
-        prob_dict (dict): Dictionary with region names as keys and (n_trials, n_time) 
-                          numpy arrays as values.
-        r1 (str): Key for the first region.
-        r2 (str): Key for the second region.
-        n_shuffles (int): The number of surrogate pairs to generate.
-        all_time_series (list): A list of all time series arrays from the entire dataset.
-    
-    Returns:
-        tuple: (f_12, f_21, p_12, p_21)
+    Performs Granger causality using a time-shifting surrogate method.
     """
-    # Get the real time series data for this specific trial
+    # ... (Get real_ts_r1, real_ts_r2, check for NaNs, etc.) ...
     real_ts_r1 = prob_dict[r1][trial_idx]
     real_ts_r2 = prob_dict[r2][trial_idx]
+    n_timepoints = len(real_ts_r1)
 
-    # Handle potential non-finite values from the decoding step
     if not np.all(np.isfinite(real_ts_r1)) or not np.all(np.isfinite(real_ts_r2)):
         return np.nan, np.nan, np.nan, np.nan
-
-    # 1. Calculate the REAL Granger causality for the actual pair
+        
+    # 1. Calculate REAL Granger causality
     real_trial_data = np.vstack([real_ts_r1, real_ts_r2]).T
     f_12, f_21 = granger_causality(real_trial_data)
 
-    # 2. Generate NULL distribution by creating surrogate pairs
-    # For each direction, we replace the SOURCE time series with a random one
-    # from the entire dataset, keeping the TARGET time series intact.
-    
-    # Null for r1 -> r2 (replace r1, keep r2)
-    reg1_reg2_shuf = np.empty(n_pseudo)
-    for i in range(n_pseudo):
-        surrogate_ts_r1 = random.choice(all_time_series)
-        while all(surrogate_ts_r1 == real_ts_r2):
-            surrogate_ts_r1 = random.choice(all_time_series)
-        surrogate_data = np.vstack([surrogate_ts_r1, real_ts_r2]).T
-        # We only care about the F-value for the r1 -> r2 direction
-        reg1_reg2_shuf[i], _ = granger_causality(surrogate_data)
+    # 2. Generate NULL distribution by circularly shifting one time series
+    reg1_reg2_shuf = np.empty(n_shuffles)
+    reg2_reg1_shuf = np.empty(n_shuffles)
 
-    # Null for r2 -> r1 (replace r2, keep r1)
-    reg2_reg1_shuf = np.empty(n_pseudo)
-    for i in range(n_pseudo):
-        surrogate_ts_r2 = random.choice(all_time_series)
-        while all(surrogate_ts_r2 == real_ts_r1):
-            surrogate_ts_r2 = random.choice(all_time_series)
-        surrogate_data = np.vstack([real_ts_r1, surrogate_ts_r2]).T
-        # We only care about the F-value for the r2 -> r1 direction
-        _, reg2_reg1_shuf[i] = granger_causality(surrogate_data)
+    for i in range(n_shuffles):
+        # Generate a random shift. It must not be 0.
+        # Ensure shift is > max_lag to break short-term relationships.
+        shift = np.random.randint(MAX_LAG + 1, n_timepoints - (MAX_LAG + 1))
+        
+        # Shift the SECOND time series
+        shifted_ts_r2 = np.roll(real_ts_r2, shift)
+        
+        # Now create the surrogate pair using the original r1 and the shifted r2
+        surrogate_data = np.vstack([real_ts_r1, shifted_ts_r2]).T
+        reg1_reg2_shuf[i], reg2_reg1_shuf[i] = granger_causality(surrogate_data)
 
-    # 3. Calculate p-values from the null distributions
-    p_12 = (np.sum(reg1_reg2_shuf >= f_12) + 1) / (n_pseudo + 1)
-    p_21 = (np.sum(reg2_reg1_shuf >= f_21) + 1) / (n_pseudo + 1)
+    # 3. Calculate p-values
+    p_12 = (np.sum(reg1_reg2_shuf >= f_12) + 1) / (n_shuffles + 1)
+    p_21 = (np.sum(reg2_reg1_shuf >= f_21) + 1) / (n_shuffles + 1)
     
     return f_12, f_21, p_12, p_21
+
 
 # %% Loop over recordings
 granger_df = pd.DataFrame()
@@ -218,9 +198,8 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             
             # Use joblib to parallelize the loop over trials
             # This will run 'process_trial_granger' for each trial on a different core
-            all_time_series = [ts for region_data in prob[f'object{this_obj}'].values() for ts in region_data]
             results = Parallel(n_jobs=N_CORES)(delayed(process_trial_granger)(
-                trial, prob[f'object{this_obj}'], region1, region2, N_PSEUDO, all_time_series) for trial in range(n_trials))
+                trial, prob[f'object{this_obj}'], region1, region2, N_PSEUDO) for trial in range(n_trials))
         
             # Unpack the list of tuples returned by Parallel into separate lists/tuples
             reg1_reg2, reg2_reg1, reg1_reg2_p, reg2_reg1_p = zip(*results)
@@ -247,7 +226,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                 'region1': [region1, region2], 'region2': [region2, region1],
                 'object': f'object{this_obj}',
                 'p_value': [p_reg1_reg2, p_reg2_reg1],
-                'f_stat': [np.median(reg1_reg2), np.median(reg2_reg1)],
+                'f_stat': [np.mean(reg1_reg2), np.mean(reg2_reg1)],
                 'subject': subject, 'date': date})))
         
     # Save to disk

@@ -12,8 +12,8 @@ Wheel B                 3
 Object 1 (house)        4
 Object 2 (bridge)       5
 Object 3 (desert)       6
-Object 4 (playground)   7
-Object 5 (nothing)      8
+No sound 1              7
+No sound 2              8
 Sound 1 (rain)          9
 Sound 2 (birds)         10
 Camera                  11
@@ -146,7 +146,7 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         # Very rarely the audio trace is inverted in the middle of the session
         last_trial = np.where(np.diff(data['digitalIn'][:, 12]) != 0)[0][-1]  
         env_trace = data['digitalIn'][:last_trial, 12].copy()
-        for jj in [9, 10]:  
+        for jj in [7, 8, 9, 10]:  
             
             # Get traces
             fixed_trace = data['digitalIn'][:last_trial, jj].copy()
@@ -213,6 +213,8 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         
         all_sound1_onsets = time_s[compute_onsets(data['digitalIn'][:, 9])]
         all_sound2_onsets = time_s[compute_onsets(data['digitalIn'][:, 10])]
+        all_nosound1_onsets = time_s[compute_onsets(data['digitalIn'][:, 7])]
+        all_nosound2_onsets = time_s[compute_onsets(data['digitalIn'][:, 8])]
         
         all_obj1_appear = time_s[compute_onsets(data['digitalIn'][:, 13])]
         all_obj2_appear = time_s[compute_onsets(data['digitalIn'][:, 14])]
@@ -259,15 +261,10 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         
         sound_onset = np.empty(env_start.shape[0]-1)
         sound_id = np.zeros(env_start.shape[0]-1).astype(int)
+        sound_on = np.zeros(env_start.shape[0]-1).astype(int)
 
         # Loop over trials and get events per trial
         for i, ts in enumerate(env_start[:-1]):
-
-            # Surprise event
-            these_surprise = all_surprise[(all_surprise > ts)
-                                          & (all_surprise < env_start[i+1])]
-            if len(these_surprise) > 0:
-                surprise_time[i] = these_surprise[0]
                         
             # Object enter and exit events
             these_obj1_enter = all_obj1_enter[(all_obj1_enter > ts)
@@ -337,12 +334,24 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
             # Sound on and offsets
             if all_sound1_onsets[(all_sound1_onsets > ts) & (all_sound1_onsets < env_start[i+1])].shape[0] > 0:
                 sound_id[i] = 1
+                sound_on[i] = 1
                 sound_onset[i] = all_sound1_onsets[(all_sound1_onsets > ts) & (
                     all_sound1_onsets < env_start[i+1])][0]
             elif all_sound2_onsets[(all_sound2_onsets > ts) & (all_sound2_onsets < env_start[i+1])].shape[0] > 0:
                 sound_id[i] = 2
+                sound_on[i] = 1
                 sound_onset[i] = all_sound2_onsets[(all_sound2_onsets > ts) & (
                     all_sound2_onsets < env_start[i+1])][0]
+            elif all_nosound1_onsets[(all_nosound1_onsets > ts) & (all_nosound1_onsets < env_start[i+1])].shape[0] > 0:
+                sound_id[i] = 1
+                sound_on[i] = 0
+                sound_onset[i] = all_nosound1_onsets[(all_nosound1_onsets > ts) & (
+                    all_nosound1_onsets < env_start[i+1])][0]
+            elif all_nosound2_onsets[(all_nosound2_onsets > ts) & (all_nosound2_onsets < env_start[i+1])].shape[0] > 0:
+                sound_id[i] = 2
+                sound_on[i] = 0
+                sound_onset[i] = all_nosound2_onsets[(all_nosound2_onsets > ts) & (
+                    all_nosound2_onsets < env_start[i+1])][0]
 
             # End of environment
             env_end[i] = all_env_end[(all_env_end > ts) & (all_env_end < env_start[i+1])][0]
@@ -415,7 +424,8 @@ for root, directory, files in chain.from_iterable(os.walk(path) for path in sear
         trials = pd.DataFrame(data={
             'enterEnvTime': env_start[:-1], 'exitEnvTime': env_end,
             'enterEnvPos': env_start_pos, 'exitEnvPos': env_end_pos,
-            'soundOnsetTime': sound_onset, 'soundOnsetPos': sound_onset_pos, 'soundId': sound_id,
+            'soundOnsetTime': sound_onset, 'soundOnsetPos': sound_onset_pos,
+            'soundId': sound_id, 'soundOn': sound_on,
             'appearObj1Time': obj1_appear,
             'enterObj1Time': obj1_enter, 'enterObj2Time': obj2_enter, 'enterObj3Time': obj3_enter,
             'enterObj1Pos': obj1_enter_pos, 'enterObj2Pos': obj2_enter_pos, 'enterObj3Pos': obj3_enter_pos,

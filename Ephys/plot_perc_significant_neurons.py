@@ -12,9 +12,6 @@ import matplotlib.pyplot as plt
 from msvr_functions import paths, figure_style
 colors, dpi = figure_style()
 
-# Settings
-NEURON_TYPE = 'RS'  # all, NS or RS
-
 # Load in data
 path_dict = paths()
 neuron_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
@@ -32,10 +29,6 @@ print(f'{len(np.unique(session_df["subject"]))} mice')
 print(f'{len(np.unique(session_df["date"]))} recording sessions')
 print(f'{session_df.shape[0]} probe insertions')
 print(f'{stats_df.shape[0]} neurons ({int(session_df["count"].mean())} +- {int(session_df["count"].sem())}, mean +- sem per probe)')
-
-# Select neurons
-if NEURON_TYPE != 'all':
-    stats_df = stats_df[stats_df['neuron_type'] == NEURON_TYPE]
 
 # Do some processing
 stats_df['sig_context_obj1'] = stats_df['p_context_obj1'] < 0.05
@@ -122,7 +115,7 @@ sns.despine(trim=False)
 plt.tight_layout()
 plt.show(block=False)
 
-plt.savefig(join(path_dict['google_drive_fig_path'], f'perc_sig_neurons_{NEURON_TYPE}.jpg'), dpi=600)
+plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons.jpg'), dpi=600)
 
 
 # %%
@@ -176,7 +169,7 @@ ax.set_xticklabels(['Object 1', 'Object 2', 'Outcome'], rotation=0)
 ax.set_yticklabels(['Object 2 ', 'Outcome', 'Objects'], rotation=0)
 plt.tight_layout()
 
-plt.savefig(join(path_dict['google_drive_fig_path'], f'perc_sig_neurons_overlap_{NEURON_TYPE}.jpg'), dpi=600)
+plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_overlap.jpg'), dpi=600)
 
 
 """
