@@ -27,15 +27,27 @@ waveform_df['repolarization_slope'] = waveform_df['repolarization_slope'] / 1000
 
 
 waveform_df = pd.read_csv(path_dict['save_path'] / 'waveform_metrics_calc.csv')
-waveform_df['neuron_type'] = 'Und.'
-waveform_df.loc[waveform_df['spike_width'] < 0.45, 'neuron_type'] = 'INT'
-waveform_df.loc[waveform_df['spike_width'] > 0.45, 'neuron_type'] = 'PYR'
+waveform_df.loc[waveform_df['spike_width'] >= 0.4, 'neuron_type'] = 'PYR'
+waveform_df.loc[waveform_df['spike_width'] < 0.4, 'neuron_type'] = 'INT'
+waveform_df.loc[(waveform_df['region'] == 'PERI 36') & (waveform_df['spike_width'] < 0.55),
+                'neuron_type'] = 'INT'
+waveform_df.loc[(waveform_df['region'] == 'PERI 36') & (waveform_df['spike_width'] >= 0.55),
+                'neuron_type'] = 'PYR'
+waveform_df.loc[(waveform_df['region'] == 'PERI 35') & (waveform_df['spike_width'] < 0.55),
+                'neuron_type'] = 'INT'
+waveform_df.loc[(waveform_df['region'] == 'PERI 35') & (waveform_df['spike_width'] >= 0.55),
+                'neuron_type'] = 'PYR'
 waveform_df.to_csv(path_dict['save_path'] / 'waveform_metrics.csv', index=False)
 waveform_df = waveform_df[waveform_df['good'] == 1]
 waveform_df['peak_trough_ratio'] = waveform_df['pt_ratio']
 waveform_df['recovery_slope'] = waveform_df['rc_slope']
 waveform_df['repolarization_slope'] = waveform_df['rp_slope']
 
+# Print the percentages
+for region in np.unique(waveform_df['region']):
+    region_n = waveform_df[waveform_df['region'] == region].groupby('neuron_type').size()
+    print(f'{region}: {np.round((region_n["INT"] / region_n["PYR"]) * 100)}% NS neurons'
+          f' out of total {region_n["INT"] + region_n["PYR"]}')
 
 # %% Plot spike with per region
 regions = np.unique(waveform_df['region'])

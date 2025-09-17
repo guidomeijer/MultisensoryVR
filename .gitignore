@@ -7,3 +7,5 @@ paths.json
 
 .env
 .spyproject/config/
+
+.vscode/
