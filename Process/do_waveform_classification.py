@@ -58,8 +58,8 @@ for i, region in enumerate(regions):
     if region == 'root':
         continue
     sns.histplot(data=waveform_df[waveform_df['region'] == region], x='spike_width', ax=axs[i],
-                 binwidth=0.032)
-    axs[i].set(title=region, xlim=[0, 1.5], ylabel='', xlabel='')
+                 binwidth=0.034)
+    axs[i].set(title=region, xlim=[0, 1.5], xticks=np.arange(0, 1.6, 0.25), ylabel='', xlabel='')
 f.suptitle('Spike width (ms)')
 sns.despine(trim=True)
 plt.tight_layout()
@@ -74,7 +74,7 @@ for i, region in enumerate(regions):
         continue
     sns.histplot(data=waveform_df[waveform_df['region'] == region], x='peak_trough_ratio', ax=axs[i],
                  binwidth=0.02)
-    axs[i].set(title=region, xlim=[-1, 0], ylabel='', xlabel='')
+    axs[i].set(title=region, xlim=[0, 1], ylabel='', xlabel='')
 f.suptitle('Peak-to-trough ratio')
 sns.despine(trim=True)
 plt.tight_layout()
@@ -120,7 +120,7 @@ for i, region in enumerate(regions):
     sns.scatterplot(data=waveform_df[waveform_df['region'] == region],
                     x='spike_width', y='peak_trough_ratio',            
                     ax=axs[i])
-    axs[i].set(title=region, xlim=[0, 1.5], ylim=[-1, 0], ylabel='', xlabel='')
+    axs[i].set(title=region, xlim=[0, 1.5], ylim=[0, 1], ylabel='', xlabel='')
 f.text(0.5, 0.04, 'Spike width (ms)', ha='center')
 f.text(0.04, 0.5, 'Peak-to-trough ratio', va='center', rotation='vertical')
 sns.despine(trim=True)

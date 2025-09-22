@@ -126,9 +126,9 @@ def paths(sync=False, full_sync=False, force_sync=False):
                     # Synchronize neural data 
                     if isdir(join(local_path, 'probe00')):
                         local_probe_files = [f for f in os.listdir(join(local_path, 'probe00'))
-                                             if isfile(join(local_path, f))]
+                                             if isfile(join(local_path, 'probe00', f))]
                         server_probe_files = [f for f in os.listdir(join(server_path, 'probe00'))
-                                              if isfile(join(server_path, f))]   
+                                              if isfile(join(server_path, 'probe00', f))]   
                         if len(local_probe_files) > len(server_probe_files):
                             print(f'{subject} {session} | Copying probe00 files to server {server_path}')
                             for f, file in enumerate(local_probe_files):
@@ -143,9 +143,9 @@ def paths(sync=False, full_sync=False, force_sync=False):
                                                     join(local_path, 'probe00', file))
                     if isdir(join(local_path, 'probe01')):
                         local_probe_files = [f for f in os.listdir(join(local_path, 'probe01'))
-                                             if isfile(join(local_path, f))]
+                                             if isfile(join(local_path, 'probe01', f))]
                         server_probe_files = [f for f in os.listdir(join(server_path, 'probe01'))
-                                              if isfile(join(server_path, f))]   
+                                              if isfile(join(server_path, 'probe01', f))]   
                         if len(local_probe_files) > len(server_probe_files):
                             print(f'{subject} {session} | Copying probe01 files to server {server_path}')
                             for f, file in enumerate(local_probe_files):
