@@ -24,8 +24,8 @@ from collections import defaultdict
 
 # Change path to your local directory containing the probe file
 #SES_PATH = Path(r'V:\imaging1\guido\Subjects\466395\20241114')
-SES_PATH = Path(r'V:\imaging1\guido\Subjects\466396\20241101')  
-#SES_PATH = Path(r'V:\imaging1\guido\Subjects\466396\20241031')  # good
+#SES_PATH = Path(r'V:\imaging1\guido\Subjects\466396\20241101')   # good
+SES_PATH = Path(r'V:\imaging1\guido\Subjects\466396\20241031')  # good
 #SES_PATH = Path(r'V:\imaging1\guido\Subjects\462910\20240813')  # good
 
 
@@ -369,7 +369,7 @@ def run_scroller():
     
     traces = get_traces(rec, start_s, win_s)
     filtered_traces = band_pass_filter(traces, SF, lowcut, highcut, order)
-    filtered_traces = filtered_traces / 4
+    filtered_traces = filtered_traces / 5
     traces_df = map_coords(filtered_traces, coords)
     prongs = split_prongs(traces_df)
     sorted_prongs = [sort_prong(p) for p in prongs]
