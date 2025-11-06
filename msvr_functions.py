@@ -277,20 +277,23 @@ def load_objects(subject, date):
                                      'goal': (trials['soundId'] == 1).astype(int),
                                      'rewarded': trials[f'rewardsObj{sound1_obj}'],
                                      'object_appearance': obj_mapping[sound1_obj],
-                                     'trial_nr': trials.index.values})
+                                     'trial_nr': trials.index.values,
+                                     'exit_times': trials[f'exitObj{sound1_obj}Time']})
     rew_obj2_df = pd.DataFrame(data={'times': trials[f'enterObj{sound2_obj}Time'],
                                      'distances': trials[f'enterObj{sound2_obj}Pos'],
                                      'object': sound2_obj_id, 'sound': trials['soundId'],
                                      'goal': (trials['soundId'] == 2).astype(int),
                                      'rewarded': trials[f'rewardsObj{sound2_obj}'],
                                      'object_appearance': obj_mapping[sound2_obj],
-                                     'trial_nr': trials.index.values})
+                                     'trial_nr': trials.index.values,
+                                     'exit_times': trials[f'exitObj{sound2_obj}Time']})
     control_obj_df = pd.DataFrame(data={'times': trials[f'enterObj{control_obj}Time'],
                                         'distances': trials[f'enterObj{control_obj}Pos'],
                                         'object': 3, 'sound': trials['soundId'],
                                         'goal': 0, 'rewarded': trials[f'rewardsObj{control_obj}'],
                                         'object_appearance': obj_mapping[control_obj],
-                                        'trial_nr': trials.index.values})
+                                        'trial_nr': trials.index.values,
+                                        'exit_times': trials[f'exitObj{control_obj}Time']})
     
     # Add reward times per object
     reward_times = np.load(join(path_dict['local_data_path'], 'Subjects', subject, date, 'reward.times.npy'))
@@ -734,6 +737,40 @@ def bin_signal(timestamps, signal, bin_edges):
     bin_means = np.divide(bin_sums, np.bincount(bin_indices), out=np.zeros_like(bin_sums),
                           where=np.bincount(bin_indices)!=0)
     return bin_means
+
+
+def add_significance(x, p_values, ax, y_pos='auto', alpha=0.05):
+    """
+    Adds significance markers to a plot based on p-values.
+    This function identifies regions of significance in the provided p-values
+    and adds horizontal lines above the plot to indicate these regions.
+    Parameters:
+        x (array-like): The x-coordinates corresponding to the p-values.
+        p_values (array-like): The p-values to evaluate for significance.
+        ax (matplotlib.axes.Axes): The matplotlib Axes object to which the significance
+            markers will be added.
+        alpha (float, optional): The significance threshold. Default is 0.05.
+    Notes:
+        - The function assumes that `p_values` is a 1D array-like object.
+        - Horizontal lines are drawn above the plot to indicate regions where
+          p-values are below the significance threshold (`alpha`).
+        - The y-coordinate for the lines is determined based on the current
+          y-axis limits of the provided Axes object.
+    """
+
+    p_sig = p_values < alpha
+    start_end = np.where(np.concatenate(([0], np.diff(p_sig).astype(int))))[0]
+    if p_sig[0] == True:
+        start_end = np.concatenate(([0], start_end))
+    if p_sig[-1] == True:
+        start_end = np.concatenate((start_end, [p_sig.shape[0]-1]))
+    if y_pos == 'auto':
+        y = ax.get_ylim()[1]
+    else:
+        y = y_pos
+    for (i, ind) in zip(np.arange(start_end.shape[0])[::2], start_end[::2]):
+        ax.plot([x[ind], x[start_end[i+1]]], [y + (y*0.05), y + (y*0.05)], color='k', lw=1.5,
+                clip_on=False)
 
 
 def event_aligned_averages(signal, timestamps, events, timebins, baseline=None, return_df=False):

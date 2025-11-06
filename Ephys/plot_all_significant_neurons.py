@@ -80,10 +80,11 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
     these_neurons = neuron_df[(neuron_df['subject'] == subject)
                               & (neuron_df['date'] == date)
                               & (neuron_df['probe'] == probe)
-                              & (neuron_df['sig_obj_onset'] | neuron_df['sig_context_obj1'] | neuron_df['sig_context_obj2'])]
+                              & ((neuron_df['p_obj_onset'] < 0.05)
+                                 | (neuron_df['p_context_obj1'] < 0.05)
+                                 | (neuron_df['p_context_obj2'] < 0.05))]
     
     for i, neuron_id in enumerate(these_neurons['neuron_id']):
-        print(f'Plotting neuron {i} of {these_neurons.shape[0]}')
       
         # Get region
         region = clusters['region'][clusters['cluster_id'] == neuron_id][0]
@@ -96,6 +97,7 @@ for i, (subject, date, probe) in enumerate(zip(rec_df['subject'], rec_df['date']
         # %% 
         if not isfile(join(path_dict['fig_path'], 'ExampleNeurons', f'{region}',
                        f'{subject}_{date}_{probe}_neuron{neuron_id}_time.jpg')):
+            print(f'Plotting neuron {i} of {these_neurons.shape[0]}')
             
             # First get y limits of both plots
             try:

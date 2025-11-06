@@ -14,17 +14,15 @@ colors, dpi = figure_style()
 
 # Load in data
 path_dict = paths()
-neuron_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
-neuron_df['subject'] = neuron_df['subject'].astype(str)
-neuron_df['date'] = neuron_df['date'].astype(str)
-neuron_df.loc[neuron_df['region'] == 'vCA1', 'region'] = 'iCA1'
+stats_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
+stats_df['subject'] = stats_df['subject'].astype(str)
+stats_df['date'] = stats_df['date'].astype(str)
 
-waveform_df = pd.read_csv(path_dict['save_path'] / 'waveform_metrics.csv')
-waveform_df['subject'] = waveform_df['subject'].astype(str)
-waveform_df['date'] = waveform_df['date'].astype(str)
-stats_df = pd.merge(neuron_df, waveform_df, on=['subject', 'date', 'probe', 'region', 'neuron_id'])
-
+# Take out iCA1 for now
+stats_df.loc[stats_df['region'] == 'dCA1', 'region'] = 'CA1'
+stats_df = stats_df[stats_df['region'] != 'iCA1']
 session_df = stats_df[['subject', 'date', 'probe']].value_counts().reset_index()
+
 print(f'{len(np.unique(session_df["subject"]))} mice')
 print(f'{len(np.unique(session_df["date"]))} recording sessions')
 print(f'{session_df.shape[0]} probe insertions')
@@ -34,6 +32,7 @@ print(f'{stats_df.shape[0]} neurons ({int(session_df["count"].mean())} +- {int(s
 stats_df['sig_context_obj1'] = stats_df['p_context_obj1'] < 0.05
 stats_df['sig_context_obj2'] = stats_df['p_context_obj2'] < 0.05
 stats_df['sig_context_onset'] = stats_df['p_sound_onset'] < 0.05
+stats_df['sig_context_diff'] = stats_df['p_sound_diff'] < 0.05
 stats_df['sig_reward'] = stats_df['p_reward'] < 0.05
 stats_df['sig_obj_onset'] = stats_df['p_obj_onset'] < 0.05
 stats_df = stats_df[stats_df['region'] != 'root']
@@ -52,6 +51,7 @@ per_ses_df['n_neurons'] = stats_df.groupby(['region', 'ses_id']).size()
 per_ses_df['perc_context_obj1'] = (per_ses_df['sig_context_obj1'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_context_obj2'] = (per_ses_df['sig_context_obj2'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_context_onset'] = (per_ses_df['sig_context_onset'] / per_ses_df['n_neurons']) * 100
+per_ses_df['perc_context_diff'] = (per_ses_df['sig_context_diff'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_reward'] = (per_ses_df['sig_reward'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_obj_onset'] = (per_ses_df['sig_obj_onset'] / per_ses_df['n_neurons']) * 100
 per_ses_df = per_ses_df.reset_index()
@@ -70,8 +70,8 @@ sns.barplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, hue='region
             palette=colors, order=this_order)
 ax1.plot(ax1.get_xlim(), [obj_onset_chance, obj_onset_chance], ls='--', color='lightgrey',
          lw=0.75)
-ax1.set(ylabel='Significant neurons (%)',  yticks=[0, 20, 40, 60, 80, 100], xlabel='',
-        title='Object modulation', ylim=[0, 100])
+ax1.set(ylabel='Significant neurons (%)',  yticks=[0, 20, 40, 60, 80], xlabel='',
+        title='Object modulation', ylim=[0, 80])
 ax1.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_obj1']].groupby('region').mean().sort_values(
@@ -81,7 +81,7 @@ sns.barplot(data=per_ses_df, x='region', y='perc_context_obj1', ax=ax2, hue='reg
 ax2.plot(ax1.get_xlim(), [context_obj1_chance, context_obj1_chance], ls='--', color='lightgrey',
          lw=0.75)
 #ax2.set(xlabel='', title='Context first landmark', yticks=[0, 1, 2, 3, 4, 5, 6], ylim=[0, 6], ylabel='')
-ax2.set(xlabel='', title='Context modulation (first object)', yticks=[0, 5, 10, 15, 20, 25, 30], ylim=[0, 30], ylabel='')
+ax2.set(xlabel='', title='Context modulation (first object)', yticks=[0, 5, 10, 15], ylim=[0, 15], ylabel='')
 ax2.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_obj2']].groupby('region').mean().sort_values(
@@ -90,16 +90,16 @@ sns.barplot(data=per_ses_df, x='region', y='perc_context_obj2', ax=ax3, hue='reg
             palette=colors, order=this_order)
 ax3.plot(ax1.get_xlim(), [context_obj2_chance, context_obj2_chance], ls='--', color='lightgrey',
          lw=0.75)
-ax3.set(xlabel='', title='Context modulation (second object)', yticks=[0, 5, 10, 15, 20, 25, 30], ylim=[0, 30], ylabel='')
+ax3.set(xlabel='', title='Context modulation (second object)', yticks=[0, 5, 10, 15], ylim=[0, 15], ylabel='')
 ax3.tick_params(axis='x', labelrotation=90)
 
-this_order = per_ses_df[['region', 'perc_context_onset']].groupby('region').mean().sort_values(
-    'perc_context_onset', ascending=False).index.values
-sns.barplot(data=per_ses_df, x='region', y='perc_context_onset', ax=ax4, hue='region', errorbar='se',
+this_order = per_ses_df[['region', 'perc_context_diff']].groupby('region').mean().sort_values(
+    'perc_context_diff', ascending=False).index.values
+sns.barplot(data=per_ses_df, x='region', y='perc_context_diff', ax=ax4, hue='region', errorbar='se',
             palette=colors, order=this_order)
 ax4.plot(ax1.get_xlim(), [context_onset_chance, context_onset_chance], ls='--', color='lightgrey',
          lw=0.75)
-ax4.set(xlabel='', title='Sound identity', yticks=[0, 5, 10, 15], ylim=[0, 15], ylabel='')
+ax4.set(xlabel='', title='Sound identity', yticks=[0, 5, 10], ylim=[0, 10], ylabel='')
 ax4.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_reward']].groupby('region').mean().sort_values(
@@ -116,6 +116,7 @@ plt.tight_layout()
 plt.show(block=False)
 
 plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons.jpg'), dpi=600)
+plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons.pdf'))
 
 
 # %%

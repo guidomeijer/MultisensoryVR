@@ -22,6 +22,12 @@ granger_df = pd.read_csv(join(path_dict['save_path'], 'granger_causality_context
 granger_df = granger_df[granger_df['region1'] != 'iCA1']
 granger_df = granger_df[granger_df['region2'] != 'iCA1']
 
+# Drop iCA1
+granger_df = granger_df[granger_df['region1'] != 'iCA1']
+granger_df = granger_df[granger_df['region2'] != 'iCA1']
+granger_df.loc[granger_df['region1'] == 'dCA1', 'region1'] = 'CA1'
+granger_df.loc[granger_df['region2'] == 'dCA1', 'region2'] = 'CA1'
+
 session_avg = granger_df.groupby(['region1', 'region2', 'object', 'date'])['f_stat'].mean().reset_index()
 mean_causality = session_avg.groupby(['region1', 'region2', 'object'])['f_stat'].mean().reset_index()
 objects = mean_causality['object'].unique()
@@ -78,7 +84,7 @@ for obj in ['object1', 'object2', 'object3']:
         G.add_edge(row['region1'], row['region2'], weight=row['f_stat'])
 
     # Add all expected nodes explicitly to ensure isolated ones are included
-    node_order = ['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'dCA1']
+    node_order = ['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'CA1']
     G.add_nodes_from(node_order)
 
     # Layout
@@ -117,3 +123,4 @@ for obj in ['object1', 'object2', 'object3']:
     plt.tight_layout()
     plt.show()
     plt.savefig(join(path_dict['google_drive_fig_path'], f'granger_causality_{obj}.jpg'), dpi=600)
+    plt.savefig(join(path_dict['google_drive_fig_path'], f'granger_causality_{obj}.pdf'))
