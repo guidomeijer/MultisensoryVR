@@ -45,7 +45,8 @@ for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'C
     # Do statistics
     this_df = per_obj_df[(per_obj_df['object'] == 1) & (per_obj_df['region'] == region)]
     results_df = this_df.groupby('time')['accuracy'].apply(run_ttest).reset_index()
-    _, p_values = fdrcorrection(results_df['accuracy'].values)
+    #_, p_values = fdrcorrection(results_df['accuracy'].values)
+    p_values = results_df['accuracy'].values
     
     axs[i].plot([-2, 2], [0.5, 0.5], ls='--', color='grey')
     axs[i].plot([0,0], [0.4, 0.9], ls='--', color='grey')
@@ -77,7 +78,8 @@ for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'C
     # Do statistics
     this_df = per_obj_df[(per_obj_df['object'] == 2) & (per_obj_df['region'] == region)]
     results_df = this_df.groupby('time')['accuracy'].apply(run_ttest).reset_index()
-    _, p_values = fdrcorrection(results_df['accuracy'].values)
+    #_, p_values = fdrcorrection(results_df['accuracy'].values)
+    p_values = results_df['accuracy'].values
     
     axs[i].plot([-2, 2], [0.5, 0.5], ls='--', color='grey')
     axs[i].plot([0,0], [0.4, 0.9], ls='--', color='grey')

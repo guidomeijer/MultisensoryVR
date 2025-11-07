@@ -18,7 +18,7 @@ colors, dpi = figure_style()
 
 # Load in data
 path_dict = paths()
-per_obj_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_all_neurons_RF.csv'))
+per_obj_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_per_object_distance.csv'))
 
 # Drop iCA1 for now
 per_obj_df = per_obj_df[per_obj_df['region'] != 'iCA1']
@@ -44,30 +44,31 @@ for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'C
     
     # Do statistics
     this_df = per_obj_df[(per_obj_df['object'] == 1) & (per_obj_df['region'] == region)]
-    results_df = this_df.groupby('time')['accuracy'].apply(run_ttest).reset_index()
-    _, p_values = fdrcorrection(results_df['accuracy'].values)
+    results_df = this_df.groupby('distance')['accuracy'].apply(run_ttest).reset_index()
+    #_, p_values = fdrcorrection(results_df['accuracy'].values, method='p')
+    p_values = results_df['accuracy'].values
     
-    axs[i].plot([-2, 2], [0.5, 0.5], ls='--', color='grey')
+    axs[i].plot([-300, 300], [0.5, 0.5], ls='--', color='grey')
     axs[i].plot([0,0], [0.4, 0.9], ls='--', color='grey')
-    sns.lineplot(this_df, x='time', y='accuracy', color=colors[region], errorbar='se',
+    sns.lineplot(this_df, x='distance', y='accuracy', color=colors[region], errorbar='se',
                  ax=axs[i], err_kws={'lw': 0}, legend=None)
-    add_significance(results_df['time'].values, p_values, axs[i], y_pos=0.875)
+    add_significance(results_df['distance'].values, p_values, axs[i], y_pos=0.875, alpha=0.01)
     axs[i].set_title(region)
     if i > 0:
         axs[i].axis('off')
     else:
         axs[i].set(yticks=[0.4, 0.5, 0.6, 0.7, 0.8, 0.9], xticks=[], xlabel='',
                    ylabel='Context decoding accuracy', ylim=[0.4, 0.9])
-        axs[i].text(-0.28, 0.77, 'Object entry', ha='center', va='center', rotation=90)
+        axs[i].text(-40, 0.77, 'Object entry', ha='center', va='center', rotation=90)
         
 
-axs[0].plot([-2, -1], [0.4, 0.4], color='k', lw=1, clip_on=False)
-axs[0].text(-1.5, 0.375, '1s', ha='center', va='center')
+axs[0].plot([-300, -200], [0.4, 0.4], color='k', lw=1, clip_on=False)
+axs[0].text(-250, 0.375, '10 cm', ha='center', va='center')
 #axs[0].text(-3.2, 0.6, 'Context decoding accuracy', ha='center', va='center', rotation=90)
 plt.subplots_adjust(left=0.05, bottom=None, right=0.99, top=0.85, wspace=0, hspace=None)
 sns.despine(bottom=True)
 
-plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_context_obj1.pdf'))
+plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_context_obj1_dist.pdf'))
 
 # %%
 
@@ -76,51 +77,28 @@ for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'C
     
     # Do statistics
     this_df = per_obj_df[(per_obj_df['object'] == 2) & (per_obj_df['region'] == region)]
-    results_df = this_df.groupby('time')['accuracy'].apply(run_ttest).reset_index()
+    results_df = this_df.groupby('distance')['accuracy'].apply(run_ttest).reset_index()
     _, p_values = fdrcorrection(results_df['accuracy'].values)
     
-    axs[i].plot([-2, 2], [0.5, 0.5], ls='--', color='grey')
+    axs[i].plot([-300, 300], [0.5, 0.5], ls='--', color='grey')
     axs[i].plot([0,0], [0.4, 0.9], ls='--', color='grey')
-    sns.lineplot(this_df, x='time', y='accuracy', color=colors[region], errorbar='se',
+    sns.lineplot(this_df, x='distance', y='accuracy', color=colors[region], errorbar='se',
                  ax=axs[i], err_kws={'lw': 0}, legend=None)
-    add_significance(results_df['time'].values, p_values, axs[i], y_pos=0.875)
+    add_significance(results_df['distance'].values, p_values, axs[i], y_pos=0.875)
     axs[i].set_title(region)
     if i > 0:
         axs[i].axis('off')
     else:
         axs[i].set(yticks=[0.4, 0.5, 0.6, 0.7, 0.8, 0.9], xticks=[], xlabel='',
                    ylabel='Context decoding accuracy', ylim=[0.4, 0.9])
-        axs[i].text(-0.28, 0.77, 'Object entry', ha='center', va='center', rotation=90)
+        axs[i].text(-40, 0.77, 'Object entry', ha='center', va='center', rotation=90)
         
 
-axs[0].plot([-2, -1], [0.4, 0.4], color='k', lw=1, clip_on=False)
-axs[0].text(-1.5, 0.375, '1s', ha='center', va='center')
+axs[0].plot([-300, -200], [0.4, 0.4], color='k', lw=1, clip_on=False)
+axs[0].text(-250, 0.375, '10 cm', ha='center', va='center')
 #axs[0].text(-3.2, 0.6, 'Context decoding accuracy', ha='center', va='center', rotation=90)
 plt.subplots_adjust(left=0.05, bottom=None, right=0.99, top=0.85, wspace=0, hspace=None)
 sns.despine(bottom=True)
 
-plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_context_obj2.pdf'))
-
-# %%
-
-f, axs = plt.subplots(1, 7, figsize=(8, 1.75), dpi=dpi, sharey=True)
-for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'CA1']):
-    axs[i].plot([-2, 2], [0.5, 0.5], ls='--', color='grey')
-    axs[i].plot([0,0], [0.4, 0.8], ls='--', color='grey')
-    sns.lineplot(per_obj_df[(per_obj_df['object'] == 3) & (per_obj_df['region'] == region)],
-                 x='time', y='accuracy', color=colors[region], errorbar='se',
-                 ax=axs[i], err_kws={'lw': 0}, legend=None)
-    axs[i].set_title(region)
-    axs[i].axis('off')
-
-axs[0].plot([-2, -1], [0.4, 0.4], color='k', lw=1)
-axs[0].text(-1.5, 0.375, '1s', ha='center', va='center')
-axs[0].plot([-2, -2], [0.4, 0.5], color='k', lw=1)
-axs[0].text(-2.4, 0.45, '10%', ha='center', va='center', rotation=90)
-axs[0].text(-3.2, 0.6, 'Context decoding accuracy', ha='center', va='center', rotation=90)
-plt.subplots_adjust(left=0.05, bottom=None, right=0.99, top=0.85, wspace=0, hspace=None)
-
-plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_context_obj3.pdf'))
-    
-
+plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_context_obj2_dist.pdf'))
 

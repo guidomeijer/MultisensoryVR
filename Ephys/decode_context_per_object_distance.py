@@ -20,8 +20,8 @@ from msvr_functions import paths, load_neural_data, load_subjects, load_objects,
 # Settings
 D_BEFORE = 300  # mm
 D_AFTER = 300
-BIN_SIZE = 20
-STEP_SIZE = 5
+BIN_SIZE = 50
+STEP_SIZE = 7
 MIN_NEURONS = 10
 MIN_TRIALS = 35
 MIN_SPEED = 20  # mm/s

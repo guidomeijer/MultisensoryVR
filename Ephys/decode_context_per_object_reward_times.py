@@ -20,10 +20,10 @@ from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 # Settings
 T_BEFORE = 2  # s
 T_AFTER = 2
-BIN_SIZE = 0.1
+BIN_SIZE = 0.35
 STEP_SIZE = 0.05
-MIN_NEURONS = 10
-MIN_TRIALS = 40
+MIN_NEURONS = 8
+MIN_TRIALS = 35
 ONLY_SIG_NEURONS = False
 
 # Create time array
@@ -35,8 +35,8 @@ subjects = load_subjects()
 kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
-#clf = make_pipeline(StandardScaler(), RandomForestClassifier(random_state=42, n_jobs=1))
-clf = make_pipeline(StandardScaler(), LogisticRegression(solver='lbfgs', max_iter=500))
+clf = make_pipeline(StandardScaler(), RandomForestClassifier(random_state=42, n_jobs=1))
+#clf = make_pipeline(StandardScaler(), LogisticRegression(solver='lbfgs', max_iter=500))
 
 # Function for parallelization
 def decode_context(bin_center, spikes, use_neurons, all_obj_df):
