@@ -17,7 +17,7 @@ from joblib import Parallel, delayed
 from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 
 # Settings
-D_BEFORE = 150  # mm
+D_BEFORE = 300  # mm
 D_AFTER = 300
 BIN_SIZE = 20
 STEP_SIZE = 5

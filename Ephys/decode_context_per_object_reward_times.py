@@ -9,6 +9,7 @@ np.random.seed(42)
 from os.path import join
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
@@ -19,11 +20,11 @@ from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 # Settings
 T_BEFORE = 2  # s
 T_AFTER = 2
-BIN_SIZE = 0.3
+BIN_SIZE = 0.1
 STEP_SIZE = 0.05
-MIN_NEURONS = 5
-MIN_TRIALS = 30
-ONLY_SIG_NEURONS = True
+MIN_NEURONS = 10
+MIN_TRIALS = 40
+ONLY_SIG_NEURONS = False
 
 # Create time array
 t_centers = np.arange(-T_BEFORE + (BIN_SIZE/2), T_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
@@ -34,6 +35,7 @@ subjects = load_subjects()
 kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
+#clf = make_pipeline(StandardScaler(), RandomForestClassifier(random_state=42, n_jobs=1))
 clf = make_pipeline(StandardScaler(), LogisticRegression(solver='lbfgs', max_iter=500))
 
 # Function for parallelization
@@ -121,7 +123,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     if ONLY_SIG_NEURONS:
         decode_df.to_csv(join(path_dict['save_path'], 'decode_context_sig_neurons.csv'), index=False)
     else:
-        decode_df.to_csv(join(path_dict['save_path'], 'decode_context_all_neurons.csv'), index=False)
+        decode_df.to_csv(join(path_dict['save_path'], 'decode_context_all_neurons_RF.csv'), index=False)
             
             
           
