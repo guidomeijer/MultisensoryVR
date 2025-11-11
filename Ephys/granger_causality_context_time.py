@@ -13,6 +13,7 @@ from itertools import combinations
 from statsmodels.tsa.api import VAR
 from scipy import stats
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import LeaveOneOut, cross_val_predict
 from sklearn.pipeline import make_pipeline
@@ -32,7 +33,8 @@ MAX_LAG = 0.5  # s
 N_PSEUDO = 500
 
 # Initialize
-clf = make_pipeline(StandardScaler(), LogisticRegression(solver='lbfgs', max_iter=500))
+#clf = make_pipeline(StandardScaler(), LogisticRegression(solver='lbfgs', max_iter=500))
+clf = make_pipeline(StandardScaler(), RandomForestClassifier(random_state=42, n_jobs=1))
 path_dict = paths(sync=False)
 subjects = load_subjects()
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
