@@ -52,7 +52,7 @@ for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'C
     axs[i].plot([0,0], [0.4, 0.9], ls='--', color='grey')
     sns.lineplot(this_df, x='distance', y='accuracy', color=colors[region], errorbar='se',
                  ax=axs[i], err_kws={'lw': 0}, legend=None)
-    add_significance(results_df['distance'].values, p_values, axs[i], y_pos=0.875)
+    add_significance(results_df['distance'].values, p_values, axs[i], y_pos=0.875, alpha=0.01)
     axs[i].set_title(region)
     if i > 0:
         axs[i].axis('off')
@@ -78,8 +78,7 @@ for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'C
     # Do statistics
     this_df = per_obj_df[(per_obj_df['object'] == 2) & (per_obj_df['region'] == region)]
     results_df = this_df.groupby('distance')['accuracy'].apply(run_ttest).reset_index()
-    #_, p_values = fdrcorrection(results_df['accuracy'].values)
-    p_values = results_df['accuracy'].values
+    _, p_values = fdrcorrection(results_df['accuracy'].values)
     
     axs[i].plot([-300, 300], [0.5, 0.5], ls='--', color='grey')
     axs[i].plot([0,0], [0.4, 0.9], ls='--', color='grey')
@@ -92,7 +91,7 @@ for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'C
     else:
         axs[i].set(yticks=[0.4, 0.5, 0.6, 0.7, 0.8, 0.9], xticks=[], xlabel='',
                    ylabel='Context decoding accuracy', ylim=[0.4, 0.9])
-        #axs[i].text(-40, 0.77, 'Object entry', ha='center', va='center', rotation=90)
+        axs[i].text(-40, 0.77, 'Object entry', ha='center', va='center', rotation=90)
         
 
 axs[0].plot([-300, -200], [0.4, 0.4], color='k', lw=1, clip_on=False)
@@ -102,4 +101,6 @@ plt.subplots_adjust(left=0.05, bottom=None, right=0.99, top=0.85, wspace=0, hspa
 sns.despine(bottom=True)
 
 plt.savefig(join(path_dict['google_drive_fig_path'], 'decoding_context_obj2_dist.pdf'))
+plt.show()
 
+# %%

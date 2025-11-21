@@ -46,31 +46,31 @@ neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv')
 def decode_context(X, y, clf):
     """
     Decodes object identity per spatial bin using efficient leave-one-out cross-validation.
-    
+
     Args:
         X (np.array): Data of shape (n_trials, n_neurons, n_bins)
         y (np.array): Labels of shape (n_trials,)
         clf: Scikit-learn classifier instance.
-        
+
     Returns:
         np.array: Decoding probabilities of shape (n_trials, n_bins)
     """
     decoding_probs = np.empty((X.shape[0], X.shape[2]))
     loo = LeaveOneOut()
-    
+
     # Get unique classes to correctly index probabilities
     classes = np.unique(y)
 
     for tb in range(X.shape[2]):
         X_t = X[:, :, tb] # shape: (n_trials, n_neurons)
-        
+
         # Get probabilities for all classes using cross-validation
         all_probs = cross_val_predict(clf, X_t, y, cv=loo, method='predict_proba', n_jobs=N_CORES)
-        
+
         # Select the probability corresponding to the *true* label for each trial
         true_class_indices = np.searchsorted(classes, y)
         decoding_probs[:, tb] = all_probs[np.arange(len(y)), true_class_indices]
-        
+
     return decoding_probs
 
 
@@ -81,103 +81,135 @@ def granger_causality(trial_data):
     """
     model = VAR(trial_data)
     res = model.fit(maxlags=int(MAX_LAG / STEP_SIZE))
-    
+
     # Test causality from Region 1 -> Region 2
     # This tests if the lagged values of column 0 help predict column 1.
     # caused = 1 (region2), causing = 0 (region1)
     f_test = res.test_causality(caused=1, causing=[0], kind='f')
     f_12 = f_test.test_statistic
-    
+
     # Test causality from Region 2 -> Region 1
     # This tests if the lagged values of column 1 help predict column 0.
     # caused = 0 (region1), causing = 1 (region2)
     f_test = res.test_causality(caused=0, causing=[1], kind='f')
     f_21 = f_test.test_statistic
 
-    return f_12, f_21   
+    return f_12, f_21
 
 
-def process_trial_granger(trial_idx, prob_dict, r1, r2, n_shuffles):
+def compute_granger_trial_shuffling(residuals_r1, residuals_r2, max_lag_bins, n_shuffles=500):
     """
-    Performs Granger causality using a time-shifting surrogate method.
-    """
-    real_ts_r1 = prob_dict[r1][trial_idx]
-    real_ts_r2 = prob_dict[r2][trial_idx]
-    n_timepoints = len(real_ts_r1)
+    Computes Granger Causality using trial shuffling on residuals.
 
-    if not np.all(np.isfinite(real_ts_r1)) or not np.all(np.isfinite(real_ts_r2)):
+    Args:
+        residuals_r1 (np.array): Shape (n_trials, n_timepoints)
+        residuals_r2 (np.array): Shape (n_trials, n_timepoints)
+        max_lag_bins (int): Max lag for VAR model.
+        n_shuffles (int): Number of surrogates.
+
+    Returns:
+        tuple: (real_f12, real_f21, p_12, p_21)
+    """
+    n_trials = residuals_r1.shape[0]
+
+    # Helper to fit VAR on a list of paired trials and return mean F stats
+    def get_mean_f_statistics(r1_data, r2_data):
+        f12_list, f21_list = [], []
+        for i in range(n_trials):
+            # Skip if data contains NaNs
+            if not np.all(np.isfinite(r1_data[i])) or not np.all(np.isfinite(r2_data[i])):
+                continue
+
+            # Stack data: column 0 = region 1, column 1 = region 2
+            trial_data = np.vstack([r1_data[i], r2_data[i]]).T
+
+            # Run VAR (Re-using your existing granger_causality function logic inline for speed)
+            try:
+                model = VAR(trial_data)
+                res = model.fit(maxlags=max_lag_bins)
+
+                # R1 -> R2 (Does R1 predict R2?)
+                f12 = res.test_causality(caused=1, causing=[0], kind='f').test_statistic
+                # R2 -> R1 (Does R2 predict R1?)
+                f21 = res.test_causality(caused=0, causing=[1], kind='f').test_statistic
+
+                f12_list.append(f12)
+                f21_list.append(f21)
+            except ValueError:
+                # Handle cases where VAR fails to fit (e.g., constant data)
+                continue
+
+        return np.nanmean(f12_list), np.nanmean(f21_list)
+
+    # 1. Calculate REAL Granger Causality (Matched trials: i to i)
+    real_f12, real_f21 = get_mean_f_statistics(residuals_r1, residuals_r2)
+
+    if np.isnan(real_f12) or np.isnan(real_f21):
         return np.nan, np.nan, np.nan, np.nan
-        
-    # 1. Calculate REAL Granger causality
-    real_trial_data = np.vstack([real_ts_r1, real_ts_r2]).T
-    f_12, f_21 = granger_causality(real_trial_data)
 
-    # 2. Generate NULL distribution by circularly shifting one time series
-    reg1_reg2_shuf = np.empty(n_shuffles)
-    reg2_reg1_shuf = np.empty(n_shuffles)
+    # 2. Generate NULL Distribution (Mismatched trials: i to j)
+    null_f12_dist = np.empty(n_shuffles)
+    null_f21_dist = np.empty(n_shuffles)
 
-    # Calculate max lag in bins
-    max_lag_bins = int(MAX_LAG / STEP_SIZE)
+    # We can parallelize this loop if N_CORES is high, otherwise a simple loop suffices
+    # Note: Shuffling just the indices of the second region is sufficient
+    for s in range(n_shuffles):
+        shuffled_indices = np.random.permutation(n_trials)
+        r2_shuffled = residuals_r2[shuffled_indices]
 
-    for i in range(n_shuffles):
-        # Generate a random shift. It must not be 0.
-        # Ensure shift is > max_lag to break short-term relationships.
-        shift = np.random.randint(max_lag_bins + 1, n_timepoints - (max_lag_bins + 1))
-        
-        # Shift the SECOND time series
-        shifted_ts_r2 = np.roll(real_ts_r2, shift)
-        
-        # Now create the surrogate pair using the original r1 and the shifted r2
-        surrogate_data = np.vstack([real_ts_r1, shifted_ts_r2]).T
-        reg1_reg2_shuf[i], reg2_reg1_shuf[i] = granger_causality(surrogate_data)
+        # Compute mean F for this shuffle
+        null_f12, null_f21 = get_mean_f_statistics(residuals_r1, r2_shuffled)
+        null_f12_dist[s] = null_f12
+        null_f21_dist[s] = null_f21
 
-    # 3. Calculate p-values
-    p_12 = (np.sum(reg1_reg2_shuf >= f_12) + 1) / (n_shuffles + 1)
-    p_21 = (np.sum(reg2_reg1_shuf >= f_21) + 1) / (n_shuffles + 1)
-    
-    return f_12, f_21, p_12, p_21
+    # 3. Calculate P-values
+    # Proportion of null F-stats that are greater than or equal to the real F-stat
+    p_12 = (np.sum(null_f12_dist >= real_f12) + 1) / (n_shuffles + 1)
+    p_21 = (np.sum(null_f21_dist >= real_f21) + 1) / (n_shuffles + 1)
+
+    return real_f12, real_f21, p_12, p_21
 
 
 def get_binned_spikes_distance(spikes, region_neurons, trials_df, d_centers):
     """
     Get spike counts for a set of neurons and trials in spatial bins.
-    
+
     Args:
         spikes (dict): Spike data dictionary (must contain 'distances', 'clusters').
         region_neurons (np.array): Array of neuron IDs to include.
         trials_df (pd.DataFrame): DataFrame containing trial information (must contain 'distances').
         d_centers (np.array): Array of distance bin centers.
-        
+
     Returns:
         np.array: Spike counts of shape (n_trials, n_neurons, n_bins)
     """
     n_trials = trials_df.shape[0]
     n_neurons = region_neurons.shape[0]
     n_bins = d_centers.shape[0]
-    
+
     # Initialize output array
     X = np.empty((n_trials, n_neurons, n_bins))
-    
+
     for b, bin_center in enumerate(d_centers):
         # Calculate intervals for this bin for all trials
-        # Note: trials_df['distances'] is the start distance of the object interaction? 
+        # Note: trials_df['distances'] is the start distance of the object interaction?
         # Actually in decode_context_per_object_distance.py:
         # these_intervals = np.vstack((all_obj_df['distances'] + (bin_center - (BIN_SIZE/2)),
         #                              all_obj_df['distances'] + (bin_center + (BIN_SIZE/2)))).T
         # This assumes 'distances' in trials_df is the reference point (e.g. object entry).
-        
+
         these_intervals = np.vstack((trials_df['distances'] + (bin_center - (BIN_SIZE/2)),
                                      trials_df['distances'] + (bin_center + (BIN_SIZE/2)))).T
-                                     
+
         spike_counts, neuron_ids = get_spike_counts_in_bins(spikes['distances'], spikes['clusters'],
                                                             these_intervals)
-        
+
         # Align spike counts to region_neurons
         # Some neurons might have been filtered out due to speed thresholding, so we use pandas to reindex
         # and fill missing neurons with zeros.
         df_counts = pd.DataFrame(spike_counts.T, columns=neuron_ids)
         X[:, :, b] = df_counts.reindex(columns=region_neurons, fill_value=0).values
-        
+
     return X
 
 
@@ -191,10 +223,10 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
     spikes, clusters, channels = load_multiple_probes(session_path)
     trials = pd.read_csv(join(path_dict['local_data_path'], 'subjects', subject, date, 'trials.csv'))
     all_obj_df = load_objects(subject, date)
-    
+
     if trials.shape[0] < MIN_TRIALS:
         continue
-        
+
     # Filter spikes by speed for each probe
     for probe in spikes.keys():
         if 'speeds' in spikes[probe]:
@@ -202,7 +234,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             spikes[probe]['clusters'] = spikes[probe]['clusters'][spikes[probe]['speeds'] > MIN_SPEED]
         else:
             print(f"Warning: No speed data found for {probe}, skipping speed filtering.")
-    
+
     # Loop over regions
     # Get list of all regions and which probe they were recorded on
     regions, region_probes = [], []
@@ -211,79 +243,81 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         region_probes.append([probe] * np.unique(clusters[probe]['region']).shape[0])
     regions = np.concatenate(regions)
     region_probes = np.concatenate(region_probes)
-    
-    prob, prob['object1'], prob['object2'], prob['object3'] = dict(), dict(), dict(), dict()
-    
+
+    residuals, residuals['object1'], residuals['object2'], residuals['object3'] = dict(), dict(), dict(), dict()
+
     for r, (region, probe) in enumerate(zip(regions, region_probes)):
         if region == 'root':
             continue
         print(f'Decoding {region}')
-        
+
         # Get region neurons
         region_neurons = clusters[probe]['cluster_id'][clusters[probe]['region'] == region]
         if region_neurons.shape[0] < MIN_NEURONS:
             continue
-        
+
         # Loop over objects
         for this_obj in [1, 2, 3]:
-        
-            # Sound A versus sound B 
+
+            # Sound A versus sound B
             # Get trials for Sound 1 and Sound 2 for this object
             trials_soundA = all_obj_df.loc[(all_obj_df['object'] == this_obj) & (all_obj_df['sound'] == 1)]
             trials_soundB = all_obj_df.loc[(all_obj_df['object'] == this_obj) & (all_obj_df['sound'] == 2)]
-            
+
             # Get binned spikes
             X_soundA = get_binned_spikes_distance(spikes[probe], region_neurons, trials_soundA, d_centers)
             X_soundB = get_binned_spikes_distance(spikes[probe], region_neurons, trials_soundB, d_centers)
-            
+
             # Decode context per spatial bin and get decoding probabilities
             X = np.concatenate([X_soundA, X_soundB], axis=0)  # shape: (trials, neurons, bins)
             y = np.concatenate([np.zeros(X_soundA.shape[0]), np.ones(X_soundB.shape[0])]).astype(int)
-            
-            prob[f'object{this_obj}'][region] = decode_context(X, y, clf)            
-        
-    # Do Granger causality for all region pairs
-    for region1, region2 in combinations(prob['object1'].keys(), 2):
-        print(f'Running Granger causality for {region1} → {region2}')
+
+            # Get trial by trial decoding probabilities and subtract the mean to leave the residuals
+            trial_probs = decode_context(X, y, clf)
+            subtracted_probs = trial_probs - np.tile(np.mean(trial_probs, axis=0), (trial_probs.shape[0], 1))
+            residuals[f'object{this_obj}'][region] = subtracted_probs
+
+    # Loop over region pairs
+    # Create a list of jobs to run in parallel
+    job_list = []
+
+    max_lag_bins = int(MAX_LAG / STEP_SIZE)
+
+    for region1, region2 in combinations(residuals['object1'].keys(), 2):
         for this_obj in [1, 2, 3]:
-            n_trials = prob[f'object{this_obj}'][region1].shape[0]
-            
-            # Use joblib to parallelize the loop over trials
-            results = Parallel(n_jobs=N_CORES)(delayed(process_trial_granger)(
-                trial, prob[f'object{this_obj}'], region1, region2, N_PSEUDO) for trial in range(n_trials))
-        
-            # Unpack the list of tuples returned by Parallel into separate lists/tuples
-            reg1_reg2, reg2_reg1, reg1_reg2_p, reg2_reg1_p = zip(*results)
-        
-            # Convert the results back to numpy arrays for the subsequent analysis
-            reg1_reg2 = np.array(reg1_reg2)
-            reg2_reg1 = np.array(reg2_reg1)
-            reg1_reg2_p = np.array(reg1_reg2_p)
-            reg2_reg1_p = np.array(reg2_reg1_p)
-            
-            # Handle any NaN trials that may have occurred
-            valid_trials = ~np.isnan(reg1_reg2_p)
-            if np.sum(valid_trials) > 0:
-                p_reg1_reg2 = stats.binomtest(np.sum(reg1_reg2_p[valid_trials] < 0.05), 
-                                              np.sum(valid_trials), 0.05).pvalue
-            else:
-                p_reg1_reg2 = np.nan
-                                          
-            valid_trials = ~np.isnan(reg2_reg1_p)
-            if np.sum(valid_trials) > 0:
-                p_reg2_reg1 = stats.binomtest(np.sum(reg2_reg1_p[valid_trials] < 0.05), 
-                                              np.sum(valid_trials), 0.05).pvalue
-            else:
-                p_reg2_reg1 = np.nan
-                
-            # Add to dataframe
-            granger_df = pd.concat((granger_df, pd.DataFrame(data={
-                'region_pair': [f'{region1} → {region2}', f'{region2} → {region1}'],
-                'region1': [region1, region2], 'region2': [region2, region1],
-                'object': f'object{this_obj}',
-                'p_value': [p_reg1_reg2, p_reg2_reg1],
-                'f_stat': [np.nanmean(reg1_reg2), np.nanmean(reg2_reg1)],
-                'subject': subject, 'date': date})))
-        
+            # Get the RESIDUALS (not raw probabilities)
+            # Assuming you stored residuals in a dictionary called 'residuals'
+            r1_data = residuals[f'object{this_obj}'][region1]
+            r2_data = residuals[f'object{this_obj}'][region2]
+
+            job_list.append({
+                'r1': region1, 'r2': region2,
+                'obj': this_obj,
+                'd1': r1_data, 'd2': r2_data
+            })
+
+    # Define a wrapper to unpack arguments for Parallel
+    def run_pair_job(job):
+        f12, f21, p12, p21 = compute_granger_trial_shuffling(
+            job['d1'], job['d2'], max_lag_bins, n_shuffles=N_PSEUDO
+        )
+        return job['r1'], job['r2'], job['obj'], f12, f21, p12, p21
+
+    print(f"Running Granger on {len(job_list)} pairs...")
+    results = Parallel(n_jobs=N_CORES)(delayed(run_pair_job)(job) for job in job_list)
+
+    # Unpack results into DataFrame
+    for r1, r2, obj, f12, f21, p12, p21 in results:
+        granger_df = pd.concat((granger_df, pd.DataFrame(data={
+            'region_pair': [f'{r1} → {r2}', f'{r2} → {r1}'],
+            'region1': [r1, r2],
+            'region2': [r2, r1],
+            'object': f'object{obj}',
+            'p_value': [p12, p21],
+            'f_stat': [f12, f21],
+            'subject': subject,
+            'date': date
+        })))
+
     # Save to disk
     granger_df.to_csv(join(path_dict['save_path'], 'granger_causality_context_distance.csv'), index=False)
