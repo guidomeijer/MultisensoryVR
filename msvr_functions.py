@@ -28,17 +28,17 @@ def paths(sync=False, full_sync=False, force_sync=False):
     Load in figure path from paths.json, if this file does not exist it will be generated from
     user input
 
-    This function also runs the synchronization between the server and the local data folder 
+    This function also runs the synchronization between the server and the local data folder
     once a day
 
     Input
     ------------------------
     sync : boolean
         When True data from the server will be synced with the local disk
-    full_sync : boolean 
+    full_sync : boolean
         When True also the raw data will be copied to the local drive
-    force_sync : boolean    
-        When True synchronization will be done regardless of how long ago the last sync was    
+    force_sync : boolean
+        When True synchronization will be done regardless of how long ago the last sync was
 
     Output
     ------------------------
@@ -60,7 +60,7 @@ def paths(sync=False, full_sync=False, force_sync=False):
     with open(join(dirname(realpath(__file__)), 'paths.json')) as json_file:
         path_dict = json.load(json_file)
         path_dict = {key: Path(value) for key, value in path_dict.items()}
-        
+
 
     # Synchronize data from the server with the local data folder
 
@@ -86,31 +86,31 @@ def paths(sync=False, full_sync=False, force_sync=False):
             if not isdir(path_dict['server_path']):
                 print('Server path not found')
                 return path_dict
-            
+
             # Loop over subjects
             subjects = os.listdir(join(path_dict['server_path'], 'Subjects'))
             for i, subject in enumerate(subjects):
                 if not isdir(join(path_dict['local_data_path'], 'Subjects', subject)):
                     os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject))
-                    
+
                 # Loop over sessions
                 sessions = os.listdir(join(path_dict['server_path'], 'Subjects', subject))
                 for j, session in enumerate(sessions):
-                    
+
                     # Get server path and files on server
                     server_path = join(path_dict['server_path'], 'Subjects', subject, session)
                     server_files = [f for f in os.listdir(server_path)
                                     if (isfile(join(server_path, f)) & (f[-4:] != 'flag'))]
                     if len(server_files) == 0:
                         continue
-                    
+
                     # Get local path and files on local disk
                     local_path = join(path_dict['local_data_path'], 'Subjects', subject, session)
                     if not isdir(local_path):
                         os.mkdir(local_path)
                     local_files = [f for f in os.listdir(local_path)
-                                   if isfile(join(local_path, f)) & (f[-4:] != 'flag')]    
-                    
+                                   if isfile(join(local_path, f)) & (f[-4:] != 'flag')]
+
                     # Copy files one way or another depending on which has the most files
                     if len(server_files) > len(local_files):
                         print(f'Copying files from server {server_path}')
@@ -122,13 +122,13 @@ def paths(sync=False, full_sync=False, force_sync=False):
                         for f, file in enumerate(local_files):
                             if not isfile(join(server_path, file)):
                                 shutil.copyfile(join(local_path, file), join(server_path, file))
-                    
-                    # Synchronize neural data 
+
+                    # Synchronize neural data
                     if isdir(join(local_path, 'probe00')):
                         local_probe_files = [f for f in os.listdir(join(local_path, 'probe00'))
                                              if isfile(join(local_path, 'probe00', f))]
                         server_probe_files = [f for f in os.listdir(join(server_path, 'probe00'))
-                                              if isfile(join(server_path, 'probe00', f))]   
+                                              if isfile(join(server_path, 'probe00', f))]
                         if len(local_probe_files) > len(server_probe_files):
                             print(f'{subject} {session} | Copying probe00 files to server {server_path}')
                             for f, file in enumerate(local_probe_files):
@@ -145,7 +145,7 @@ def paths(sync=False, full_sync=False, force_sync=False):
                         local_probe_files = [f for f in os.listdir(join(local_path, 'probe01'))
                                              if isfile(join(local_path, 'probe01', f))]
                         server_probe_files = [f for f in os.listdir(join(server_path, 'probe01'))
-                                              if isfile(join(server_path, 'probe01', f))]   
+                                              if isfile(join(server_path, 'probe01', f))]
                         if len(local_probe_files) > len(server_probe_files):
                             print(f'{subject} {session} | Copying probe01 files to server {server_path}')
                             for f, file in enumerate(local_probe_files):
@@ -158,7 +158,7 @@ def paths(sync=False, full_sync=False, force_sync=False):
                                 if not isfile(join(local_path, 'probe01', file)):
                                     shutil.copyfile(join(server_path, 'probe01', file),
                                                     join(local_path, 'probe01', file))
-                        
+
                     # If the probe folder does not exist on local drive, copy it from server
                     if (isdir(join(server_path, 'probe00'))) & (~isdir(join(local_path, 'probe00'))):
                         print(f'{subject} {session} | Copying probe00 folder from server')
@@ -167,11 +167,11 @@ def paths(sync=False, full_sync=False, force_sync=False):
                         else:
                             os.mkdir(join(local_path, 'probe00'))
                             server_probe_files = [f for f in os.listdir(join(server_path, 'probe00'))
-                                                  if isfile(join(server_path, 'probe00', f))]   
+                                                  if isfile(join(server_path, 'probe00', f))]
                             for f, file in enumerate(server_probe_files):
                                 shutil.copyfile(join(server_path, 'probe00', file),
                                                 join(local_path, 'probe00', file))
-                                
+
                     if (isdir(join(server_path, 'probe01'))) & (~isdir(join(local_path, 'probe01'))):
                         print(f'{subject} {session} | Copying probe01 folder from server')
                         if full_sync:
@@ -179,11 +179,11 @@ def paths(sync=False, full_sync=False, force_sync=False):
                         else:
                             os.mkdir(join(local_path, 'probe01'))
                             server_probe_files = [f for f in os.listdir(join(server_path, 'probe01'))
-                                                  if isfile(join(server_path, 'probe01', f))]   
+                                                  if isfile(join(server_path, 'probe01', f))]
                             for f, file in enumerate(server_probe_files):
                                 shutil.copyfile(join(server_path, 'probe01', file),
                                                 join(local_path, 'probe01', file))
-                    
+
                     # Copy raw data from server if a full sync is requested
                     if (not isdir(join(server_path, 'raw_video_data'))) & full_sync:
                         print(
@@ -228,21 +228,21 @@ def load_objects(subject, date):
         Whether to reorder the object id's such that:
             object 1: the first encountered rewarded object
             object 2: the second encountered rewarded object
-            object 3: the control object (wherever it is) 
+            object 3: the control object (wherever it is)
             The default is True.
 
     Returns
     -------
     all_obj_df : pandas dataframe
     """
-    
+
     # Initialize
     path_dict = paths()
     subjects = load_subjects()
-    
+
     # Load in trials
     trials = load_trials(subject, date)
-    
+
     # Get reward contingencies
     sound1_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound1Obj'].values[0]
     sound2_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound2Obj'].values[0]
@@ -265,7 +265,7 @@ def load_objects(subject, date):
         sound2_obj_id = 2
     else:
         sound1_obj_id = 2
-        sound2_obj_id = 1        
+        sound2_obj_id = 1
 
     # Object id mapping
     obj_mapping = {1: 'house', 2: 'bridge', 3: 'desert'}
@@ -294,7 +294,7 @@ def load_objects(subject, date):
                                         'object_appearance': obj_mapping[control_obj],
                                         'trial_nr': trials.index.values,
                                         'exit_times': trials[f'exitObj{control_obj}Time']})
-    
+
     # Add reward times per object
     reward_times = np.load(join(path_dict['local_data_path'], 'Subjects', subject, date, 'reward.times.npy'))
     rew_obj1_df.loc[rew_obj1_df['rewarded'] > 0, 'reward_times'] = [
@@ -303,11 +303,11 @@ def load_objects(subject, date):
     rew_obj2_df.loc[rew_obj2_df['rewarded'] > 0, 'reward_times'] = [
         reward_times[np.argmin(np.abs(i - reward_times))]
         for i in rew_obj2_df.loc[rew_obj2_df['rewarded'] > 0, 'times']]
-    
+
     # Create dataframe
     all_obj_df = pd.concat((rew_obj1_df, rew_obj2_df, control_obj_df))
     all_obj_df = all_obj_df.sort_values(by='times').reset_index(drop=True)
-    
+
     return all_obj_df
 
 
@@ -406,10 +406,10 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
         Whether to load the channel location and brain regions from the output of the alignment GUI.
         If False, no brain regions will be provided. The default is True.
     only_good : bool, optional
-        Whether to only load in neurons that are labelled 'good' by automatic curation, either 
+        Whether to only load in neurons that are labelled 'good' by automatic curation, either
         IBL labelled good or machine learning lablled good. The default is True.
     min_fr : float, optional
-        Only return neurons with a firing rate of minimally this value in spikes/s over the entire 
+        Only return neurons with a firing rate of minimally this value in spikes/s over the entire
         recording
 
     Returns
@@ -419,9 +419,9 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
     clusters : dict
         A dictionary containing data per cluster (i.e. neuron)
     channels : dict
-        A dictionary containing data per channel 
-    """    
-    
+        A dictionary containing data per channel
+    """
+
     # Load in spiking data
     spikes = dict()
     spikes['times'] = np.load(join(session_path, probe, 'spikes.times.npy'))
@@ -433,20 +433,20 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
         spikes['distances'] = np.load(join(session_path, probe, 'spikes.distances.npy'))
     if isfile(join(session_path, probe, 'spikes.speeds.npy')):
         spikes['speeds'] = np.load(join(session_path, probe, 'spikes.speeds.npy'))
-        
+
     # Load in cluster data
     clusters = dict()
     clusters['channels'] = np.load(join(session_path, probe, 'clusters.channels.npy'))
     clusters['depths'] = np.load(join(session_path, probe, 'clusters.depths.npy'))
     clusters['amps'] = np.load(join(session_path, probe, 'clusters.amps.npy'))
     clusters['cluster_id'] = np.arange(clusters['channels'].shape[0])
-    
+
     # Add cluster qc metrics
     clusters['ibl_label'] = np.load(join(session_path, probe, 'clusters.IBLLabel.npy'))
     clusters['ml_label'] = np.load(join(session_path, probe, 'clusters.MLLabel.npy'))
     if isfile(join(session_path, probe, 'clusters.manualLabels.npy')):
         clusters['manual_label'] = np.load(join(session_path, probe, 'clusters.manualLabels.npy'))
-        
+
     # Add neuron firing rates
     if isfile(join(session_path, probe, 'clusters.firingRates.npy')):
         clusters['firing_rate'] = np.load(join(session_path, probe, 'clusters.firingRates.npy'))
@@ -454,7 +454,7 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
         clusters['firing_rate'] =  np.array([spikes['times'][spikes['clusters'] == i].shape[0]
                                              / spikes['times'][-1] for i in clusters['cluster_id']])
         np.save(join(session_path, probe, 'clusters.firingRates.npy'), clusters['firing_rate'])
-    
+
     # Load in channel data
     channels = dict()
     if histology:
@@ -462,20 +462,20 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
             channels_df = pd.read_csv(join(session_path, probe, 'channels.brainLocations.csv'))
             channels = {col: np.array(channels_df[col]) for col in channels_df.columns}
         else:
-            
+
             channel_loc_files = glob(join(session_path, probe, 'channel_locations*'))
             if len(channel_loc_files) == 0:
                 raise Exception('No aligned channel locations found! Set histology to False to load data without brain regions.')
             elif len(channel_loc_files) == 1:
-                
+
                 # One shank recording
                 f = open(join(session_path, probe, 'channel_locations.json'))
                 channel_locations = json.load(f)
                 f.close()
                 channel_locations_df = pd.DataFrame(data=channel_locations).transpose()
-                
+
             elif len(channel_loc_files) == 4:
-                
+
                 # Four shank recording
                 channel_locations_df = pd.DataFrame()
                 for this_file in channel_loc_files:
@@ -484,7 +484,7 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
                     f.close()
                     this_df = pd.DataFrame(data=channel_locations).transpose()
                     channel_locations_df = pd.concat((channel_locations_df, this_df))
-                    
+
             # Match xyz channel location and brain region to channels by local coordinates
             local_coordinates = np.load(join(session_path, probe, 'channels.localCoordinates.npy'))
             channels_df = pd.DataFrame(index=np.arange(local_coordinates.shape[0]),
@@ -499,13 +499,13 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
                 channels_df.loc[i, 'z'] = channel_locations_df.loc[this_ch, 'z'].values[0]
             channels_df['lateral_um'] = local_coordinates[:, 0]
             channels_df['axial_um'] = local_coordinates[:, 1]
-            
+
             # Save to disk
             channels_df.to_csv(join(session_path, probe, 'channels.brainLocation.csv'), index=False)
-            
+
             # Change into dict
-            channels = {col: np.array(channels_df[col]) for col in channels_df.columns}            
-        
+            channels = {col: np.array(channels_df[col]) for col in channels_df.columns}
+
         # Use the channel location to infer the locations of the neurons
         clusters['x'] = channels['x'][clusters['channels']]
         clusters['y'] = channels['y'][clusters['channels']]
@@ -514,15 +514,15 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
         clusters['region'] = combine_regions(clusters['acronym'], abbreviate=True, brainregions=BrainRegions())
         clusters['region'][(clusters['region'] == 'CA1') & (clusters['z'] < -2000)] = 'iCA1'
         clusters['region'][(clusters['region'] == 'CA1') & (clusters['z'] > -2000)] = 'dCA1'
-        clusters['full_region'] = combine_regions(clusters['acronym'], abbreviate=False, 
+        clusters['full_region'] = combine_regions(clusters['acronym'], abbreviate=False,
                                                   brainregions=BrainRegions())
         clusters['full_region'][(clusters['full_region'] == 'CA1') & (clusters['z'] < -2000)] = 'intermediate CA1'
         clusters['full_region'][(clusters['full_region'] == 'CA1') & (clusters['z'] > -2000)] = 'dorsal CA1'
-        
+
     # Exclude neurons that are not labelled good or with firing rates which are too low
     select_units = np.ones(clusters['cluster_id'].shape[0]).astype(bool)
     select_units[np.where(clusters['firing_rate'] < min_fr)[0]] = False
-    if only_good:     
+    if only_good:
         select_units[np.where((clusters['ml_label'] == 0) & (clusters['ibl_label'] < 1))[0]] = False
     keep_units = clusters['cluster_id'][select_units]
     spikes['times'] = spikes['times'][np.isin(spikes['clusters'], keep_units)]
@@ -546,9 +546,9 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
     clusters['cluster_id'] = clusters['cluster_id'][keep_units]
     clusters['ml_label'] = clusters['ml_label'][keep_units]
     clusters['ibl_label'] = clusters['ibl_label'][keep_units]
-    
+
     return spikes, clusters, channels
-    
+
 
 def load_multiple_probes(session_path, probes=[], **kwargs):
     """
@@ -560,7 +560,7 @@ def load_multiple_probes(session_path, probes=[], **kwargs):
         Path to session data.
     probes : list
         List of probes to load in, by default load all probes
-    **kwargs 
+    **kwargs
         Extra inputs to the load_neural_data function.
 
     Returns
@@ -569,20 +569,20 @@ def load_multiple_probes(session_path, probes=[], **kwargs):
     clusters : dict
     channels : dict
     """
-    
+
     if len(probes) == 0:
         # Get all probes of session
         probe_paths = glob(join(session_path, 'probe*'))
         probes = [split(i)[-1] for i in probe_paths]
-    
+
     # Load in neural data per probe
     spikes, clusters, channels = dict(), dict(), dict()
     for probe in probes:
         spikes[probe], clusters[probe], channels[probe] = load_neural_data(
             session_path, probe, **kwargs)
-    
-    return spikes, clusters, channels    
-    
+
+    return spikes, clusters, channels
+
 
 def remap(acronyms, source='Allen', dest='Beryl', brainregions=None):
     """
@@ -591,17 +591,17 @@ def remap(acronyms, source='Allen', dest='Beryl', brainregions=None):
         acronyms (list or array-like): A list of brain region acronyms to be remapped.
         source (str, optional): The source mapping to use for remapping. Default is 'Allen'.
         dest (str, optional): The destination mapping to remap to. Default is 'Beryl'.
-        brainregions (BrainRegions, optional): An instance of the BrainRegions class. 
+        brainregions (BrainRegions, optional): An instance of the BrainRegions class.
             If not provided, a new instance will be created.
     Returns:
         list: A list of remapped brain region acronyms corresponding to the destination mapping.
     Notes:
         - The function uses the `BrainRegions` class to handle mappings and acronym conversions.
         - The `ismember` function is used to find indices of the acronyms in the source mapping.
-        - Ensure that the `BrainRegions` class and its methods (`acronym2id`, `get`, etc.) 
+        - Ensure that the `BrainRegions` class and its methods (`acronym2id`, `get`, etc.)
           are properly implemented and accessible.
-    """    
-    
+    """
+
     br = brainregions or BrainRegions()
     _, inds = ismember(br.acronym2id(acronyms), br.id[br.mappings[source]])
     remapped_acronyms = br.get(br.id[br.mappings[dest][inds]])['acronym']
@@ -616,8 +616,8 @@ def get_full_region_name(acronyms, brainregions=None):
     as-is in the output.
     Args:
         acronyms (list of str): A list of brain region acronyms to look up.
-        brainregions (BrainRegions, optional): An instance of the `BrainRegions` class 
-            that contains mapping information for acronyms and full region names. 
+        brainregions (BrainRegions, optional): An instance of the `BrainRegions` class
+            that contains mapping information for acronyms and full region names.
             If not provided, a new instance of `BrainRegions` will be created.
     Returns:
         list of str or str: A list of full region names corresponding to the input acronyms.
@@ -627,7 +627,7 @@ def get_full_region_name(acronyms, brainregions=None):
         IndexError: If an acronym is not found in the `BrainRegions` object, it is handled
         by appending the acronym itself to the output list.
     """
-    
+
     br = brainregions or BrainRegions()
     full_region_names = []
     for i, acronym in enumerate(acronyms):
@@ -640,34 +640,34 @@ def get_full_region_name(acronyms, brainregions=None):
         return full_region_names[0]
     else:
         return full_region_names
-    
-    
+
+
 def combine_regions(allen_acronyms, split_peri=True, abbreviate=True, brainregions=None):
     """
     Maps Allen Brain Atlas acronyms to broader brain region categories.
-    This function remaps a list of Allen Brain Atlas acronyms to broader brain 
-    region categories, either in abbreviated or full form. It also allows for 
+    This function remaps a list of Allen Brain Atlas acronyms to broader brain
+    region categories, either in abbreviated or full form. It also allows for
     splitting the perirhinal cortex into areas 35 and 36.
     Parameters:
     -----------
     allen_acronyms : list or array-like
         A list or array of Allen Brain Atlas acronyms to be remapped.
     split_peri : bool, optional
-        If True, splits the perirhinal cortex into areas 35 and 36. 
+        If True, splits the perirhinal cortex into areas 35 and 36.
         Defaults to True.
     abbreviate : bool, optional
-        If True, returns abbreviated region names. If False, returns full 
+        If True, returns abbreviated region names. If False, returns full
         region names. Defaults to True.
     brainregions : BrainRegions, optional
-        An instance of the BrainRegions class. If None, a new instance is 
+        An instance of the BrainRegions class. If None, a new instance is
         created. Defaults to None.
     Returns:
     --------
     regions : numpy.ndarray
-        An array of remapped brain region names corresponding to the input 
+        An array of remapped brain region names corresponding to the input
         acronyms.
     """
-    
+
     br = brainregions or BrainRegions()
     acronyms = remap(allen_acronyms)  # remap to Beryl
     regions = np.array(['root'] * len(acronyms), dtype=object)
@@ -694,7 +694,7 @@ def combine_regions(allen_acronyms, split_peri=True, abbreviate=True, brainregio
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('VIS'))['acronym'])] = 'Visual cortex'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('AUD'))['acronym'])] = 'Auditory cortex'
         regions[np.in1d(acronyms, br.descendants(br.acronym2id('TEa'))['acronym'])] = 'Temporal association area'
-        regions[acronyms == 'CA1'] = 'CA1'     
+        regions[acronyms == 'CA1'] = 'CA1'
 
     return regions
 
@@ -705,11 +705,77 @@ def bandpass_filter(data, lowcut, highcut, fs, order=5):
     return y
 
 
+def bin_continuous_signal(x, y, bin_centers, bin_size, statistic='mean'):
+    """
+    Bins a continuous signal (y) defined over a domain (x) into specified bins
+    and calculates the statistic (mean, sum, or count) of the signal within each bin.
+
+    Supports overlapping bins (where bin_size > spacing between centers).
+
+    Args:
+        x (np.ndarray): The domain of the signal (e.g., time, position).
+                        Must be 1D and same length as y (unless statistic='count').
+        y (np.ndarray): The signal values (e.g., amplitude, voltage).
+                        Must be 1D and same length as x. Can be None if statistic='count'.
+        bin_centers (np.ndarray): A 1D array of center points for the bins.
+        bin_size (float): The width of each bin.
+        statistic (str): The statistic to compute. 'mean' (default), 'sum', or 'count'.
+
+    Returns:
+        tuple: (bin_values, bin_centers)
+            bin_values (np.ndarray): The calculated statistic of 'y' within each bin.
+    """
+    x = np.asarray(x)
+    bin_centers = np.asarray(bin_centers)
+
+    # Validation: Y is only required if we aren't just counting X presence
+    if statistic != 'count':
+        y = np.asarray(y)
+        if x.shape != y.shape:
+            raise ValueError(f"x and y must have the same shape. Got {x.shape} and {y.shape}")
+
+    # Initialize output array
+    bin_values = np.empty_like(bin_centers, dtype=float)
+
+    half_width = bin_size / 2.0
+
+    # Iterate over each bin center to handle potential overlaps
+    for i, center in enumerate(bin_centers):
+        # Define mask for the current bin
+        # Using half-open interval [start, end) to be consistent with standard binning
+        start_edge = center - half_width
+        end_edge = center + half_width
+
+        mask = (x >= start_edge) & (x < end_edge)
+
+        if statistic == 'count':
+            bin_values[i] = np.sum(mask)
+            continue
+
+        # Extract values for this bin
+        bin_y = y[mask]
+
+        if bin_y.size == 0:
+            # Handle empty bins
+            if statistic == 'mean':
+                bin_values[i] = np.nan
+            else:
+                bin_values[i] = 0.0
+        else:
+            # Compute statistic
+            if statistic == 'mean':
+                bin_values[i] = np.mean(bin_y)
+            elif statistic == 'sum':
+                bin_values[i] = np.sum(bin_y)
+
+    return bin_values, bin_centers
+
+
 def bin_signal(timestamps, signal, bin_edges):
     """
     Bin a signal based on provided timestamps and bin edges.
-    This function groups the `signal` values into bins defined by `bin_edges` 
-    based on their corresponding `timestamps`. It computes the mean value of 
+    This function groups the `signal` values into bins defined by `bin_edges`
+    based on their corresponding `timestamps`. It computes the mean value of
     the signal within each bin.
     Parameters:
     -----------
@@ -718,12 +784,12 @@ def bin_signal(timestamps, signal, bin_edges):
     signal : numpy.ndarray
         Array of signal values to be binned.
     bin_edges : numpy.ndarray
-        Array defining the edges of the bins. The bins are defined as 
+        Array defining the edges of the bins. The bins are defined as
         [bin_edges[i], bin_edges[i+1]) for i in range(len(bin_edges) - 1).
     Returns:
     --------
     numpy.ndarray
-        Array of mean signal values for each bin. If a bin contains no 
+        Array of mean signal values for each bin. If a bin contains no
         timestamps, its mean value will be zero.
     """
 
@@ -840,7 +906,7 @@ def event_aligned_averages(signal, timestamps, events, timebins, baseline=None, 
             'value': averages.flatten()
         })
         return df_long
-    
+
     else:
         return averages
 
@@ -882,8 +948,8 @@ def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, 
 
 def get_spike_counts_in_bins(spike_times, spike_clusters, intervals):
     """
-    From ibllib package 
-    
+    From ibllib package
+
     Return the number of spikes in a sequence of time intervals, for each neuron.
 
     Parameters
@@ -954,7 +1020,7 @@ def calculate_peths(
     """
     # Ensure cluster_ids are unique and sorted, as this is assumed by the binning logic.
     ids = np.unique(cluster_ids)
-    
+
     # Create a mapping from the original cluster ID to an index (0, 1, 2, ...)
     cluster_map = {cid: i for i, cid in enumerate(ids)}
 
@@ -985,14 +1051,14 @@ def calculate_peths(
     for i, t_0 in enumerate(align_times):
         # Define the absolute time bin edges for the current trial
         x_bins = t_bin_edges + t_0
-        
+
         # Find the indices of spikes that fall ONLY within this trial's time window
         trial_indices = np.where((s_times >= x_bins[0]) & (s_times < x_bins[-1]))[0]
 
         # Select only the spikes and clusters for this specific trial
         trial_s_times = s_times[trial_indices]
         trial_s_clusts_mapped = s_clusts_mapped[trial_indices]
-        
+
         # Use np.histogram2d to efficiently bin the spikes for this trial.
         # It handles empty spike arrays correctly (returns all zeros).
         counts, _, _ = np.histogram2d(
@@ -1000,7 +1066,7 @@ def calculate_peths(
             trial_s_clusts_mapped,   # Clusters for THIS trial only
             bins=[x_bins, y_bins]     # Time and cluster bins for this trial
         )
-        
+
         # The result needs to be transposed and stored in the main array
         binned_spikes[i, :, :] = counts.T
 
@@ -1112,7 +1178,7 @@ def peri_multiple_events_time_histogram(
     -------
         ax : matplotlib axes
             Axes with all of the plots requested.
-    """    
+    """
     from brainbox import singlecell
 
     # Check to make sure if we fail, we fail in an informative way
@@ -1236,7 +1302,7 @@ def circ_shift(series1, series2, n_shifts=10000, min_shift_percentage=0.05):
 
     # 2. Generate the null distribution by circularly shifting one series
     null_distribution_r = np.zeros(n_shifts)
-    
+
     # Determine the minimum and maximum shift amounts
     min_shift = max(1, int(n * min_shift_percentage))
     max_shift = n - min_shift # Symmetrical to avoid wrapping back to small effective shifts
@@ -1255,14 +1321,14 @@ def circ_shift(series1, series2, n_shifts=10000, min_shift_percentage=0.05):
     for i in range(n_shifts):
         # Randomly choose a shift amount (excluding 0, and respecting min_shift)
         shift_amount = np.random.choice(possible_shifts)
-        
+
         # Circularly shift series1
         shifted_series1 = np.roll(series1, shift_amount)
-        
+
         # Calculate correlation for this shifted pair
         r_null, _ = pearsonr(shifted_series1, series2)
         null_distribution_r[i] = r_null
-        
+
     # The p-value is the sum of probabilities in both tails if looking for any modulation
     p_value = np.sum(np.abs(null_distribution_r) >= np.abs(observed_r)) / n_shifts
 
@@ -1272,44 +1338,44 @@ def circ_shift(series1, series2, n_shifts=10000, min_shift_percentage=0.05):
 def load_lfp(probe_path, channels, timewin='passive'):
     """
     """
-    
+
     # Import SpikeInterface
     import spikeinterface.full as si
-    
-    # Load in raw data using SpikeInterface 
+
+    # Load in raw data using SpikeInterface
     rec = si.read_cbin_ibl(probe_path)
-    
+
     # Filter out LFP band
     rec_lfp = si.bandpass_filter(rec, freq_min=1, freq_max=400)
-    
+
     # Correct for inter-sample shift
-    rec_shifted = si.phase_shift(rec_lfp)    
-    
-    # Interpolate over bad channels  
+    rec_shifted = si.phase_shift(rec_lfp)
+
+    # Interpolate over bad channels
     rec_car_temp = si.common_reference(rec_lfp)
     _, all_channels = si.detect_bad_channels(
         rec_car_temp, method='mad', std_mad_threshold=3, seed=42)
-    noisy_channel_ids = rec_car_temp.get_channel_ids()[all_channels == 'noise']           
+    noisy_channel_ids = rec_car_temp.get_channel_ids()[all_channels == 'noise']
     rec_interpolated = si.interpolate_bad_channels(rec_shifted, noisy_channel_ids)
-    
+
     # Do common average reference
     rec_car = si.common_reference(rec_interpolated)
-    
+
     # Downsample to 2500 Hz
     rec_final = si.resample(rec_car, 2500)
-        
+
     # Load in trials
     trials = pd.read_csv(join(probe_path, '..', '..', 'trials.csv'))
-    
+
     # Get LFP from the requested channels for the passive period
     time_start = 3300
     time_end = 3300 + 120
     samples_start = int(time_start * rec_final.sampling_frequency)
     samples_end = int(time_end * rec_final.sampling_frequency)
-    lfp_traces = rec_final.get_traces(start_frame=samples_start, end_frame=samples_end, 
+    lfp_traces = rec_final.get_traces(start_frame=samples_start, end_frame=samples_end,
                                       channel_ids=channels)
-    
-    
+
+
     # Load in LFP
     sr = spikeglx.Reader(join(probe_path, '_spikeGLX_ephysData_g0_t0.imec1.lf.bin'))
     #time_start = trials.loc[trials.index[-1], 'exitEnvTime'] + 60
@@ -1320,11 +1386,11 @@ def load_lfp(probe_path, channels, timewin='passive'):
     samples_end = int(time_end * sr.fs)
     signal = sr.read(nsel=slice(samples_start, samples_end, None), csel=channels)[0]
     time = np.arange(samples_start, samples_end) / sr.fs
-    
+
     # Do common average reference
     common_avg = np.median(signal, axis=1, keepdims=True)
     signal_car = signal - common_avg
-    
+
     try:
         lfp_paths, _ = one.load_datasets(eid, download_only=True, datasets=[
             '_spikeglx_ephysData_g*_t0.imec*.lf.cbin', '_spikeglx_ephysData_g*_t0.imec*.lf.meta',
@@ -1333,8 +1399,8 @@ def load_lfp(probe_path, channels, timewin='passive'):
         sr = spikeglx.Reader(lfp_path)
     except Exception:
         return [], []
-    
-    # Load in trials    
+
+    # Load in trials
     try:
         trials = one.load_object(eid, 'trials')
         trial_times = trials['stimOn_times'][~np.isnan(trials['stimOn_times'])]
@@ -1350,7 +1416,7 @@ def load_lfp(probe_path, channels, timewin='passive'):
             print('No luck, just using the last 15 minutes of the recording')
             trial_times = (sr.shape[0] / sr.fs) - (60 * 15)
     trial_times = trial_times[~np.isnan(trial_times)]
-    
+
     if timewin == 'spont':
         # Take 10 minutes of spontaneous activity starting 5 minutes after the last trial
         time_start = trial_times[-1] + (60 * 5)
@@ -1363,11 +1429,11 @@ def load_lfp(probe_path, channels, timewin='passive'):
         # Take all time during the task
         time_start = 0
         time_end = trial_times[-1]
-    
+
     # Convert seconds to samples
     samples_start = int(time_start * sr.fs)
     samples_end = int(time_end * sr.fs)
-    
+
     # Load in lfp slice
     signal = sr.read(nsel=slice(samples_start, samples_end, None), csel=channels)[0]
     time = np.arange(samples_start, samples_end) / sr.fs
