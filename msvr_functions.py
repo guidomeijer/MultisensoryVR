@@ -705,104 +705,63 @@ def bandpass_filter(data, lowcut, highcut, fs, order=5):
     return y
 
 
-def bin_continuous_signal(x, y, bin_centers, bin_size, statistic='mean'):
+def bin_signal(x, y, bin_centers, bin_size, statistic='mean'):
     """
-    Bins a continuous signal (y) defined over a domain (x) into specified bins
-    and calculates the statistic (mean, sum, or count) of the signal within each bin.
-
-    Supports overlapping bins (where bin_size > spacing between centers).
-
     Args:
-        x (np.ndarray): The domain of the signal (e.g., time, position).
-                        Must be 1D and same length as y (unless statistic='count').
-        y (np.ndarray): The signal values (e.g., amplitude, voltage).
-                        Must be 1D and same length as x. Can be None if statistic='count'.
-        bin_centers (np.ndarray): A 1D array of center points for the bins.
-        bin_size (float): The width of each bin.
-        statistic (str): The statistic to compute. 'mean' (default), 'sum', or 'count'.
-
-    Returns:
-        tuple: (bin_values, bin_centers)
-            bin_values (np.ndarray): The calculated statistic of 'y' within each bin.
+        x (array): Continuous trajectory (e.g., animal position).
+                   Used for 'mean'/'sum' to locate y values.
+        y (array): 
+            - If statistic='count': Discrete event locations (same units as x).
+            - If statistic='mean'/'sum': Signal values at positions x.
     """
-    x = np.asarray(x)
     bin_centers = np.asarray(bin_centers)
-
-    # Validation: Y is only required if we aren't just counting X presence
-    if statistic != 'count':
+    half_width = bin_size / 2.0
+    left_edges = bin_centers - half_width
+    right_edges = bin_centers + half_width
+    
+    # --- BRANCH 1: Event Counting (The fix for your issue) ---
+    if statistic == 'count':
+        if y is None:
+            raise ValueError("y must be provided for event counting.")
+        
+        # We ignore x entirely. We sort y (event locations) and bin them.
         y = np.asarray(y)
-        if x.shape != y.shape:
-            raise ValueError(f"x and y must have the same shape. Got {x.shape} and {y.shape}")
+        y_sorted = np.sort(y)
+        
+        # Vectorized count of events in overlapping bins
+        starts = np.searchsorted(y_sorted, left_edges, side='left')
+        ends = np.searchsorted(y_sorted, right_edges, side='left')
+        
+        return (ends - starts).astype(float)
 
-    # Initialize output array
+    # --- BRANCH 2: Signal Averaging/Summing ---
+    # Here, y depends on x. We must sort x and carry y with it.
+    x = np.asarray(x)
+    y = np.asarray(y)
+    
+    if x.shape != y.shape:
+        raise ValueError(f"For statistic='{statistic}', x and y must be same shape.")
+
+    sort_idx = np.argsort(x)
+    x_sorted = x[sort_idx]
+    y_sorted = y[sort_idx]
+
+    starts = np.searchsorted(x_sorted, left_edges, side='left')
+    ends = np.searchsorted(x_sorted, right_edges, side='left')
+
     bin_values = np.empty_like(bin_centers, dtype=float)
 
-    half_width = bin_size / 2.0
-
-    # Iterate over each bin center to handle potential overlaps
-    for i, center in enumerate(bin_centers):
-        # Define mask for the current bin
-        # Using half-open interval [start, end) to be consistent with standard binning
-        start_edge = center - half_width
-        end_edge = center + half_width
-
-        mask = (x >= start_edge) & (x < end_edge)
-
-        if statistic == 'count':
-            bin_values[i] = np.sum(mask)
-            continue
-
-        # Extract values for this bin
-        bin_y = y[mask]
-
-        if bin_y.size == 0:
-            # Handle empty bins
-            if statistic == 'mean':
-                bin_values[i] = np.nan
-            else:
-                bin_values[i] = 0.0
+    for i, (start, end) in enumerate(zip(starts, ends)):
+        if start == end:
+            bin_values[i] = np.nan if statistic == 'mean' else 0.0
         else:
-            # Compute statistic
+            segment = y_sorted[start:end]
             if statistic == 'mean':
-                bin_values[i] = np.mean(bin_y)
+                bin_values[i] = np.mean(segment)
             elif statistic == 'sum':
-                bin_values[i] = np.sum(bin_y)
+                bin_values[i] = np.sum(segment)
 
-    return bin_values, bin_centers
-
-
-def bin_signal(timestamps, signal, bin_edges):
-    """
-    Bin a signal based on provided timestamps and bin edges.
-    This function groups the `signal` values into bins defined by `bin_edges`
-    based on their corresponding `timestamps`. It computes the mean value of
-    the signal within each bin.
-    Parameters:
-    -----------
-    timestamps : numpy.ndarray
-        Array of timestamps corresponding to the signal values.
-    signal : numpy.ndarray
-        Array of signal values to be binned.
-    bin_edges : numpy.ndarray
-        Array defining the edges of the bins. The bins are defined as
-        [bin_edges[i], bin_edges[i+1]) for i in range(len(bin_edges) - 1).
-    Returns:
-    --------
-    numpy.ndarray
-        Array of mean signal values for each bin. If a bin contains no
-        timestamps, its mean value will be zero.
-    """
-
-    bin_indices = np.digitize(timestamps[(timestamps >= bin_edges[0]) & (timestamps < bin_edges[-1])],
-                              bins=bin_edges, right=False) - 1
-    bin_sums = np.bincount(
-        bin_indices,
-        weights=signal[(timestamps >= bin_edges[0]) & (timestamps < bin_edges[-1])],
-        minlength=len(bin_edges) - 1
-        )
-    bin_means = np.divide(bin_sums, np.bincount(bin_indices), out=np.zeros_like(bin_sums),
-                          where=np.bincount(bin_indices)!=0)
-    return bin_means
+    return bin_values
 
 
 def add_significance(x, p_values, ax, y_pos='auto', alpha=0.05):

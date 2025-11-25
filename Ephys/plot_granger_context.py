@@ -18,7 +18,7 @@ colors, dpi = figure_style()
 
 # Load in data
 path_dict = paths()
-granger_df = pd.read_csv(join(path_dict['save_path'], 'granger_causality_context_distance.csv'))
+granger_df = pd.read_csv(join(path_dict['save_path'], 'granger_causality_context_50mmbins.csv'))
 granger_df = granger_df[granger_df['region1'] != 'iCA1']
 granger_df = granger_df[granger_df['region2'] != 'iCA1']
 
@@ -73,8 +73,8 @@ for obj in ['object1', 'object2', 'object3']:
 
     # Filter your DataFrame
     df = mean_causality[mean_causality['object'] == obj].copy()
-    df = df[df['p_value'] < 0.00000000001]
-    df = df[df['f_stat'] > 1.1]
+    df = df[df['p_value'] < 0.05]
+    #df = df[df['f_stat'] > 1.5]
 
     # Build a directed graph
     G = nx.DiGraph()

@@ -9,8 +9,7 @@ from os.path import join
 import pandas as pd
 from itertools import combinations
 from statsmodels.tsa.api import VAR
-from scipy import stats
-from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import LeaveOneOut, cross_val_predict
 from sklearn.pipeline import make_pipeline
@@ -34,7 +33,7 @@ N_PSEUDO = 500
 d_centers = np.arange(-D_BEFORE + (BIN_SIZE/2), D_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
 
 # Initialize
-clf = make_pipeline(StandardScaler(), LogisticRegression(solver='lbfgs', max_iter=500))
+clf = make_pipeline(StandardScaler(), RandomForestClassifier(random_state=42, n_jobs=1))
 path_dict = paths(sync=False)
 subjects = load_subjects()
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
@@ -145,7 +144,7 @@ def compute_granger_trial_shuffling(residuals_r1, residuals_r2, max_lag_bins, n_
     real_f12, real_f21 = get_mean_f_statistics(residuals_r1, residuals_r2)
 
     if np.isnan(real_f12) or np.isnan(real_f21):
-        return np.nan, np.nan, np.nan, np.nan
+        return np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
 
     # 2. Generate NULL Distribution (Mismatched trials: i to j)
     null_f12_dist = np.empty(n_shuffles)
@@ -166,8 +165,10 @@ def compute_granger_trial_shuffling(residuals_r1, residuals_r2, max_lag_bins, n_
     # Proportion of null F-stats that are greater than or equal to the real F-stat
     p_12 = (np.sum(null_f12_dist >= real_f12) + 1) / (n_shuffles + 1)
     p_21 = (np.sum(null_f21_dist >= real_f21) + 1) / (n_shuffles + 1)
+    null_f12 = np.median(null_f12)
+    null_f21 = np.median(null_f21)
 
-    return real_f12, real_f21, p_12, p_21
+    return real_f12, null_f12, p_12, real_f21, null_f21, p_21
 
 
 def get_binned_spikes_distance(spikes, region_neurons, trials_df, d_centers):
@@ -298,16 +299,16 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
 
     # Define a wrapper to unpack arguments for Parallel
     def run_pair_job(job):
-        f12, f21, p12, p21 = compute_granger_trial_shuffling(
+        f12, nullf12, p12, f21, nullf21, p21 = compute_granger_trial_shuffling(
             job['d1'], job['d2'], max_lag_bins, n_shuffles=N_PSEUDO
         )
-        return job['r1'], job['r2'], job['obj'], f12, f21, p12, p21
+        return job['r1'], job['r2'], job['obj'], f12, nullf12, p12, f21, nullf21, p21
 
     print(f"Running Granger on {len(job_list)} pairs...")
     results = Parallel(n_jobs=N_CORES)(delayed(run_pair_job)(job) for job in job_list)
 
     # Unpack results into DataFrame
-    for r1, r2, obj, f12, f21, p12, p21 in results:
+    for r1, r2, obj, f12, nullf12, p12, f21, nullf21, p21 in results:
         granger_df = pd.concat((granger_df, pd.DataFrame(data={
             'region_pair': [f'{r1} → {r2}', f'{r2} → {r1}'],
             'region1': [r1, r2],
@@ -315,9 +316,11 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             'object': f'object{obj}',
             'p_value': [p12, p21],
             'f_stat': [f12, f21],
+            'null_f_stat': [nullf12, nullf21],
             'subject': subject,
             'date': date
         })))
 
     # Save to disk
-    granger_df.to_csv(join(path_dict['save_path'], 'granger_causality_context_distance.csv'), index=False)
+    granger_df.to_csv(join(path_dict['save_path'], f'granger_causality_context_{BIN_SIZE}mmbins.csv'),
+                      index=False)

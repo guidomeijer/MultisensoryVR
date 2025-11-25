@@ -12,17 +12,17 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline
 import statsmodels.api as sm
-from scipy.stats import binned_statistic
 from joblib import Parallel, delayed
+from patsy import dmatrix
 from brainbox.population.decode import classify
-from msvr_functions import paths, load_neural_data, load_objects, bin_continuous_signal
+from msvr_functions import paths, load_neural_data, load_objects, bin_signal
 
 # Settings
 BIN_SIZE = 50  # mm
-STEP_SIZE = 5
+STEP_SIZE = 10
 MIN_TRIALS = 30
 MIN_SPEED = 0 # mm/s
-N_CORES = -2
+N_CORES = 8
 
 # Create position bins
 rel_bin_centers = np.arange((BIN_SIZE/2), 1500 - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
@@ -45,7 +45,7 @@ def decode_context(bin_center, X_decode, y, X_bin_centers):
 
 
 # Loop over recordings
-glm_results = pd.DataFrame()
+decode_df = pd.DataFrame()
 for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
     print(f'\n{subject} {date} {probe} ({i} of {rec.shape[0]})')
 
@@ -96,19 +96,21 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         trial_id_list.append(np.full(abs_bin_centers.shape[0], row.Index))
 
         # Speed predictor
-        this_speed = bin_continuous_signal(position, running_speed, abs_bin_centers, BIN_SIZE)
+        this_speed = bin_signal(position, running_speed, abs_bin_centers, BIN_SIZE)
         speed_pred.append(this_speed)
-        this_acc = bin_continuous_signal(position, acceleration, abs_bin_centers, BIN_SIZE)
+        this_acc = bin_signal(position, acceleration, abs_bin_centers, BIN_SIZE)
         acc_pred.append(this_acc)
 
         # Licks
-        this_lick = bin_continuous_signal(position, lick_pos, abs_bin_centers, BIN_SIZE, statistic='count')
+        this_lick = bin_signal(position, lick_pos, abs_bin_centers, BIN_SIZE, statistic='count')
         lick_pred.append(this_lick)
 
         # Time occupancy
-        this_counts = bin_continuous_signal(position, timestamps, abs_bin_centers, BIN_SIZE, statistic='count')
-        time_per_bin_list.append(this_counts / sampling_freq)
-
+        dt = np.concatenate((np.diff(timestamps), [np.mean(np.diff(timestamps))]))
+        this_occupancy = bin_signal(position, dt, abs_bin_centers, BIN_SIZE,
+                                            statistic='sum')
+        time_per_bin_list.append(this_occupancy)
+        
         # --- Get binned spiking activity per neuron ---
         for neuron_id, neuron_spike_pos in spikes_by_neuron.items():
 
@@ -122,10 +124,11 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             these_spike_pos = neuron_spike_pos[trial_spike_mask]
 
             # Bin spikes
-            these_spikes, _ = np.histogram(these_spike_pos, bins=bin_edges)
-
+            these_binned_spikes = bin_signal(position, these_spike_pos, abs_bin_centers, BIN_SIZE,
+                                             statistic='count')
+            
             # Append
-            binned_spikes[f'neuron{neuron_id}'].append(these_spikes)
+            binned_spikes[f'neuron{neuron_id}'].append(these_binned_spikes)
 
     print('Matrix build complete.')
 
@@ -146,9 +149,19 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     # Convert to pandas dataframe
     df = pd.DataFrame(final_predictors)
 
+    # Add position splines
+    all_rel_positions = np.concatenate(rel_pos_list)
+    spatial_basis = dmatrix(
+        "bs(pos, df=10, include_intercept=False) - 1", 
+        {"pos": all_rel_positions}, 
+        return_type='dataframe'
+    )
+    spatial_basis.columns = [f'spatial_basis_{i}' for i in range(spatial_basis.shape[1])]
+    
     # Get the base X matrix and add the constant
-    X_base = df[['speed', 'acceleration', 'lick']]
-    X_base_with_const = sm.add_constant(X_base, prepend=False)
+    X_motor = df[['speed', 'acceleration', 'lick']]
+    X_motor_with_pos = pd.concat([X_motor, spatial_basis.reset_index(drop=True)], axis=1)
+    X_full = sm.add_constant(X_motor_with_pos, prepend=False)
 
     # Fit GLM
     print("Fitting GLM...")
@@ -159,7 +172,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         # Fit GLM
         glm_nb = sm.GLM(
             df[neuron_col],
-            X_base_with_const,
+            X_full,
             family=sm.families.Poisson(),
             exposure=exposure_vector
             )
@@ -205,7 +218,15 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             for bin_center in rel_pos_bins)
         accuracy = [i for i in results]
 
-        asd
+        # Add to df
+        decode_df = pd.concat((decode_df, pd.DataFrame(data={
+            'accuracy': accuracy,
+            'position': rel_pos_bins,
+            'region': region,
+            'subject': subject,
+            'date': date,
+            'probe': probe
+            })))   
 
 # Save to disk
-glm_results.to_csv(path_dict['save_path'] / 'GLM_results_position.csv', index=False)
+decode_df.to_csv(path_dict['save_path'] / 'decode_context_GLM_position.csv', index=False)
