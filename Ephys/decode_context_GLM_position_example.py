@@ -197,4 +197,4 @@ axs[3].set(xlabel='Position (cm)', ylabel='Residual firing rate (spks/s)', xtick
 
 sns.despine(trim=True)
 plt.tight_layout()
-plt.savefig(path_dict['fig_path'] / 'GLM_decoding_example.pdf')
+plt.savefig(path_dict['google_drive_fig_path'] / 'GLM_decoding_example.pdf')
