@@ -5,6 +5,10 @@ Created on Wed Mar 12 13:27:02 2025
 By Guido Meijer
 """
 
+import sys
+from pathlib import Path
+# Add parent directory to path to import msvr_functions
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import numpy as np
 import pandas as pd

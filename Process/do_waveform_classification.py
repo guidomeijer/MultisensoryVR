@@ -29,13 +29,13 @@ waveform_df['repolarization_slope'] = waveform_df['repolarization_slope'] / 1000
 waveform_df = pd.read_csv(path_dict['save_path'] / 'waveform_metrics_calc.csv')
 waveform_df.loc[waveform_df['spike_width'] >= 0.4, 'neuron_type'] = 'PYR'
 waveform_df.loc[waveform_df['spike_width'] < 0.4, 'neuron_type'] = 'INT'
-waveform_df.loc[(waveform_df['region'] == 'PERI 36') & (waveform_df['spike_width'] < 0.55),
+waveform_df.loc[(waveform_df['region'] == 'PERI 36') & (waveform_df['spike_width'] < 0.5),
                 'neuron_type'] = 'INT'
-waveform_df.loc[(waveform_df['region'] == 'PERI 36') & (waveform_df['spike_width'] >= 0.55),
+waveform_df.loc[(waveform_df['region'] == 'PERI 36') & (waveform_df['spike_width'] >= 0.5),
                 'neuron_type'] = 'PYR'
-waveform_df.loc[(waveform_df['region'] == 'PERI 35') & (waveform_df['spike_width'] < 0.55),
+waveform_df.loc[(waveform_df['region'] == 'PERI 35') & (waveform_df['spike_width'] < 0.5),
                 'neuron_type'] = 'INT'
-waveform_df.loc[(waveform_df['region'] == 'PERI 35') & (waveform_df['spike_width'] >= 0.55),
+waveform_df.loc[(waveform_df['region'] == 'PERI 35') & (waveform_df['spike_width'] >= 0.5),
                 'neuron_type'] = 'PYR'
 waveform_df.to_csv(path_dict['save_path'] / 'waveform_metrics.csv', index=False)
 waveform_df = waveform_df[waveform_df['good'] == 1]
@@ -49,8 +49,9 @@ for region in np.unique(waveform_df['region']):
     print(f'{region}: {np.round((region_n["INT"] / region_n["PYR"]) * 100)}% NS neurons'
           f' out of total {region_n["INT"] + region_n["PYR"]}')
 
-# %% Plot spike with per region
 regions = np.unique(waveform_df['region'])
+
+# %% Plot spike with per region
 
 f, axs = plt.subplots(2, 4, figsize=(8, 4), dpi=dpi, sharex=True)
 axs = np.concatenate(axs)
@@ -58,13 +59,51 @@ for i, region in enumerate(regions):
     if region == 'root':
         continue
     sns.histplot(data=waveform_df[waveform_df['region'] == region], x='spike_width', ax=axs[i],
-                 binwidth=0.034)
-    axs[i].set(title=region, xlim=[0, 1.5], xticks=np.arange(0, 1.6, 0.25), ylabel='', xlabel='')
+                 binwidth=0.032)
+    if region in ['PERI 35', 'PERI 36']:
+        axs[i].plot([0.5, 0.5], axs[i].get_ylim(), color='red', ls='--')
+    else:
+        axs[i].plot([0.4, 0.4], axs[i].get_ylim(), color='red', ls='--')
+    axs[i].set(title=region, xlim=[0, 1.5], ylabel='', xlabel='')
 f.suptitle('Spike width (ms)')
 sns.despine(trim=True)
 plt.tight_layout()
 plt.savefig(path_dict['google_drive_fig_path'] / 'WaveformClassification' / 'spike_width.jpg',
             dpi=600)
+
+# %% Plot firing rate comparision
+
+f, axs = plt.subplots(2, 4, figsize=(8, 4), dpi=dpi)
+axs = np.concatenate(axs)
+for i, region in enumerate(regions):
+    if region == 'root':
+        continue
+    
+    # Calculate the histogram and bin edges
+    counts, bin_edges = np.histogram(waveform_df.loc[(waveform_df['region'] == region)
+                                                     & (waveform_df['neuron_type'] == 'INT'), 'firing_rate'],
+                                     bins=50)
+    cumulative_counts = np.cumsum(counts)
+    int_cum_dist = cumulative_counts / cumulative_counts[-1]
+    
+    counts, bin_edges = np.histogram(waveform_df.loc[(waveform_df['region'] == region)
+                                                     & (waveform_df['neuron_type'] == 'PYR'), 'firing_rate'],
+                                     bins=50)
+    cumulative_counts = np.cumsum(counts)
+    pyr_cum_dist = cumulative_counts / cumulative_counts[-1]
+    
+    axs[i].plot(bin_edges[1:], int_cum_dist, color=colors['INT'], label='INT')
+    axs[i].plot(bin_edges[1:], pyr_cum_dist, color=colors['PYR'], label='PYR')
+    axs[i].set(title=region)
+    if i == 1:
+        axs[i].legend()
+    
+f.suptitle('Firing rate')
+sns.despine(trim=True)
+plt.tight_layout()
+plt.savefig(path_dict['google_drive_fig_path'] / 'WaveformClassification' / 'firing_rate.jpg',
+            dpi=600)
+
 
 # %%
 f, axs = plt.subplots(2, 4, figsize=(8, 4), dpi=dpi, sharex=True)
@@ -117,9 +156,10 @@ axs = np.concatenate(axs)
 for i, region in enumerate(regions):
     if region == 'root':
         continue
-    sns.scatterplot(data=waveform_df[waveform_df['region'] == region],
-                    x='spike_width', y='peak_trough_ratio',            
-                    ax=axs[i])
+    axs[i].scatter(waveform_df.loc[waveform_df['region'] == region, 'spike_width'],
+                   waveform_df.loc[waveform_df['region'] == region, 'peak_trough_ratio'],
+                   c=waveform_df.loc[waveform_df['region'] == region, 'firing_rate'],
+                   cmap='magma')
     axs[i].set(title=region, xlim=[0, 1.5], ylim=[0, 1], ylabel='', xlabel='')
 f.text(0.5, 0.04, 'Spike width (ms)', ha='center')
 f.text(0.04, 0.5, 'Peak-to-trough ratio', va='center', rotation='vertical')

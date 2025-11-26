@@ -353,6 +353,8 @@ def figure_style(font_size=7):
         'control': matplotlib.colors.to_rgb('gray'),
         'sound1': matplotlib.colors.to_rgb('goldenrod'),
         'sound2': matplotlib.colors.to_rgb('darkorchid'),
+        'INT': matplotlib.colors.to_rgb('firebrick'),
+        'PYR': matplotlib.colors.to_rgb('mediumseagreen'),
         'PERI 36': sns.color_palette('Set3')[5],
         'PERI 35': sns.color_palette('Set3')[3],
         'sPERI': sns.color_palette('Set3')[5],

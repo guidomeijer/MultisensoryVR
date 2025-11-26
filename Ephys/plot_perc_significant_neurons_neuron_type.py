@@ -12,9 +12,6 @@ import matplotlib.pyplot as plt
 from msvr_functions import paths, figure_style
 colors, dpi = figure_style()
 
-# Settings
-NEURON_TYPE = 'RS'  # all, NS or RS
-
 # Load in data
 path_dict = paths()
 neuron_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
@@ -25,15 +22,16 @@ neuron_df.loc[neuron_df['region'] == 'vCA1', 'region'] = 'iCA1'
 waveform_df = pd.read_csv(path_dict['save_path'] / 'waveform_metrics.csv')
 waveform_df['subject'] = waveform_df['subject'].astype(str)
 waveform_df['date'] = waveform_df['date'].astype(str)
+waveform_df = waveform_df.rename(columns={'unit_id': 'neuron_id'})
 
 # Merge dataframe
 all_stats_df = pd.merge(neuron_df, waveform_df, on=['subject', 'date', 'probe', 'region', 'neuron_id'])
 
 # Narrow spiking neurons
-stats_df = all_stats_df[all_stats_df['neuron_type'] == 'INT']
+stats_df = all_stats_df[all_stats_df['neuron_type'] == 'INT'].copy()
 stats_df['sig_context_obj1'] = stats_df['p_context_obj1'] < 0.05
 stats_df['sig_context_obj2'] = stats_df['p_context_obj2'] < 0.05
-stats_df['sig_context_onset'] = stats_df['p_sound_onset'] < 0.05
+stats_df['sig_context_diff'] = stats_df['p_sound_diff'] < 0.05
 stats_df['sig_reward'] = stats_df['p_reward'] < 0.05
 stats_df['sig_obj_onset'] = stats_df['p_obj_onset'] < 0.05
 stats_df = stats_df[stats_df['region'] != 'root']
@@ -42,17 +40,17 @@ per_ses_ns = stats_df.groupby(['region', 'ses_id']).sum(numeric_only=True)
 per_ses_ns['n_neurons'] = stats_df.groupby(['region', 'ses_id']).size()
 per_ses_ns['perc_context_obj1'] = (per_ses_ns['sig_context_obj1'] / per_ses_ns['n_neurons']) * 100
 per_ses_ns['perc_context_obj2'] = (per_ses_ns['sig_context_obj2'] / per_ses_ns['n_neurons']) * 100
-per_ses_ns['perc_context_onset'] = (per_ses_ns['sig_context_onset'] / per_ses_ns['n_neurons']) * 100
+per_ses_ns['perc_context_onset'] = (per_ses_ns['sig_context_diff'] / per_ses_ns['n_neurons']) * 100
 per_ses_ns['perc_reward'] = (per_ses_ns['sig_reward'] / per_ses_ns['n_neurons']) * 100
 per_ses_ns['perc_obj_onset'] = (per_ses_ns['sig_obj_onset'] / per_ses_ns['n_neurons']) * 100
 per_ses_ns = per_ses_ns.reset_index()
 per_ses_ns['neuron_type'] = 'INT'
 
 # Regular spiking neurons
-stats_df = all_stats_df[all_stats_df['neuron_type'] == 'PYR']
+stats_df = all_stats_df[all_stats_df['neuron_type'] == 'PYR'].copy()
 stats_df['sig_context_obj1'] = stats_df['p_context_obj1'] < 0.05
 stats_df['sig_context_obj2'] = stats_df['p_context_obj2'] < 0.05
-stats_df['sig_context_onset'] = stats_df['p_sound_onset'] < 0.05
+stats_df['sig_context_onset'] = stats_df['p_sound_diff'] < 0.05
 stats_df['sig_reward'] = stats_df['p_reward'] < 0.05
 stats_df['sig_obj_onset'] = stats_df['p_obj_onset'] < 0.05
 stats_df = stats_df[stats_df['region'] != 'root']
@@ -94,41 +92,37 @@ ax1.tick_params(axis='x', labelrotation=90)
 this_order = per_ses_df[['region', 'perc_context_obj1']].groupby('region').mean().sort_values(
     'perc_context_obj1', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_context_obj1', ax=ax2, hue='neuron_type', errorbar='se',
-            order=this_order)
+            order=this_order, legend=None)
 ax2.plot(ax1.get_xlim(), [context_obj1_chance, context_obj1_chance], ls='--', color='lightgrey',
          lw=0.75)
 #ax2.set(xlabel='', title='Context first landmark', yticks=[0, 1, 2, 3, 4, 5, 6], ylim=[0, 6], ylabel='')
-ax2.set(xlabel='', title='Context modulation (first object)', yticks=[0, 5, 10, 15, 20, 25, 30], ylim=[0, 30], ylabel='')
-ax2.legend(title='')
+ax2.set(xlabel='', title='Context modulation (first object)', yticks=[0, 5, 10, 15, 20, 25], ylim=[0, 25], ylabel='')
 ax2.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_obj2']].groupby('region').mean().sort_values(
     'perc_context_obj2', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_context_obj2', ax=ax3, hue='neuron_type', errorbar='se',
-            order=this_order)
+            order=this_order, legend=None)
 ax3.plot(ax1.get_xlim(), [context_obj2_chance, context_obj2_chance], ls='--', color='lightgrey',
          lw=0.75)
-ax3.legend(title='')
-ax3.set(xlabel='', title='Context modulation (second object)', yticks=[0, 5, 10, 15, 20, 25, 30], ylim=[0, 30], ylabel='')
+ax3.set(xlabel='', title='Context modulation (second object)', yticks=[0, 5, 10, 15, 20, 25], ylim=[0, 25], ylabel='')
 ax3.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_onset']].groupby('region').mean().sort_values(
     'perc_context_onset', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_context_onset', ax=ax4, hue='neuron_type', errorbar='se',
-            order=this_order)
+            order=this_order, legend=None)
 ax4.plot(ax1.get_xlim(), [context_onset_chance, context_onset_chance], ls='--', color='lightgrey',
          lw=0.75)
-ax4.legend(title='')
-ax4.set(xlabel='', title='Sound identity', yticks=[0, 5, 10, 15], ylim=[0, 15], ylabel='')
+ax4.set(xlabel='', title='Sound identity', yticks=[0, 5, 10], ylim=[0, 10], ylabel='')
 ax4.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_reward']].groupby('region').mean().sort_values(
     'perc_reward', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_reward', ax=ax5, hue='neuron_type', errorbar='se',
-            order=this_order)
+            order=this_order, legend=None)
 ax5.plot(ax1.get_xlim(), [reward_chance, reward_chance], ls='--', color='lightgrey',
          lw=0.75)
-ax5.legend(title='')
 ax5.set(xlabel='', title='Outcome modulation', yticks=[0, 10, 20, 30, 40, 50, 60], ylim=[0, 60], ylabel='')
 ax5.tick_params(axis='x', labelrotation=90)
 
@@ -136,102 +130,6 @@ sns.despine(trim=False)
 plt.tight_layout()
 plt.show(block=False)
 
-plt.savefig(join(path_dict['google_drive_fig_path'], f'perc_sig_neurons_{NEURON_TYPE}.jpg'), dpi=600)
+plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_type.jpg'), dpi=600)
 
 
-# %%
-
-sig_cols = [
-    'sig_context_obj1',
-    'sig_context_obj2',
-    'sig_reward',
-    'sig_obj_onset'
-]
-
-# Initialize an empty DataFrame to store percentage overlaps
-overlap_matrix = pd.DataFrame(index=sig_cols, columns=sig_cols, dtype=float)
-
-for col1 in sig_cols:
-    for col2 in sig_cols:
-        intersection = (stats_df[col1] & stats_df[col2]).sum()
-        union = (stats_df[col1] | stats_df[col2]).sum()
-        overlap_percent = 100 * intersection / union if union > 0 else 0
-        overlap_matrix.loc[col1, col2] = overlap_percent
-
-# Assume overlap_matrix is your symmetric matrix of floats
-# Get lower triangle indices (excluding diagonal if desired)
-lower_triangle_indices = np.tril_indices_from(overlap_matrix, k=-1)  # use k=0 to include diagonal
-
-# Find the rows and columns that actually have values
-rows_to_keep = sorted(set(lower_triangle_indices[0]))
-cols_to_keep = sorted(set(lower_triangle_indices[1]))
-
-# Subset the matrix
-trimmed_matrix = overlap_matrix.iloc[rows_to_keep, cols_to_keep]
-
-# Create new mask for upper triangle (on the trimmed matrix)
-mask = np.triu(np.ones_like(trimmed_matrix, dtype=bool), k=1)
-
-# Plot
-plt.figure(figsize=(3.5, 3), dpi=dpi)
-ax = sns.heatmap(
-        trimmed_matrix.astype(float),
-        annot=True,
-        fmt=".1f",
-        cmap="viridis",
-        vmin=0,
-        vmax=30,
-        mask=mask,
-        cbar=None,
-        linewidths=0.5,
-        linecolor='white'
-        )
-ax.set_xticklabels(['Object 1', 'Object 2', 'Outcome'], rotation=0)
-ax.set_yticklabels(['Object 2 ', 'Outcome', 'Objects'], rotation=0)
-plt.tight_layout()
-
-plt.savefig(join(path_dict['google_drive_fig_path'], f'perc_sig_neurons_overlap_{NEURON_TYPE}.jpg'), dpi=600)
-
-
-"""
-# %%
-f, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4, figsize=(1.75*4, 4), dpi=dpi, sharey=False)
-
-sns.barplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, hue='region', errorbar=None,
-            palette=colors)
-sns.swarmplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, color='k', size=2, clip_on=False)
-ax1.set(ylabel='Significant neurons (%)',  yticks=[0, 20, 40, 60, 80, 100], xlabel='',
-        title='Landmark entries', ylim=[0, 100])
-ax1.tick_params(axis='x', labelrotation=90)
-
-sns.barplot(data=per_ses_df, x='region', y='perc_context_obj1', ax=ax2, hue='region', errorbar=None,
-            palette=colors)
-sns.swarmplot(data=per_ses_df, x='region', y='perc_context_obj1', ax=ax2, color='k', size=2)
-ax2.set(xlabel='', title='Context first landmark', yticks=[0, 5, 10, 15, 20, 25, 30, 35], ylim=[0, 35], ylabel='')
-ax2.tick_params(axis='x', labelrotation=90)
-
-sns.barplot(data=per_ses_df, x='region', y='perc_context_obj2', ax=ax3, hue='region', errorbar=None,
-            palette=colors)
-sns.swarmplot(data=per_ses_df, x='region', y='perc_context_obj2', ax=ax3, color='k', size=2)
-ax3.set(xlabel='', title='Context second landmark', yticks=[0, 5, 10, 15, 20, 25, 30, 35], ylim=[0, 35], ylabel='')
-ax3.tick_params(axis='x', labelrotation=90)
-
-sns.barplot(data=per_ses_df, x='region', y='perc_context_onset', ax=ax4, hue='region', errorbar=None,
-            palette=colors)
-sns.swarmplot(data=per_ses_df, x='region', y='perc_context_onset', ax=ax4, color='k', size=2)
-ax4.set(xlabel='', title='Context onset', yticks=[0, 10, 20, 30, 40, 50, 60, 70], ylim=[0, 70], ylabel='')
-ax4.tick_params(axis='x', labelrotation=90)
-
-sns.barplot(data=per_ses_df, x='region', y='perc_reward', ax=ax5, hue='region', errorbar=None,
-            palette=colors)
-sns.swarmplot(data=per_ses_df, x='region', y='perc_reward', ax=ax5, color='k', size=2)
-ax5.set(xlabel='', title='Outcome', yticks=[0, 10, 20, 30, 40, 50], ylim=[0, 50], ylabel='')
-ax5.tick_params(axis='x', labelrotation=90)
-
-sns.despine(trim=False)
-plt.tight_layout()
-plt.show(block=False)
-
-plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_swarm.jpg'), dpi=600)
-
-"""
