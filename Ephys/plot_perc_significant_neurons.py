@@ -7,14 +7,16 @@ import numpy as np
 import pandas as pd
 from os.path import join
 import seaborn as sns
-from scipy import stats
 import matplotlib.pyplot as plt
-from msvr_functions import paths, figure_style
+from msvr_functions import paths, figure_style, load_subjects
 colors, dpi = figure_style()
 
 # Load in data
 path_dict = paths()
+subjects = load_subjects()
 stats_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
+#stats_df = stats_df[np.isin(stats_df['subject'],
+#                            subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
 stats_df['subject'] = stats_df['subject'].astype(str)
 stats_df['date'] = stats_df['date'].astype(str)
 
@@ -26,7 +28,7 @@ session_df = stats_df[['subject', 'date', 'probe']].value_counts().reset_index()
 print(f'{len(np.unique(session_df["subject"]))} mice')
 print(f'{len(np.unique(session_df["date"]))} recording sessions')
 print(f'{session_df.shape[0]} probe insertions')
-print(f'{neuron_df.shape[0]} neurons ({int(session_df["count"].mean())} +- {int(session_df["count"].sem())}, mean +- sem per probe)')
+print(f'{stats_df.shape[0]} neurons ({int(session_df["count"].mean())} +- {int(session_df["count"].sem())}, mean +- sem per probe)')
 
 # Do some processing
 stats_df['sig_context_obj1'] = stats_df['p_context_obj1'] < 0.05
@@ -39,15 +41,15 @@ stats_df = stats_df[stats_df['region'] != 'root']
 stats_df['ses_id'] = [f'{stats_df.loc[i, "subject"]}_{stats_df.loc[i, "date"]}' for i in stats_df.index]
 
 # Get chance levels
-context_obj1_chance = (np.sum(neuron_df['p_context_obj1_shuf'] < 0.05) / neuron_df.shape[0]) * 100
-context_obj2_chance = (np.sum(neuron_df['p_context_obj2_shuf'] < 0.05) / neuron_df.shape[0]) * 100
-context_onset_chance = (np.sum(neuron_df['p_sound_onset_shuf'] < 0.05) / neuron_df.shape[0]) * 100
-reward_chance = (np.sum(neuron_df['p_reward_onset_shuf'] < 0.05) / neuron_df.shape[0]) * 100
-obj_onset_chance = (np.sum(neuron_df['p_obj_onset_shuf'] < 0.05) / neuron_df.shape[0]) * 100
+context_obj1_chance = (np.sum(stats_df['p_context_obj1_shuf'] < 0.05) / stats_df.shape[0]) * 100
+context_obj2_chance = (np.sum(stats_df['p_context_obj2_shuf'] < 0.05) / stats_df.shape[0]) * 100
+context_onset_chance = (np.sum(stats_df['p_sound_onset_shuf'] < 0.05) / stats_df.shape[0]) * 100
+reward_chance = (np.sum(stats_df['p_reward_onset_shuf'] < 0.05) / stats_df.shape[0]) * 100
+obj_onset_chance = (np.sum(stats_df['p_obj_onset_shuf'] < 0.05) / stats_df.shape[0]) * 100
 
 # Summary statistics per session
-per_ses_df = neuron_df.groupby(['region', 'ses_id']).sum(numeric_only=True)
-per_ses_df['n_neurons'] = neuron_df.groupby(['region', 'ses_id']).size()
+per_ses_df = stats_df.groupby(['region', 'ses_id']).sum(numeric_only=True)
+per_ses_df['n_neurons'] = stats_df.groupby(['region', 'ses_id']).size()
 per_ses_df['perc_context_obj1'] = (per_ses_df['sig_context_obj1'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_context_obj2'] = (per_ses_df['sig_context_obj2'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_context_onset'] = (per_ses_df['sig_context_onset'] / per_ses_df['n_neurons']) * 100
@@ -55,10 +57,6 @@ per_ses_df['perc_context_diff'] = (per_ses_df['sig_context_diff'] / per_ses_df['
 per_ses_df['perc_reward'] = (per_ses_df['sig_reward'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_obj_onset'] = (per_ses_df['sig_obj_onset'] / per_ses_df['n_neurons']) * 100
 per_ses_df = per_ses_df.reset_index()
-
-
-# Do statistics
-stats.ttest_1samp(per_ses_df.loc[per_ses_df['region'] == 'AUD', 'perc_sound_diff'], context_onset_chance)
 
 
 # %%
@@ -133,8 +131,8 @@ overlap_matrix = pd.DataFrame(index=sig_cols, columns=sig_cols, dtype=float)
 
 for col1 in sig_cols:
     for col2 in sig_cols:
-        intersection = (neuron_df[col1] & neuron_df[col2]).sum()
-        union = (neuron_df[col1] | neuron_df[col2]).sum()
+        intersection = (stats_df[col1] & stats_df[col2]).sum()
+        union = (stats_df[col1] | stats_df[col2]).sum()
         overlap_percent = 100 * intersection / union if union > 0 else 0
         overlap_matrix.loc[col1, col2] = overlap_percent
 
