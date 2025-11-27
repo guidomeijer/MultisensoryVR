@@ -14,7 +14,7 @@ from patsy import dmatrix
 from msvr_functions import paths, load_neural_data, load_objects, bin_signal
 
 # Settings
-BIN_SIZE = 50  # mm
+BIN_SIZE = 60  # mm
 STEP_SIZE = 10
 MIN_TRIALS = 0
 MIN_SPEED = 0  # mm/s
@@ -22,6 +22,15 @@ N_CORES = 18
 
 # Create position bins
 rel_bin_centers = np.arange((BIN_SIZE/2), 1500 - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
+
+"""
+# Drop bins which overlap the object entry
+drop_bins = np.full(rel_bin_centers.shape[0], False)
+for obj_pos in [450, 900, 1350]:
+    drop_bins[((((rel_bin_centers + (BIN_SIZE/2)) - obj_pos) < (BIN_SIZE/2))
+               & (((rel_bin_centers + (BIN_SIZE/2)) - obj_pos) > 0))] = True
+rel_bin_centers = rel_bin_centers[drop_bins == False]
+"""
 
 # Initialize
 path_dict = paths(sync=False)
@@ -205,7 +214,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     residuals_dict['date'].append(date)
     residuals_dict['probe'].append(probe)
     
-    # Save to disk
-    with open(path_dict['google_drive_data_path'] / 'residuals_position.pickle', 'wb') as handle:
-        pickle.dump(residuals_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+# Save to disk
+with open(path_dict['google_drive_data_path'] / 'residuals_position.pickle', 'wb') as handle:
+    pickle.dump(residuals_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
     

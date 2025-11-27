@@ -16,9 +16,9 @@ from brainbox.population.decode import classify
 from msvr_functions import paths
 
 # Settings
-MIN_NEURONS = 3
-MIN_TRIALS = 20
-N_CORES = 20
+MIN_NEURONS = 2
+MIN_TRIALS = 2
+N_CORES = -1
 
 # Initialize
 path_dict = paths(sync=False)
@@ -76,6 +76,8 @@ for i in range(len(residuals_dict['residuals'])):
             'accuracy': accuracy,
             'position': rel_pos_bins,
             'region': region,
+            'n_neurons': X_decode.shape[1],
+            'n_trials':  np.unique(residuals_dict['trial'][i]).shape[0],
             'subject': residuals_dict['subject'][i],
             'date': residuals_dict['date'][i],
             'probe': residuals_dict['probe'][i]
