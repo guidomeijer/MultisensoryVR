@@ -16,9 +16,9 @@ from brainbox.population.decode import classify
 from msvr_functions import paths
 
 # Settings
-MIN_NEURONS = 10
+MIN_NEURONS = 3
 MIN_TRIALS = 20
-N_CORES = 12
+N_CORES = 20
 
 # Initialize
 path_dict = paths(sync=False)
