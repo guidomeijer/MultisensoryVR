@@ -22,7 +22,8 @@ stats_df['date'] = stats_df['date'].astype(str)
 
 # Take out iCA1 for now
 stats_df.loc[stats_df['region'] == 'dCA1', 'region'] = 'CA1'
-stats_df = stats_df[stats_df['region'] != 'iCA1']
+stats_df.loc[stats_df['region'] == 'iCA1', 'region'] = 'CA1'
+#stats_df = stats_df[stats_df['region'] != 'iCA1']
 session_df = stats_df[['subject', 'date', 'probe']].value_counts().reset_index()
 
 print(f'{len(np.unique(session_df["subject"]))} mice')
@@ -57,6 +58,14 @@ per_ses_df['perc_context_diff'] = (per_ses_df['sig_context_diff'] / per_ses_df['
 per_ses_df['perc_reward'] = (per_ses_df['sig_reward'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_obj_onset'] = (per_ses_df['sig_obj_onset'] / per_ses_df['n_neurons']) * 100
 per_ses_df = per_ses_df.reset_index()
+
+# Plot number of neurons per region
+merge_peri = per_ses_df.copy()
+merge_peri.loc[merge_peri['region'] == 'PERI 36', 'region'] = 'PERI'
+merge_peri.loc[merge_peri['region'] == 'PERI 35', 'region'] = 'PERI'
+over_ses = merge_peri[['ses_id', 'region', 'n_neurons']].groupby(['ses_id', 'region', 'n_neurons']).sum().reset_index()
+region_summary = over_ses.groupby('region')['n_neurons'].agg(['mean', 'sum', 'sem'])
+print(region_summary)
 
 
 # %%

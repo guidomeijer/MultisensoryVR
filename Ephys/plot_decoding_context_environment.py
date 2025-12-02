@@ -16,13 +16,24 @@ from statsmodels.stats.multitest import fdrcorrection
 from msvr_functions import paths, load_subjects, figure_style, add_significance
 colors, dpi = figure_style()
 
+# Settings
+MIN_NEURONS = 2
+MIN_TRIALS = 2
+
 # Load in data
 path_dict = paths()
 subjects = load_subjects()
 context_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_GLM_position.csv'))
 context_df['region'] = context_df['region'].astype(str)
-context_df = context_df[context_df['region'] != 'iCA1']
+#context_df = context_df[context_df['region'] != 'iCA1']
 context_df.loc[context_df['region'] == 'dCA1', 'region'] = 'CA1'
+context_df.loc[context_df['region'] == 'iCA1', 'region'] = 'CA1'
+context_df.loc[context_df['region'] == 'PERI 36', 'region'] = 'PERI'
+context_df.loc[context_df['region'] == 'PERI 35', 'region'] = 'PERI'
+
+# Apply thresholds
+context_df = context_df[context_df['n_neurons'] >= MIN_NEURONS]
+context_df = context_df[context_df['n_trials'] >= MIN_TRIALS]
 
 
 def run_ttest(accuracy_series):
@@ -55,13 +66,13 @@ def run_wilcoxon(accuracy_series):
 
 f, axs = plt.subplots(2, 3, figsize=(7, 1.75 * 2), dpi=dpi, sharey=True)
 axs = np.concatenate(axs)
-for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'CA1']):
+for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI', 'LEC', 'CA1']):
     
     # Do statistics
     this_df = context_df[(context_df['region'] == region)
                          & np.isin(context_df['subject'].values,
                                    subjects.loc[subjects['Far'] == 0, 'SubjectID'].values.astype(int))]
-    results_df = this_df.groupby('position')['accuracy'].apply(run_wilcoxon).reset_index()
+    results_df = this_df.groupby('position')['accuracy'].apply(run_ttest).reset_index()
     p_values = results_df['accuracy'].values
     
     # Plot
@@ -88,13 +99,13 @@ plt.savefig(join(path_dict['google_drive_fig_path'], 'decode_context_GLM_positio
 
 f, axs = plt.subplots(2, 3, figsize=(7, 1.75 * 2), dpi=dpi, sharey=True)
 axs = np.concatenate(axs)
-for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'CA1']):
+for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI', 'LEC', 'CA1']):
     
     # Do statistics
     this_df = context_df[(context_df['region'] == region)
                          & np.isin(context_df['subject'].values,
                                    subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
-    results_df = this_df.groupby('position')['accuracy'].apply(run_wilcoxon).reset_index()
+    results_df = this_df.groupby('position')['accuracy'].apply(run_ttest).reset_index()
     p_values = results_df['accuracy'].values
     
     # Plot

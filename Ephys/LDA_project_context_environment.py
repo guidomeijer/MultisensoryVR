@@ -37,11 +37,9 @@ path_dict = paths(sync=False)
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 subjects = load_subjects()
 lda_dist_df = pd.DataFrame()
-clf = make_pipeline(
-    VarianceThreshold(threshold=0), 
-    StandardScaler(), 
-    LinearDiscriminantAnalysis()
-)
+clf_lda = LinearDiscriminantAnalysis()
+scaler = StandardScaler()
+selector = VarianceThreshold(threshold=0)
 
 # Load in processed data
 with open(path_dict['google_drive_data_path'] / 'residuals_position.pickle', 'rb') as handle:
@@ -56,38 +54,60 @@ for i in range(len(residuals_dict['residuals'])):
             continue
         
         # Select neurons from this brain region
-        X_proj = residuals_dict['residuals'][i][:, residuals_dict['region'][i] == region]
+        X_raw = residuals_dict['residuals'][i][:, residuals_dict['region'][i] == region]
         
-        # Skip region if
-        if X_proj.shape[1] < MIN_NEURONS:
+        # Check constraints
+        if X_raw.shape[1] < MIN_NEURONS: continue
+        if np.unique(residuals_dict['trial'][i]).shape[0] < MIN_TRIALS: continue
+    
+        # Fit scaler and selector on the ENTIRE dataset (all positions)
+        try:
+            X_global_selected = selector.fit_transform(X_raw)
+            X_global_scaled = scaler.fit_transform(X_global_selected)
+        except ValueError:
+            # Handle cases where all features might be variance 0
             continue
-        if np.unique(residuals_dict['trial'][i]).shape[0] < MIN_TRIALS:
-            continue
-        
+                
         # Get position bin centers
         rel_pos_bins = np.unique(residuals_dict['position'][i])
         
-        # Fit LDA to one specific location
+        # DEFINE TRAINING SET (At specific location)
+        # Find index of data points at LDA_POS
         proj_bin = rel_pos_bins[np.argmin(np.abs(rel_pos_bins - LDA_POS))]
-        X_train = X_proj[residuals_dict['position'][i] == proj_bin, :]
-        y_train = residuals_dict['context'][i][residuals_dict['position'][i] == proj_bin]
-        clf.fit(X_train, y_train)
+        train_mask = residuals_dict['position'][i] == proj_bin
         
-        # Loop over all distance bins
+        X_train = X_global_scaled[train_mask, :]
+        y_train = residuals_dict['context'][i][train_mask]
+        
+        # FIT LDA (Locally)
+        clf_lda.fit(X_train, y_train)
+        
+        # Loop over bins
         lda_dist = np.empty(rel_pos_bins.shape[0])
-        X_bins = []
+        X_bins = [] # If you need this for shuffling, store the SCALED chunks
+        
         for j, bin_center in enumerate(rel_pos_bins):
+            # Extract the globally scaled data for this bin
+            bin_mask = residuals_dict['position'][i] == bin_center
+            this_X = X_global_scaled[bin_mask, :]
+            this_y = residuals_dict['context'][i][bin_mask]
             
-            # Project neural activity to LDA projection
-            this_X = X_proj[residuals_dict['position'][i] == bin_center, :]
+            # Save for shuffle
             X_bins.append(this_X)
-            lda_proj = clf.transform(this_X)
-            lda_dist[j] = np.abs(np.mean(lda_proj[y_train == 1]) - np.mean(lda_proj[y_train == 2]))
-                        
             
+            # Project using the LDA weights (no re-scaling here)
+            lda_proj = clf_lda.transform(this_X)
+            
+            # Calculate distance
+            # Check if both classes exist in this bin to avoid errors
+            if len(np.unique(this_y)) == 2:
+                lda_dist[j] = np.abs(np.mean(lda_proj[this_y == 1]) - np.mean(lda_proj[this_y == 2]))
+            else:
+                lda_dist[j] = np.nan # Or 0, depending on preference
+        asd
         # Do the same for the shuffles
         shuf_dist = Parallel(n_jobs=N_CPUS)(delayed(shuffle_iteration)(
-                                        X_train, y_train, X_bins, clf) for k in range(N_SHUFFLE))
+                                        X_train, y_train, X_bins, clf_lda) for k in range(N_SHUFFLE))
         shuf_dist = np.array(shuf_dist)
 
         # Get 95% confidence interval of shuffled distribution                 

@@ -357,6 +357,7 @@ def figure_style(font_size=7):
         'PYR': matplotlib.colors.to_rgb('mediumseagreen'),
         'PERI 36': sns.color_palette('Set3')[5],
         'PERI 35': sns.color_palette('Set3')[3],
+        'PERI': sns.color_palette('Set3')[5],
         'sPERI': sns.color_palette('Set3')[5],
         'dPERI': sns.color_palette('Set3')[3],
         'TEa': sns.color_palette('Set3')[2],
