@@ -124,7 +124,7 @@ if __name__ == "__main__":
     # --- Set the path to your destination external hard drive ---
     # Example for Windows: DESTINATION_DRIVE = r"E:\backup"
     # Example for macOS/Linux: DESTINATION_DRIVE = "/Volumes/MyExternalDrive/backup"
-    DESTINATION_DRIVE = r'F:\Data\MultisensoryVR\Subjects'
+    DESTINATION_DRIVE = r'F:\Subjects'
     # =======================================================
 
 

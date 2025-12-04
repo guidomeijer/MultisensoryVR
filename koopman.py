@@ -6,10 +6,64 @@ By Gemini 3 Pro
 """
 
 import numpy as np
+from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_squared_error
 from scipy.ndimage import gaussian_filter1d
+
+
+def _run_single_permutation(seed, indices, trials_X_B, n_delays, H_A, Y_A, mse_B_marginal, mse_A_marginal):
+    """
+    Worker function to run one permutation on a separate CPU core.
+    """
+    np.random.seed(seed)
+    
+    # 1. Shuffle Indices
+    shuffled_indices = np.random.permutation(indices)
+    
+    # 2. Reconstruct H_B and Y_B from shuffled trials
+    # (We inline the stacking logic here to avoid passing 'self')
+    H_list = []
+    Y_list = []
+    
+    for i in shuffled_indices:
+        X = trials_X_B[i]
+        n_samples, n_features = X.shape
+        valid_samples = n_samples - n_delays
+        
+        if valid_samples <= 0: 
+            continue
+            
+        # Create Hankel for this specific trial
+        H_trial = np.zeros((valid_samples, n_features * n_delays))
+        for d in range(n_delays):
+            H_trial[:, d*n_features : (d+1)*n_features] = X[d : d+valid_samples]
+        
+        Y_trial = X[n_delays:]
+        
+        H_list.append(H_trial)
+        Y_list.append(Y_trial)
+        
+    H_B_shuff = np.vstack(H_list)
+    Y_B_shuff = np.vstack(Y_list)
+    
+    # 3. Form Joint Matrix (Fixed A + Shuffled B)
+    H_AB_shuff = np.hstack([H_A, H_B_shuff])
+    
+    # 4. Fit Joint -> B (Predict Shuffled B using Fixed A + Shuffled B)
+    model_joint_B = Ridge(alpha=1.0, fit_intercept=False).fit(H_AB_shuff, Y_B_shuff)
+    mse_B_shuff = mean_squared_error(Y_B_shuff, model_joint_B.predict(H_AB_shuff))
+    
+    # 5. Fit Joint -> A (Predict Fixed A using Fixed A + Shuffled B)
+    model_joint_A = Ridge(alpha=1.0, fit_intercept=False).fit(H_AB_shuff, Y_A)
+    mse_A_shuff = mean_squared_error(Y_A, model_joint_A.predict(H_AB_shuff))
+    
+    # 6. Compute Null Causality
+    c_AB_null = (mse_B_marginal - mse_B_shuff) / mse_B_marginal
+    c_BA_null = (mse_A_marginal - mse_A_shuff) / mse_A_marginal
+    
+    return c_AB_null, c_BA_null
 
 
 class NeuralKoopmanPipeline:
@@ -97,14 +151,14 @@ class NeuralKoopmanPipeline:
         
         return X_A, X_B
 
+
     def preprocess_trials(self, trials_data, area_map):
         """
         Processes a list of trials.
         
         Args:
-            trials_data: List of tuples. Can be:
-                         - [(times, ids), ...]  <- Assumes times are already relative (0-based)
-                         - [(times, ids, t_start), ...] <- Will subtract t_start from times
+            trials_data: List of tuples. 
+                         (times, ids) OR (times, ids, t_start)
             area_map: Dict mapping Area IDs
             
         Returns:
@@ -122,30 +176,32 @@ class NeuralKoopmanPipeline:
             elif len(item) == 3:
                 times, ids, t_start = item
             else:
-                raise ValueError("trials_data elements must be (times, ids) or (times, ids, t_start)")
+                print(f"Skipping Trial {i}: Tuple must be length 2 or 3.")
+                continue
 
             try:
                 X_A, X_B = self._process_single_trial(times, ids, area_map, t_start)
                 
-                # Verify shape consistency if duration is enforced
-                if X_A is not None:
-                    if self.trial_duration is not None:
-                        expected_bins = int(np.ceil(self.trial_duration / self.dt))
-                        if X_A.shape[0] != expected_bins:
-                            # Pad or trim if floating point errors cause +/- 1 bin mismatch
-                            # (Simple truncation/padding logic could go here, for now we skip)
-                            pass 
+                # Only append if BOTH matrices were successfully created
+                if X_A is not None and X_B is not None:
+                    # Optional: Check for NaNs which break Ridge Regression
+                    if np.isnan(X_A).any() or np.isnan(X_B).any():
+                        print(f"Skipping Trial {i}: Contains NaNs (check binning/normalization).")
+                        continue
 
                     trials_X_A.append(X_A)
                     trials_X_B.append(X_B)
                 else:
-                    # Silent skip for empty trials
+                    # This happens if the trial was too short for n_delays
+                    # print(f"Skipping Trial {i}: Too short or empty.")
                     pass
-            except ValueError as e:
+            except Exception as e:
+                # CRITICAL CHANGE: We print the error but CONTINUE to the next trial
                 print(f"Error in Trial {i}: {e}")
-                return [], []
+                continue
                 
         return trials_X_A, trials_X_B
+    
 
     def get_stacked_hankel(self, trials_X):
         """
@@ -221,6 +277,62 @@ class NeuralKoopmanPipeline:
         causality_B_to_A = max(0, (mse_A_marginal - mse_A_joint) / mse_A_marginal)
         
         return causality_A_to_B, causality_B_to_A
+
+
+    def permutation_test(self, trials_X_A, trials_X_B, n_perms=500, n_jobs=-1):
+        """
+        Determines significance via Parallelized Trial Shuffling.
+        
+        Args:
+            n_jobs: Number of CPU cores to use. -1 means use all available.
+        """
+        print(f"Running {n_perms} permutations using {n_jobs} cores...")
+        
+        # 1. Get Fixed Matrices & Marginal Metrics
+        H_A, Y_A = self.get_stacked_hankel(trials_X_A)
+        H_B, Y_B = self.get_stacked_hankel(trials_X_B)
+        
+        if 'A' not in self.models:
+            raise ValueError("Run fit_koopman_operators first.")
+            
+        mse_A_marginal = mean_squared_error(Y_A, self.models['A'].predict(H_A))
+        mse_B_marginal = mean_squared_error(Y_B, self.models['B'].predict(H_B))
+        
+        # 2. Calculate Real Causality
+        H_AB = np.hstack([H_A, H_B])
+        mse_A_joint = mean_squared_error(Y_A, self.models['Joint_to_A'].predict(H_AB))
+        mse_B_joint = mean_squared_error(Y_B, self.models['Joint_to_B'].predict(H_AB))
+        
+        real_c_AB = (mse_B_marginal - mse_B_joint) / mse_B_marginal
+        real_c_BA = (mse_A_marginal - mse_A_joint) / mse_A_marginal
+        
+        # 3. Run Parallel Permutations
+        n_trials = len(trials_X_A)
+        indices = np.arange(n_trials)
+        
+        # Parallel execution using joblib
+        results = Parallel(n_jobs=n_jobs)(
+            delayed(_run_single_permutation)(
+                seed=i, # Different seed per worker
+                indices=indices,
+                trials_X_B=trials_X_B,
+                n_delays=self.n_delays,
+                H_A=H_A,
+                Y_A=Y_A,
+                mse_B_marginal=mse_B_marginal,
+                mse_A_marginal=mse_A_marginal
+            ) for i in range(n_perms)
+        )
+        
+        # Unzip results
+        null_c_AB, null_c_BA = zip(*results)
+        
+        # 4. Compute P-Values
+        p_AB = (np.sum(np.array(null_c_AB) >= real_c_AB) + 1) / (n_perms + 1)
+        p_BA = (np.sum(np.array(null_c_BA) >= real_c_BA) + 1) / (n_perms + 1)
+        
+        return p_AB, p_BA, (list(null_c_AB), list(null_c_BA)), (real_c_AB, real_c_BA)
+    
 
     def plot_eigenvalues(self):
         """

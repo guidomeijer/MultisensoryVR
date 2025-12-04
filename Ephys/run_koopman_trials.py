@@ -14,8 +14,8 @@ from koopman import NeuralKoopmanPipeline
 # Settings
 BIN_SIZE = 0.05
 SMOOTHING = 0.025
-T_BEFORE = [2, 2]  # [obj1, obj2]
-T_AFTER = [2, 2]
+T_BEFORE = 2
+T_AFTER = 2
 
 # Initialize
 path_dict = paths(sync=False)
@@ -62,61 +62,58 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         region_b_neurons = clusters[region_b_probe]['cluster_id'][clusters[region_b_probe]['region'] == region_b]
         region_b_spikes = spikes[region_b_probe]['times'][np.isin(spikes[region_b_probe]['clusters'], region_b_neurons)]
         region_b_clusters = spikes[region_b_probe]['clusters'][np.isin(spikes[region_b_probe]['clusters'], region_b_neurons)]
-        
-        # Loop over objects
-        for obj in [1, 2]:
-            
-            # Create trials
-            all_trials = []
-            for trial_time in all_obj_df.loc[all_obj_df['object'] == obj, 'times']:
-                
-                these_spike_times, these_spike_ids = [], []
-                
-                # Area A
-                these_spike_times.extend(region_a_spikes[
-                    (region_a_spikes > (trial_time - T_BEFORE[obj-1])) & (region_a_spikes < (trial_time + T_AFTER[obj-1]))
-                    ])
-                these_spike_ids.extend(region_a_clusters[
-                    (region_a_spikes > (trial_time - T_BEFORE[obj-1])) & (region_a_spikes < (trial_time + T_AFTER[obj-1]))
-                    ]) 
                     
-                # Area B
-                these_spike_times.extend(region_b_spikes[
-                    (region_b_spikes > (trial_time - T_BEFORE[obj-1])) & (region_b_spikes < (trial_time + T_AFTER[obj-1]))
-                    ])
-                these_spike_ids.extend(region_b_clusters[
-                    (region_b_spikes > (trial_time - T_BEFORE[obj-1])) & (region_b_spikes < (trial_time + T_AFTER[obj-1]))
-                    ]) 
+        # Create trials
+        all_trials = []
+        for trial_time in all_obj_df.loc[all_obj_df['object'] == 1, 'times']:
+            
+            these_spike_times, these_spike_ids = [], []
+            
+            # Area A
+            these_spike_times.extend(region_a_spikes[
+                (region_a_spikes > (trial_time - T_BEFORE)) & (region_a_spikes < (trial_time + T_AFTER))
+                ])
+            these_spike_ids.extend(region_a_clusters[
+                (region_a_spikes > (trial_time - T_BEFORE)) & (region_a_spikes < (trial_time + T_AFTER))
+                ]) 
                 
-                all_trials.append((np.array(these_spike_times), np.array(these_spike_ids), trial_time - T_BEFORE[obj-1]))
-            asd
-            # Create neuron map
-            area_map = {
-                'A': list(np.unique(region_a_clusters)),
-                'B': list(np.unique(region_b_clusters))
-            }
+            # Area B
+            these_spike_times.extend(region_b_spikes[
+                (region_b_spikes > (trial_time - T_BEFORE)) & (region_b_spikes < (trial_time + T_AFTER))
+                ])
+            these_spike_ids.extend(region_b_clusters[
+                (region_b_spikes > (trial_time - T_BEFORE)) & (region_b_spikes < (trial_time + T_AFTER))
+                ]) 
             
-            # Run Pipeline
-            pipeline = NeuralKoopmanPipeline(dt=BIN_SIZE, sigma=SMOOTHING, n_delays=10)
-            
-            # Preprocess all trials
-            trials_X_A, trials_X_B = pipeline.preprocess_trials(all_trials, area_map)
-            
-            # Fit the operators
-            # This vertically stacks the Hankel matrices of all trials to learn one common dynamical law
-            pipeline.fit_koopman_operators(trials_X_A, trials_X_B)
-            
-            # Analyze causality
-            c_AB, c_BA = pipeline.analyze_causality(trials_X_A, trials_X_B)
-            
-            # Add to dataframe
-            causality_df = pd.concat((causality_df, pd.DataFrame(data={
-                'region_1': [region_a, region_b], 'region_2': [region_b, region_a],
-                'region_pair': f'{region_a} <> {region_b}',
-                'causality_score': [c_AB, c_BA], 'object': obj,
-                'subject': subject, 'date': date
-                })))
-    
+            all_trials.append((np.array(these_spike_times), np.array(these_spike_ids), trial_time - T_BEFORE))
+        
+        # Create neuron map
+        area_map = {
+            'A': list(np.unique(region_a_clusters)),
+            'B': list(np.unique(region_b_clusters))
+        }
+        
+        # Run Pipeline
+        pipeline = NeuralKoopmanPipeline(dt=BIN_SIZE, sigma=SMOOTHING, n_delays=10)
+        
+        # Preprocess all trials
+        trials_X_A, trials_X_B = pipeline.preprocess_trials(all_trials, area_map)
+        
+        # Fit the operators
+        # This vertically stacks the Hankel matrices of all trials to learn one common dynamical law
+        pipeline.fit_koopman_operators(trials_X_A, trials_X_B)
+        
+        # Analyze causality
+        p_AB, p_BA, (null_c_AB, null_c_BA), (real_c_AB, real_c_BA) = pipeline.permutation_test(trials_X_A, trials_X_B)
+        
+        # Add to dataframe
+        causality_df = pd.concat((causality_df, pd.DataFrame(data={
+            'region_1': [region_a, region_b], 'region_2': [region_b, region_a],
+            'region_pair': f'{region_a} <> {region_b}',
+            'causality_score': [real_c_AB, real_c_BA], 'p_value': [p_AB, p_BA],
+            'subject': subject, 'date': date
+            })))
+
     # Save output
     causality_df.to_csv(path_dict['save_path'] / 'causality_koopman.csv', index=False)
         
