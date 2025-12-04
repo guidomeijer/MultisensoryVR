@@ -12,8 +12,7 @@ import seaborn as sns
 from scipy import stats
 import matplotlib.pyplot as plt
 import networkx as nx
-from mne_connectivity.viz import plot_connectivity_circle
-from msvr_functions import paths, load_subjects, figure_style, combine_regions
+from msvr_functions import paths, figure_style
 colors, dpi = figure_style()
 
 # Load in data

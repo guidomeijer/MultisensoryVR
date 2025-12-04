@@ -18,8 +18,8 @@ from koopman import NeuralKoopmanPipeline
 # Settings
 T_BEFORE = 2  # s
 T_AFTER = 2  # s
-REGION_A = 'CA1'
-REGION_B = 'PERI 36'
+REGION_A = 'AUD'
+REGION_B = 'TEa'
 
 # Session selection
 subject = '466394'
@@ -32,88 +32,106 @@ path_dict = paths(sync=False)
 # Load in data
 session_path = path_dict['local_data_path'] / 'subjects' / f'{subject}' / f'{date}'
 trials = pd.read_csv(session_path / 'trials.csv')
-spikes, clusters, channels = load_neural_data(session_path, probe)
+spikes, clusters, channels = load_neural_data(session_path, probe, min_fr=0.5)
 all_obj_df = load_objects(subject, date)
 
-# Construct trial list
+# Get region spikes
+region_a_neurons = clusters['cluster_id'][clusters['region'] == REGION_A]
+region_a_spikes = spikes['times'][np.isin(spikes['clusters'], region_a_neurons)]
+region_a_clusters = spikes['clusters'][np.isin(spikes['clusters'], region_a_neurons)]
+region_b_neurons = clusters['cluster_id'][clusters['region'] == REGION_B]
+region_b_spikes = spikes['times'][np.isin(spikes['clusters'], region_b_neurons)]
+region_b_clusters = spikes['clusters'][np.isin(spikes['clusters'], region_b_neurons)]
 
+# Construct trial list
+all_trials = []
 for i, trial_time in enumerate(all_obj_df.loc[all_obj_df['object'] == 2, 'times']):
     
     these_spike_times, these_spike_ids = [], []
-    asd
-    #spikes['times'][np.isin(spikes['clusters'], clusters['region'])
     
-    
-
-
-
-
-
-# ==========================================
-# Example Usage with Multi-Trial Data
-# ==========================================
-
-if __name__ == "__main__":
-    print("Generating simulated Multi-Trial data...")
-    n_trials = 20
-    trial_duration = 2.0 # seconds (window of interest)
-    n_neurons_A = 20
-    n_neurons_B = 20
-    
-    # List to store (times, ids) for each trial
-    all_trials = []
-    
-    # Simulate trials where Area A drives Area B 
-    for i in range(n_trials):
-        t_steps = np.arange(0, trial_duration, 0.001)
+    # Area A
+    these_spike_times.extend(region_a_spikes[
+        (region_a_spikes > (trial_time - T_BEFORE)) & (region_a_spikes < (trial_time + T_AFTER))
+        ])
+    these_spike_ids.extend(region_a_clusters[
+        (region_a_spikes > (trial_time - T_BEFORE)) & (region_a_spikes < (trial_time + T_AFTER))
+        ]) 
         
-        # Variable rhythm per trial (non-stationary across trials, but we fit average K)
-        freq = 10 + np.random.normal(0, 1) # ~10Hz
-        rhythm = np.sin(2 * np.pi * freq * t_steps)
-        rhythm[rhythm < 0] = 0
-        
-        trial_times = []
-        trial_ids = []
-        
-        # Area A
-        for n in range(n_neurons_A):
-            rate = rhythm * 30 
-            is_spike = np.random.rand(len(t_steps)) < (rate * 0.001)
-            spikes = t_steps[is_spike]
-            trial_times.extend(spikes)
-            trial_ids.extend([n] * len(spikes))
-            
-        # Area B (Delayed copy of A)
-        delay_steps = 30 # 30ms delay
-        rhythm_B = np.roll(rhythm, delay_steps)
-        for n in range(n_neurons_B):
-            rate = rhythm_B * 30
-            is_spike = np.random.rand(len(t_steps)) < (rate * 0.001)
-            spikes = t_steps[is_spike]
-            trial_times.extend(spikes)
-            trial_ids.extend([n + n_neurons_A] * len(spikes))
-            
-        all_trials.append((np.array(trial_times), np.array(trial_ids)))
+    # Area B
+    these_spike_times.extend(region_b_spikes[
+        (region_b_spikes > (trial_time - T_BEFORE)) & (region_b_spikes < (trial_time + T_AFTER))
+        ])
+    these_spike_ids.extend(region_b_clusters[
+        (region_b_spikes > (trial_time - T_BEFORE)) & (region_b_spikes < (trial_time + T_AFTER))
+        ]) 
+    
+    all_trials.append((np.array(these_spike_times), np.array(these_spike_ids), trial_time - T_BEFORE))
+    
+# Create neuron map
+area_map = {
+    'A': list(np.unique(region_a_clusters)),
+    'B': list(np.unique(region_b_clusters))
+}
 
-    area_map = {
-        'A': list(range(n_neurons_A)),
-        'B': list(range(n_neurons_A, n_neurons_A + n_neurons_B))
-    }
+# Run Pipeline
+pipeline = NeuralKoopmanPipeline(dt=0.05, sigma=0.01, n_delays=10)
+
+# 1. Preprocess all trials
+trials_X_A, trials_X_B = pipeline.preprocess_trials(all_trials, area_map)
+
+# Sanity Check: Ensure data isn't empty and shapes are correct
+if len(trials_X_A) > 0:
+    print(f"\n--- Data Verification ---")
+    print(f"Successfully processed {len(trials_X_A)} trials.")
+    print(f"Trial 0 Matrix Shape (Time x Neurons): {trials_X_A[0].shape}")
     
-    # Run Pipeline
-    pipeline = NeuralKoopmanPipeline(dt=0.01, sigma=0.02, n_delays=10)
-    
-    # 1. Preprocess all trials
-    trials_X_A, trials_X_B = pipeline.preprocess_trials(all_trials, area_map)
-    
-    # 2. Fit (automatically stacks Hankel matrices)
-    pipeline.fit_koopman_operators(trials_X_A, trials_X_B)
-    
-    # 3. Analyze
-    c_AB, c_BA = pipeline.analyze_causality(trials_X_A, trials_X_B)
-    
-    print("\n--- Multi-Trial Results ---")
-    print(f"Causality Area A -> Area B: {c_AB:.4f}")
-    print(f"Causality Area B -> Area A: {c_BA:.4f}")
-    
-    pipeline.plot_eigenvalues()
+    # Check if we have enough time points for the delay embedding
+    if trials_X_A[0].shape[0] <= pipeline.n_delays:
+        raise ValueError(f"Trials are too short ({trials_X_A[0].shape[0]} bins) for {pipeline.n_delays} delays.")
+else:
+    raise ValueError("No trials were processed. Check your T_BEFORE/T_AFTER or object timestamps.")
+
+# Fit the operators
+# This vertically stacks the Hankel matrices of all trials to learn one common dynamical law
+print("\nFitting Koopman Operators (this may take a moment)...")
+pipeline.fit_koopman_operators(trials_X_A, trials_X_B)
+
+# ---------------------------------------------------------
+# 3. Causality Analysis
+# ---------------------------------------------------------
+
+print("Calculating Directional Influence...")
+c_AB, c_BA = pipeline.analyze_causality(trials_X_A, trials_X_B)
+
+# ---------------------------------------------------------
+# 4. Output & Visualization
+# ---------------------------------------------------------
+
+print("\n" + "="*50)
+print(f"INTER-AREA COMMUNICATION RESULTS: {REGION_A} <-> {REGION_B}")
+print("="*50)
+print(f"Causality {REGION_A} -> {REGION_B} : {c_AB:.4f}")
+print(f"Causality {REGION_B} -> {REGION_A} : {c_BA:.4f}")
+
+# Simple text interpretation
+diff = c_AB - c_BA
+if diff > 0.02: 
+    print(f">> Conclusion: Dominant drive from {REGION_A} to {REGION_B}")
+elif diff < -0.02:
+    print(f">> Conclusion: Dominant drive from {REGION_B} to {REGION_A}")
+else:
+    print(f">> Conclusion: Balanced or Weak coupling")
+
+# Plot A: Singular Values (Dynamical Modes)
+# If these curves overlap significantly, it suggests shared oscillatory modes.
+pipeline.plot_eigenvalues()
+
+# Plot B: Summary Bar Chart
+plt.figure(figsize=(6, 5))
+sns.barplot(x=[f'{REGION_A} $\to$ {REGION_B}', f'{REGION_B} $\to$ {REGION_A}'], y=[c_AB, c_BA])
+plt.ylabel('Koopman Prediction Improvement (Causality)')
+plt.title(f'Directional Influence: {subject} ({date})')
+plt.ylim(0, max(c_AB, c_BA) * 1.2) # Scale y-axis
+sns.despine()
+plt.show()
+
