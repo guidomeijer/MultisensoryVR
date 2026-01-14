@@ -23,6 +23,8 @@ from pathlib import Path
 from iblatlas.atlas import BrainRegions
 from iblutil.numerical import ismember
 
+N_PATTERNS = {'AUD': 6, 'CA1': 8, 'LEC': 5, 'PERI': 7, 'TEa': 7, 'VIS': 6}
+
 def paths(sync=False, full_sync=False, force_sync=False):
     """
     Load in figure path from paths.json, if this file does not exist it will be generated from
@@ -713,7 +715,7 @@ def bin_signal(x, y, bin_centers, bin_size, statistic='mean'):
     Args:
         x (array): Continuous trajectory (e.g., animal position).
                    Used for 'mean'/'sum' to locate y values.
-        y (array): 
+        y (array):
             - If statistic='count': Discrete event locations (same units as x).
             - If statistic='mean'/'sum': Signal values at positions x.
     """
@@ -721,27 +723,27 @@ def bin_signal(x, y, bin_centers, bin_size, statistic='mean'):
     half_width = bin_size / 2.0
     left_edges = bin_centers - half_width
     right_edges = bin_centers + half_width
-    
+
     # --- BRANCH 1: Event Counting (The fix for your issue) ---
     if statistic == 'count':
         if y is None:
             raise ValueError("y must be provided for event counting.")
-        
+
         # We ignore x entirely. We sort y (event locations) and bin them.
         y = np.asarray(y)
         y_sorted = np.sort(y)
-        
+
         # Vectorized count of events in overlapping bins
         starts = np.searchsorted(y_sorted, left_edges, side='left')
         ends = np.searchsorted(y_sorted, right_edges, side='left')
-        
+
         return (ends - starts).astype(float)
 
     # --- BRANCH 2: Signal Averaging/Summing ---
     # Here, y depends on x. We must sort x and carry y with it.
     x = np.asarray(x)
     y = np.asarray(y)
-    
+
     if x.shape != y.shape:
         raise ValueError(f"For statistic='{statistic}', x and y must be same shape.")
 
