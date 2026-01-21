@@ -447,8 +447,15 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
     clusters['cluster_id'] = np.arange(clusters['channels'].shape[0])
 
     # Add cluster qc metrics
-    clusters['ibl_label'] = np.load(join(session_path, probe, 'clusters.IBLLabel.npy'))
-    clusters['ml_label'] = np.load(join(session_path, probe, 'clusters.MLLabel.npy'))
+    if isfile(join(session_path, probe, 'clusters.IBLLabel.npy')):
+        clusters['ibl_label'] = np.load(join(session_path, probe, 'clusters.IBLLabel.npy'))
+    elif isfile(join(session_path, probe, 'clusters.iblLabels.npy')):
+        clusters['ibl_label'] = np.load(join(session_path, probe, 'clusters.iblLabels.npy'))
+        
+    if isfile(join(session_path, probe, 'clusters.MLLabel.npy')):
+        clusters['ml_label'] = np.load(join(session_path, probe, 'clusters.MLLabel.npy'))
+    elif isfile(join(session_path, probe, 'clusters.unitrefineLabels.npy')):
+        clusters['ml_label'] = np.load(join(session_path, probe, 'clusters.unitrefineLabels.npy'))
     if isfile(join(session_path, probe, 'clusters.manualLabels.npy')):
         clusters['manual_label'] = np.load(join(session_path, probe, 'clusters.manualLabels.npy'))
 

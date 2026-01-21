@@ -14,7 +14,7 @@ from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 
 # Settings
 ALPHA = 0.05
-OVERWRITE = True
+OVERWRITE = False
 N_CORES = 16
 
 # Initialize

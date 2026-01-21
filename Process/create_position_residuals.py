@@ -19,6 +19,7 @@ STEP_SIZE = 10
 MIN_TRIALS = 0
 MIN_SPEED = 0  # mm/s
 N_CORES = 18
+OVERWRITE = False
 
 # Create position bins
 rel_bin_centers = np.arange((BIN_SIZE/2), 1500 - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
@@ -36,20 +37,30 @@ rel_bin_centers = rel_bin_centers[drop_bins == False]
 path_dict = paths(sync=False)
 rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)
 scaler = StandardScaler()
-residuals_dict = {
-    'residuals': [],
-    'neuron_id': [],
-    'region': [],
-    'acronym': [],
-    'position': [],
-    'trial': [],
-    'context': [],
-    'glm_results': [],
-    'subject': [],
-    'date': [],
-    'probe': []
-    }
 
+if OVERWRITE:
+    residuals_dict = {
+        'residuals': [],
+        'neuron_id': [],
+        'region': [],
+        'acronym': [],
+        'position': [],
+        'trial': [],
+        'context': [],
+        'glm_results': [],
+        'subject': [],
+        'date': [],
+        'probe': []
+        }
+else:
+    with open(path_dict['google_drive_data_path'] / 'residuals_position.pickle', 'rb') as handle:
+        residuals_dict = pickle.load(handle)
+    match_cols = ['subject', 'date', 'probe']
+    res_df = pd.DataFrame({c: residuals_dict[c] for c in match_cols}).astype(str)
+    rec[match_cols] = rec[match_cols].astype(str)
+    merged = rec.merge(res_df, on=match_cols, how='left', indicator=True)
+    rec = merged[merged['_merge'] == 'left_only'].drop(columns='_merge')
+    
 # Loop over recordings
 for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
     print(f'\n{subject} {date} {probe} ({i} of {rec.shape[0]})')
