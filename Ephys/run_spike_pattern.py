@@ -21,13 +21,24 @@ colors, dpi = figure_style()
 MIN_NEURONS = 5
 BIN_WIDTH = 0.15
 SIG_TIME = 2  # s
+OVERWRITE = False
 
 # Initialize
 path_dict = paths(sync=False)
 rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)
 rec = rec.drop_duplicates(['subject', 'date'])
 
-pattern_df = pd.DataFrame()
+if OVERWRITE:
+    pattern_df = pd.DataFrame()
+else:
+    pattern_df = pd.read_csv(path_dict['save_path'] / 'spike_pattern_sig.csv')
+    pattern_df['subject'] = pattern_df['subject'].astype(str)
+    pattern_df['date'] = pattern_df['date'].astype(str)
+    pattern_keys = pattern_df[['subject', 'date']].drop_duplicates()
+    rec_merged = rec.merge(pattern_keys, on=['subject', 'date'], how='left', indicator=True)
+    rec = rec_merged[rec_merged['_merge'] == 'left_only'].drop(columns=['_merge'])
+    rec = rec.reset_index(drop=True)
+        
 for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
     print(f'\nStarting {subject} {date} [{i} of {rec.shape[0]}]')
 

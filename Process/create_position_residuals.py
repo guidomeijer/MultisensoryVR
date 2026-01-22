@@ -18,8 +18,8 @@ BIN_SIZE = 60  # mm
 STEP_SIZE = 10
 MIN_TRIALS = 0
 MIN_SPEED = 0  # mm/s
-N_CORES = 18
-OVERWRITE = False
+N_CORES = 2
+OVERWRITE = True
 
 # Create position bins
 rel_bin_centers = np.arange((BIN_SIZE/2), 1500 - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)

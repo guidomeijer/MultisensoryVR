@@ -56,7 +56,7 @@ for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'C
     axs[i].plot([0,0], [0.4, 0.9], ls='--', color='grey')
     sns.lineplot(this_df, x='time', y='accuracy', color=colors[region], errorbar='se',
                  ax=axs[i], err_kws={'lw': 0}, legend=None)
-    add_significance(results_df['time'].values, p_values, axs[i], y_pos=0.875)
+    #add_significance(results_df['time'].values, p_values, axs[i], y_pos=0.875)
     axs[i].set_title(region)
     if i > 0:
         axs[i].axis('off')
@@ -89,7 +89,7 @@ for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'C
     axs[i].plot([0,0], [0.4, 0.9], ls='--', color='grey')
     sns.lineplot(this_df, x='time', y='accuracy', color=colors[region], errorbar='se',
                  ax=axs[i], err_kws={'lw': 0}, legend=None)
-    add_significance(results_df['time'].values, p_values, axs[i], y_pos=0.875)
+    #add_significance(results_df['time'].values, p_values, axs[i], y_pos=0.875)
     axs[i].set_title(region)
     if i > 0:
         axs[i].axis('off')

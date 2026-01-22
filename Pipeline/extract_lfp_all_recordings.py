@@ -11,6 +11,7 @@ import pandas as pd
 from glob import glob
 from msvr_functions import paths
 import spikeinterface.full as si
+import shutil
 
 
 def main():
@@ -41,10 +42,18 @@ def main():
             print('Single shank recording')
             continue
         
-        # Check if already done
+        # Check if already on local drive
         if path.isdir(path.join(local_path, 'lfp_raw_binary')):
             print('Already done')
             continue
+        
+        # Check if already extracted remotely
+        if path.isdir(path.join(path_dict['server_path'], 'Subjects', subject, date, probe, 'lfp_raw_binary')):
+            print('Already processed remotely, copying to local hard drive')
+            shutil.copytree(path.join(path_dict['server_path'], 'Subjects', subject, date, probe, 'lfp_raw_binary'),
+                            path.join(local_path, 'lfp_raw_binary'))
+            continue
+        
         
         # Filter out LFP band
         rec_lfp = si.bandpass_filter(rec, freq_min=1, freq_max=400)
@@ -67,7 +76,7 @@ def main():
         
         # Save raw binary to disk
         rec_final.save(folder=path.join(local_path, 'lfp_raw_binary'), format='binary', chunk_duration='1s',
-                       dtype='int16', n_jobs=-1)
+                       dtype='int16', n_jobs=10)
     
 if __name__ == '__main__':
     import multiprocessing

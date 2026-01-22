@@ -1424,110 +1424,17 @@ def to_spikeship_dataformat(raw_spike_times, neuron_ids, epoch_intervals):
     return spike_times, ii_spike_times, n_spikes
 
 
-def load_lfp(probe_path, channels, timewin='passive'):
+def load_lfp(probe_path, channels):
     """
     """
-
-    # Import SpikeInterface
     import spikeinterface.full as si
+    
+    lfp_data = si.read_binary(probe_path / 'lfp_raw_binary' / 'traces_cached_seg0.raw',
+                              sampling_frequency=2500, dtype='int16', num_channels=385)
+    lfp_traces = lfp_data.get_traces(channel_ids=channels)
+    timestamps = lfp_data.get_times()
+    
+    return lfp_traces, timestamps
+    
 
-    # Load in raw data using SpikeInterface
-    rec = si.read_cbin_ibl(probe_path)
-
-    # Filter out LFP band
-    rec_lfp = si.bandpass_filter(rec, freq_min=1, freq_max=400)
-
-    # Correct for inter-sample shift
-    rec_shifted = si.phase_shift(rec_lfp)
-
-    # Interpolate over bad channels
-    rec_car_temp = si.common_reference(rec_lfp)
-    _, all_channels = si.detect_bad_channels(
-        rec_car_temp, method='mad', std_mad_threshold=3, seed=42)
-    noisy_channel_ids = rec_car_temp.get_channel_ids()[all_channels == 'noise']
-    rec_interpolated = si.interpolate_bad_channels(rec_shifted, noisy_channel_ids)
-
-    # Do common average reference
-    rec_car = si.common_reference(rec_interpolated)
-
-    # Downsample to 2500 Hz
-    rec_final = si.resample(rec_car, 2500)
-
-    # Load in trials
-    trials = pd.read_csv(join(probe_path, '..', '..', 'trials.csv'))
-
-    # Get LFP from the requested channels for the passive period
-    time_start = 3300
-    time_end = 3300 + 120
-    samples_start = int(time_start * rec_final.sampling_frequency)
-    samples_end = int(time_end * rec_final.sampling_frequency)
-    lfp_traces = rec_final.get_traces(start_frame=samples_start, end_frame=samples_end,
-                                      channel_ids=channels)
-
-
-    # Load in LFP
-    sr = spikeglx.Reader(join(probe_path, '_spikeGLX_ephysData_g0_t0.imec1.lf.bin'))
-    #time_start = trials.loc[trials.index[-1], 'exitEnvTime'] + 60
-    #time_end = sr.shape[0] / sr.fs
-    time_start = 3300
-    time_end = 3300 + 120
-    samples_start = int(time_start * sr.fs)
-    samples_end = int(time_end * sr.fs)
-    signal = sr.read(nsel=slice(samples_start, samples_end, None), csel=channels)[0]
-    time = np.arange(samples_start, samples_end) / sr.fs
-
-    # Do common average reference
-    common_avg = np.median(signal, axis=1, keepdims=True)
-    signal_car = signal - common_avg
-
-    try:
-        lfp_paths, _ = one.load_datasets(eid, download_only=True, datasets=[
-            '_spikeglx_ephysData_g*_t0.imec*.lf.cbin', '_spikeglx_ephysData_g*_t0.imec*.lf.meta',
-            '_spikeglx_ephysData_g*_t0.imec*.lf.ch'], collections=[f'raw_ephys_data/{probe}'] * 3)
-        lfp_path = lfp_paths[0]
-        sr = spikeglx.Reader(lfp_path)
-    except Exception:
-        return [], []
-
-    # Load in trials
-    try:
-        trials = one.load_object(eid, 'trials')
-        trial_times = trials['stimOn_times'][~np.isnan(trials['stimOn_times'])]
-    except Exception:
-        print('Could not load trial table, trying another way')
-        if 'alf/_ibl_trials.stimOn_times.npy' in one.list_datasets(eid):
-            trial_times = one.load_dataset(eid, '_ibl_trials.stimOn_times.npy')
-        elif 'alf/_ibl_trials.stimOff_times.npy' in one.list_datasets(eid):
-            trial_times = one.load_dataset(eid, '_ibl_trials.stimOff_times.npy')[:-1]
-        elif 'alf/_ibl_trials.goCue_times.npy' in one.list_datasets(eid):
-            trial_times = one.load_dataset(eid, '_ibl_trials.goCue_times.npy')
-        else:
-            print('No luck, just using the last 15 minutes of the recording')
-            trial_times = (sr.shape[0] / sr.fs) - (60 * 15)
-    trial_times = trial_times[~np.isnan(trial_times)]
-
-    if timewin == 'spont':
-        # Take 10 minutes of spontaneous activity starting 5 minutes after the last trial
-        time_start = trial_times[-1] + (60 * 5)
-        time_end = trial_times[-1] + (60 * 15)
-    elif timewin == 'passive':
-        # Take all time after the last trial until the end of the recording
-        time_start = trial_times[-1] + 60
-        time_end = sr.shape[0] / sr.fs
-    elif timewin == 'task':
-        # Take all time during the task
-        time_start = 0
-        time_end = trial_times[-1]
-
-    # Convert seconds to samples
-    samples_start = int(time_start * sr.fs)
-    samples_end = int(time_end * sr.fs)
-
-    # Load in lfp slice
-    signal = sr.read(nsel=slice(samples_start, samples_end, None), csel=channels)[0]
-    time = np.arange(samples_start, samples_end) / sr.fs
-
-    if signal.shape[0] == 0:
-        return [], []
-
-    return signal, time
+   

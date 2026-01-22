@@ -8,7 +8,7 @@ import numpy as np
 np.random.seed(42)
 from os.path import join
 import pandas as pd
-from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score
 from spikeship import spikeship
@@ -51,77 +51,49 @@ def run_spikeship(this_bin_center, use_spikes, use_clusters, event_times):
     
     return diss_spikeship
 
-def decode_spikeship_svm(diss_arr, trial_labels):
+def decode_spikeship_knn(diss_arr, trial_labels, n_neighbors=5):
     """
-    Decodes conditions using a precomputed SpikeShip dissimilarity matrix.
-    
-    Parameters:
-    - diss_arr: (T x T) numpy array, the SpikeShip dissimilarity matrix.
-    - trial_labels: (T,) numpy array, labels (e.g., 0 for unrewarded, 1 for rewarded).
-    - gamma_scale: float, scalar to adjust the width of the RBF kernel.
-    - n_folds: int, number of cross-validation folds.
-    
-    Returns:
-    - mean_accuracy: float, average accuracy across folds.
+    Decodes conditions using k-NN on a SpikeShip dissimilarity matrix.
     """
+    # 1. Validation and Symmetry check
+    if diss_arr.shape[0] != len(trial_labels):
+        raise ValueError(f"Shape mismatch: Matrix {diss_arr.shape}, labels {len(trial_labels)}")
     
-    # 1. Validation: Ensure matrix is square and matches labels
-    if diss_arr.shape[0] != diss_arr.shape[1] or diss_arr.shape[0] != len(trial_labels):
-        raise ValueError(f"Shape mismatch: Matrix is {diss_arr.shape}, labels are {len(trial_labels)}")
+    # Ensure symmetry: D = (D + D.T) / 2
+    # This prevents issues with certain 'precomputed' algorithms
+    D = (diss_arr + diss_arr.T) / 2.0
 
-    # 2. Transform Distance Matrix (D) to Kernel Matrix (K)
-    # Heuristic for gamma: 1 / (median(D^2)) is often a good starting point if scale is unknown,
-    # or you can tune it. Here we implement a standard RBF transformation.
-    # Note: We square the distance because SpikeShip returns a 'metric' distance.
-    
-    median_dist_sq = np.median(diss_arr**2)
-    gamma = 1.0 / (median_dist_sq * GAMMA_SCALE)
-    
-    # K = exp(-gamma * D^2)
-    kernel_matrix = np.exp(-gamma * (diss_arr ** 2))
-    
-    # 3. Setup Cross-Validation
+    # 2. Setup Cross-Validation
     skf = KFold(n_splits=N_FOLDS, shuffle=True, random_state=42)
     accuracies = []
-
-    # 4. CV Loop
-    # Important: When slicing a precomputed kernel, you must slice BOTH rows and columns.
-    # X (input) usually holds features, but here we pass the INDICES of the trials.
-    # This allows the SVM to look up the correct rows/cols in the kernel matrix.
-    
     trial_indices = np.arange(len(trial_labels))
 
-    for train_idx, test_idx in skf.split(trial_indices, trial_labels):
-        
-        # Get labels for this fold
+    for train_idx, test_idx in skf.split(trial_indices):
         y_train = trial_labels[train_idx]
         y_test = trial_labels[test_idx]
         
-        # Slice the Kernel Matrix
-        # Training data: Similarity of train trials vs train trials
-        K_train = kernel_matrix[np.ix_(train_idx, train_idx)]
+        # 3. Slice the distance matrix
+        # k-NN 'precomputed' expects (n_queries, n_indexed)
+        # i.e., distance from each test trial to each training trial
+        D_train_test = D[np.ix_(test_idx, train_idx)]
         
-        # Testing data: Similarity of test trials vs train trials
-        # (The rows are the test samples, the columns are the support vectors/train samples)
-        K_test = kernel_matrix[np.ix_(test_idx, train_idx)]
+        # 4. Initialize and fit k-NN
+        # 'brute' is required for precomputed distances
+        knn = KNeighborsClassifier(n_neighbors=n_neighbors, 
+                                   metric='precomputed', 
+                                   algorithm='brute')
         
-        # Initialize SVM with 'precomputed' kernel
-        clf = SVC(kernel='precomputed')
+        knn.fit(D[np.ix_(train_idx, train_idx)], y_train)
         
-        # Fit on training kernel
-        clf.fit(K_train, y_train)
-        
-        # Predict using the test-vs-train kernel slice
-        y_pred = clf.predict(K_test)
-        
-        # specific fold accuracy
+        # 5. Predict
+        y_pred = knn.predict(D_train_test)
         accuracies.append(accuracy_score(y_test, y_pred))
 
     return np.mean(accuracies)
 
 def run_decoding(t_ind, diss_arr_3d, trial_labels):
     
-    accuracy = decode_spikeship_svm(diss_arr_3d[t_ind, :, :], trial_labels)
+    accuracy = decode_spikeship_knn(diss_arr_3d[t_ind, :, :], trial_labels)
     
     return accuracy
 
