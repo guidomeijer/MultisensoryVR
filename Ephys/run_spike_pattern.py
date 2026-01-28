@@ -9,11 +9,10 @@ import numpy as np
 import pandas as pd
 import torch
 import seaborn as sns
-from zetapy import zetatstest2
+from zetapy import zetatstest, zetatstest2
 import matplotlib.pyplot as plt
 from msvr_functions import (paths, load_multiple_probes, load_objects, combine_regions,
-                            peri_event_trace, figure_style, N_PATTERNS)
-from ppseq.plotting import plot_model, color_plot
+                            peri_event_trace, figure_style, N_PATTERNS, plot_ppseq)
 from ppseq.model import PPSeq
 colors, dpi = figure_style()
 
@@ -21,12 +20,16 @@ colors, dpi = figure_style()
 MIN_NEURONS = 5
 BIN_WIDTH = 0.15
 SIG_TIME = 2  # s
-OVERWRITE = False
+OVERWRITE = True
+MIN_RIPPLES = 20
 
 # Initialize
 path_dict = paths(sync=False)
 rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)
 rec = rec.drop_duplicates(['subject', 'date'])
+ripples = pd.read_csv(path_dict['save_path'] / 'ripples.csv')
+ripples['subject'] = ripples['subject'].astype(str)
+ripples['date'] = ripples['date'].astype(str)
 
 if OVERWRITE:
     pattern_df = pd.DataFrame()
@@ -120,21 +123,33 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         lps, amplitudes_torch = model.fit(data, num_iter=100)
         amplitudes = amplitudes_torch.cpu().numpy()
 
+        # Plot patterns
+        f, ax = plot_ppseq(data.cpu()[:, -500:-400], model, amplitudes_torch.cpu()[:, -500:-400])
+        ax.set(xticks=[0, 33, 66, 100], xticklabels=[0, 5, 10, 15], yticks=[],
+               ylabel='Sorted neurons', xlabel='Time (s)')
+        sns.despine(trim=True, left=True)
+        plt.tight_layout()
+        plt.savefig(path_dict['google_drive_fig_path'] / 'SpikePatterns' / f'{region}_{subject}_{date}_example.jpg', dpi=600)
+        plt.close(f)
+
         # Find patterns that encode reward prediction
         obj1_goal = all_obj_df.loc[(all_obj_df['object'] == 1) & (all_obj_df['goal'] == 1), 'times'].values
         obj1_nogoal = all_obj_df.loc[(all_obj_df['object'] == 1) & (all_obj_df['goal'] == 0), 'times'].values
         obj2_goal = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 1), 'times'].values
         obj2_nogoal = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 0), 'times'].values
         p_obj1, p_obj2 = np.empty(amplitudes.shape[0]), np.empty(amplitudes.shape[0])
+        z_obj1, z_obj2 = np.empty(amplitudes.shape[0]), np.empty(amplitudes.shape[0])
         for pat in range(amplitudes.shape[0]):
 
             # Run zeta test (make sure not to include the bin that can overlap with 0)
-            p_obj1[pat], _ = zetatstest2(time_ax, amplitudes[pat, :], obj1_goal - SIG_TIME,
-                                         time_ax, amplitudes[pat, :], obj1_nogoal - SIG_TIME,
-                                         dblUseMaxDur=SIG_TIME - (BIN_WIDTH/2))
-            p_obj2[pat], _ = zetatstest2(time_ax, amplitudes[pat, :], obj2_goal - SIG_TIME,
-                                         time_ax, amplitudes[pat, :], obj2_nogoal - SIG_TIME,
-                                         dblUseMaxDur=SIG_TIME - (BIN_WIDTH/2))
+            p_obj1[pat], ZETA = zetatstest2(time_ax, amplitudes[pat, :], obj1_goal - SIG_TIME,
+                                            time_ax, amplitudes[pat, :], obj1_nogoal - SIG_TIME,
+                                            dblUseMaxDur=SIG_TIME - (BIN_WIDTH/2))
+            z_obj1 = ZETA['dblZETA']
+            p_obj2[pat], ZETA = zetatstest2(time_ax, amplitudes[pat, :], obj2_goal - SIG_TIME,
+                                            time_ax, amplitudes[pat, :], obj2_nogoal - SIG_TIME,
+                                            dblUseMaxDur=SIG_TIME - (BIN_WIDTH/2))
+            z_obj2 = ZETA['dblZETA']
 
         # Plot
         f, axs = plt.subplots(2, N_PATTERNS[region], figsize=(1.75*N_PATTERNS[region], 3.5),
@@ -160,14 +175,15 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         # Find patterns that respond to sound onset
         sound1 = trials.loc[trials['soundId'] == 1, 'soundOnsetTime'].values
         sound2 = trials.loc[trials['soundId'] == 2, 'soundOnsetTime'].values
-        p_sound = np.empty(amplitudes.shape[0])
+        p_sound, z_sound = np.empty(amplitudes.shape[0]), np.empty(amplitudes.shape[0])
         for pat in range(amplitudes.shape[0]):
 
             # Run zeta test (make sure not to include the bin that can overlap with 0)
-            p_sound[pat], _ = zetatstest2(time_ax, amplitudes[pat, :], sound1,
-                                          time_ax, amplitudes[pat, :], sound2,
-                                          dblUseMaxDur=SIG_TIME)
-
+            p_sound[pat], ZETA = zetatstest2(time_ax, amplitudes[pat, :], sound1,
+                                             time_ax, amplitudes[pat, :], sound2,
+                                             dblUseMaxDur=SIG_TIME)
+            z_sound[pat] = ZETA['dblZETA']
+            
         # Plot
         f, axs = plt.subplots(1, N_PATTERNS[region], figsize=(1.75*N_PATTERNS[region], 1.75), dpi=dpi)
         for pp in range(N_PATTERNS[region]):
@@ -179,10 +195,39 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         plt.tight_layout()
         plt.savefig(path_dict['google_drive_fig_path'] / 'SpikePatterns' / f'{region}_{subject}_{date}_sound.jpg', dpi=600)
         plt.close(f)
-
+            
+        # Find which spike patterns are active during ripples
+        these_ripples = ripples[(ripples['subject'] == subject) & (ripples['date'] == date)]
+        p_ripples, z_ripples = np.full(amplitudes.shape[0], np.nan), np.full(amplitudes.shape[0], np.nan)
+        if these_ripples.shape[0] >= MIN_RIPPLES:
+            
+            # Drop last ripple if too close to the end of the recording
+            if time_ax[-1] - these_ripples['start_times'].values[-1] < SIG_TIME:
+                these_ripples = these_ripples[:-1]   
+            
+            # Get significance per spike pattern
+            for pat in range(amplitudes.shape[0]):
+                p_ripples[pat], ZETA = zetatstest(time_ax, amplitudes[pat, :],
+                                                  these_ripples['start_times'].values - 1,
+                                                  dblUseMaxDur=SIG_TIME)
+                z_ripples[pat] = ZETA['dblZETA']
+        
+            # Plot
+            f, axs = plt.subplots(1, N_PATTERNS[region], figsize=(1.75*N_PATTERNS[region], 1.75), dpi=dpi)
+            for pp in range(N_PATTERNS[region]):
+                peri_event_trace(amplitudes[pp, :], time_ax, these_ripples['start_times'],
+                                 np.ones(these_ripples.shape[0]),
+                                 t_before=2, t_after=2, ax=axs[pp])
+                axs[pp].set(xticks=[-2, -1, 0, 1, 2], ylabel='Pattern activation')
+            sns.despine(trim=True)
+            plt.tight_layout()
+            plt.savefig(path_dict['google_drive_fig_path'] / 'SpikePatterns' / f'{region}_{subject}_{date}_ripples.jpg', dpi=600)
+            plt.close(f)        
+                
         # Add to df
         pattern_df = pd.concat((pattern_df, pd.DataFrame(data={
-            'p_obj1': p_obj1, 'p_obj2': p_obj2, 'p_sound_id': p_sound,
+            'p_obj1': p_obj1, 'p_obj2': p_obj2, 'p_sound_id': p_sound, 'p_ripples': p_ripples,
+            'z_obj1': z_obj1, 'z_obj2': z_obj2, 'z_sound_id': z_sound, 'z_ripples': z_ripples,
             'pattern': np.arange(1, N_PATTERNS[region]+1),
             'region': region, 'subject': subject, 'date': date
             })))

@@ -15,15 +15,8 @@ colors, dpi = figure_style()
 path_dict = paths()
 subjects = load_subjects()
 stats_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
-#stats_df = stats_df[np.isin(stats_df['subject'],
-#                            subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
 stats_df['subject'] = stats_df['subject'].astype(str)
 stats_df['date'] = stats_df['date'].astype(str)
-
-# Take out iCA1 for now
-stats_df.loc[stats_df['region'] == 'dCA1', 'region'] = 'CA1'
-stats_df.loc[stats_df['region'] == 'iCA1', 'region'] = 'CA1'
-#stats_df = stats_df[stats_df['region'] != 'iCA1']
 session_df = stats_df[['subject', 'date', 'probe']].value_counts().reset_index()
 
 print(f'{len(np.unique(session_df["subject"]))} mice')

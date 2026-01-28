@@ -22,6 +22,7 @@ from os.path import join, realpath, dirname, isfile, split, isdir
 from pathlib import Path
 from iblatlas.atlas import BrainRegions
 from iblutil.numerical import ismember
+ba = BrainRegions()
 
 N_PATTERNS = {'AUD': 6, 'CA1': 8, 'LEC': 5, 'PERI': 7, 'TEa': 7, 'VIS': 6}
 
@@ -244,6 +245,15 @@ def load_objects(subject, date):
 
     # Load in trials
     trials = load_trials(subject, date)
+    
+    # Legacy fix
+    if 'enterObj1' in trials.columns:
+        trials['enterObj1Time'] = trials['enterObj1']
+        trials['enterObj2Time'] = trials['enterObj2']
+        trials['enterObj3Time'] = trials['enterObj3']
+        trials['exitObj1Time'] = trials['exitObj1']
+        trials['exitObj2Time'] = trials['exitObj2']
+        trials['exitObj3Time'] = trials['exitObj3']
 
     # Get reward contingencies
     sound1_obj = subjects.loc[subjects['SubjectID'] == subject, 'Sound1Obj'].values[0]
@@ -397,7 +407,8 @@ def load_subjects():
     return subjects
 
 
-def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr=0.1):
+def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr=0.1,
+                     split_hpc=False, split_peri=False):
     """
     Helper function to read in the spike sorting output from the Power Pixels pipeline.
 
@@ -523,13 +534,15 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
         clusters['y'] = channels['y'][clusters['channels']]
         clusters['z'] = channels['z'][clusters['channels']]
         clusters['acronym'] = channels['acronym'][clusters['channels']]
-        clusters['region'] = combine_regions(clusters['acronym'], abbreviate=True, brainregions=BrainRegions())
-        clusters['region'][(clusters['region'] == 'CA1') & (clusters['z'] < -2000)] = 'iCA1'
-        clusters['region'][(clusters['region'] == 'CA1') & (clusters['z'] > -2000)] = 'dCA1'
-        clusters['full_region'] = combine_regions(clusters['acronym'], abbreviate=False,
-                                                  brainregions=BrainRegions())
-        clusters['full_region'][(clusters['full_region'] == 'CA1') & (clusters['z'] < -2000)] = 'intermediate CA1'
-        clusters['full_region'][(clusters['full_region'] == 'CA1') & (clusters['z'] > -2000)] = 'dorsal CA1'
+        clusters['region'] = combine_regions(
+            clusters['acronym'], abbreviate=True, split_peri=split_peri, brainregions=ba)
+        clusters['full_region'] = combine_regions(
+            clusters['acronym'], abbreviate=False, split_peri=split_peri, brainregions=ba)
+        if split_hpc:
+            clusters['region'][(clusters['region'] == 'CA1') & (clusters['z'] < -2000)] = 'iCA1'
+            clusters['region'][(clusters['region'] == 'CA1') & (clusters['z'] > -2000)] = 'dCA1'
+            clusters['full_region'][(clusters['full_region'] == 'CA1') & (clusters['z'] < -2000)] = 'intermediate CA1'
+            clusters['full_region'][(clusters['full_region'] == 'CA1') & (clusters['z'] > -2000)] = 'dorsal CA1'
 
     # Exclude neurons that are not labelled good or with firing rates which are too low
     select_units = np.ones(clusters['cluster_id'].shape[0]).astype(bool)
@@ -1424,17 +1437,184 @@ def to_spikeship_dataformat(raw_spike_times, neuron_ids, epoch_intervals):
     return spike_times, ii_spike_times, n_spikes
 
 
-def load_lfp(probe_path, channels):
+def load_lfp(probe_path, channels, start_time=0, end_time=None):
     """
     """
     import spikeinterface.full as si
     
     lfp_data = si.read_binary(probe_path / 'lfp_raw_binary' / 'traces_cached_seg0.raw',
-                              sampling_frequency=2500, dtype='int16', num_channels=385)
-    lfp_traces = lfp_data.get_traces(channel_ids=channels)
-    timestamps = lfp_data.get_times()
+                              sampling_frequency=2500, dtype='int16', num_channels=384)
+    start_frame = lfp_data.time_to_sample_index(start_time)
+    if end_time is None:
+        end_frame = lfp_data.time_to_sample_index(lfp_data.get_end_time())
+    else:
+        end_frame = lfp_data.time_to_sample_index(end_time)
+    lfp_traces = lfp_data.get_traces(channel_ids=channels, start_frame=start_frame, end_frame=end_frame)
+    timestamps = lfp_data.get_times()[start_frame:end_frame]
     
     return lfp_traces, timestamps
     
 
-   
+def get_ripple_channels(target_chan, n_above, n_below, channels, shank_indices):
+ 
+    # 1. Get coordinates for the subset of channels on this shank
+    lateral = channels['lateral_um'][shank_indices]
+    axial = channels['axial_um'][shank_indices]
+    
+    # 2. Find the coordinates of our max_channel
+    idx_in_shank = np.where(shank_indices == target_chan)[0][0]
+    target_axial = axial[idx_in_shank]
+    target_lateral = lateral[idx_in_shank]
+    
+    # 3. Get unique axial positions and sort them
+    unique_axials = np.sort(np.unique(axial))
+    target_axial_idx = np.where(unique_axials == target_axial)[0][0]
+    
+    # 4. Determine the range of axial levels to pull from
+    start_idx = max(0, target_axial_idx - n_below)
+    end_idx = min(len(unique_axials), target_axial_idx + n_above + 1)
+    selected_axials = unique_axials[start_idx:end_idx]
+    
+    final_channels = []
+    
+    for ax in selected_axials:
+        # Find channels at this height
+        mask = (axial == ax)
+        chans_at_level = shank_indices[mask]
+        lats_at_level = lateral[mask]
+        
+        # Determine if we want the "same" or "opposite" column
+        # Logic: if the vertical distance from target is even, match target column. 
+        # If odd, pick the other column.
+        dist_from_target = int(round((ax - target_axial) / 15)) # 15um pitch
+        
+        if dist_from_target % 2 == 0:
+            # Match target lateral
+            col_mask = (lats_at_level == target_lateral)
+        else:
+            # Opposite lateral
+            col_mask = (lats_at_level != target_lateral)
+            
+        final_channels.extend(chans_at_level[col_mask])
+
+    return np.array(final_channels)
+
+
+def sort_neurons(X, scale, mu):
+    """
+    Given Neural spike trains X of shape (N,T), return the order (N,) of the neurons
+    """
+    N, _, K = X.shape[0], X.shape[1], scale.shape[0]
+    color_list = [[] for _ in range(K)]
+    for i in range(N):
+        color_list[int(np.argmax(scale[:,i]))].append(i)
+    color_list = [sorted(color_list[k], key=lambda x: mu[k][x]) 
+    for k in range(len(color_list))]
+    return [x  for l in color_list for x in l]
+
+
+def plot_ppseq(data, model, amplitudes, spike_height=0.8):
+    """
+    Plot the neural spike trains and 
+    color the spikes into red, blue and black according to their intensities
+    supports at most 30 colors 
+    """
+    import torch
+    import torch.nn.functional as F
+    colors, dpi = figure_style()
+    
+    # Move parameters to CPU and ensure they are tensors
+    b = model.base_rates.cpu()
+    W = model.templates.cpu()
+    scale = model.template_scales.cpu()
+    mu = model.template_offsets.cpu()
+    a = amplitudes.cpu()
+    
+    N, T = data.shape
+    K = W.shape[0]
+    D = W.shape[2]
+    
+    # 1. Compute sorting order
+    order = sort_neurons(data, scale, mu)
+    
+    # 2. Build intensity matrix M of shape (K+1, N, T)
+    # M[0] is the base rate, M[1:] are the template convolutions
+    intensities = torch.zeros((K + 1, N, T))
+    intensities[0] = b.view(N, 1).expand(N, T)
+    
+    # Calculate convolutions for all templates at once
+    # We use a loop for K to avoid massive memory spikes, but internal ops are vectorized
+    for k in range(K):
+        # Flip kernel for cross-correlation logic used in spike sorting
+        kernel = torch.flip(W[k:k+1].permute(1, 0, 2), dims=[2])
+        # [1, N, T+D-1] -> slice to [N, T]
+        conv_res = F.conv1d(a[k:k+1, :].unsqueeze(0), kernel, padding=D-1)
+        intensities[k+1] = conv_res[0, :, :T]
+
+    # 3. Determine dominant source: Argmax across the K+1 dimension
+    # dominant_source[n, t] = k which maximizes the intensity
+    dominant_source = torch.argmax(intensities, dim=0) 
+    
+    # 4. Filter only where spikes actually occurred
+    # Use the sorting order for the Y-axis
+    ordered_data = data[order, :]
+    ordered_sources = dominant_source[order, :]
+    
+    # Get coordinates of spikes
+    spike_indices = torch.nonzero(ordered_data) # [spike_count, 2]
+    times = spike_indices[:, 1].numpy()
+    neurons = spike_indices[:, 0].numpy()
+    sources = ordered_sources[spike_indices[:, 0], spike_indices[:, 1]].numpy()
+    
+    # 5. Plotting
+    f, ax = plt.subplots(figsize=(2, 1.75), dpi=dpi)
+    
+    named_colors = [
+        'black',
+        'red',
+        'blue',
+        'green',
+        'cyan',
+        'magenta',
+        'orange',
+        'purple',
+        'brown',
+        'pink',
+        'gray',
+        'olive',
+        'navy',
+        'gold',
+        'silver',
+        'maroon',
+        'lime',
+        'teal',
+        'aqua',
+        'fuchsia',
+        'indigo',
+        'violet',
+        'coral',
+        'turquoise',
+        'tan',
+        'chocolate',
+        'salmon',
+        'plum'
+    ]    
+    
+    for i in range(K + 1):
+        mask = (sources == i)
+        if not np.any(mask): continue
+        
+        # vlines(x, ymin, ymax)
+        # We center the spike on the neuron index: [idx - h/2, idx + h/2]
+        plt.vlines(
+            times[mask], 
+            neurons[mask] - spike_height/2, 
+            neurons[mask] + spike_height/2, 
+            colors=named_colors[i % len(named_colors)],
+            linewidth=0.5,
+            alpha=0.8,
+            label=f"Source {i}" if i > 0 else "Base"
+        )
+            
+    ax.set(ylabel='Sorted neurons', xlabel='Time')
+    return f, ax

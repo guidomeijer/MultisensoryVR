@@ -8,118 +8,109 @@ By Guido Meijer
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import os
-import datetime
-from os.path import join, isfile
-from scipy.stats import ttest_1samp, wilcoxon
+from scipy import stats
 import pandas as pd
-from msvr_functions import (load_subjects, paths, peri_event_trace, figure_style,
-                            peri_multiple_events_time_histogram)
+from msvr_functions import paths, load_objects, figure_style
+colors, dpi = figure_style()
 
 # Settings
 T_BEFORE = [1, 0]
-subject_dict = {'452505': '20231218',
-                '459601': '20240328',
-                '459602': '20240314',
-                '452506': '20231211'}
-
-# Get subjects
-subjects = load_subjects()
+LAST_SES = 5
+MIN_TRIALS = 30
 
 # Get paths
 path_dict = paths()
 data_path = path_dict['local_data_path']
-
-# Set figure style
-colors, dpi = figure_style()
+rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv')
+subjects = np.unique(rec['subject']).astype(str)
 
 # Loop over subjects
-perc_incr_licking = np.empty(len(subject_dict))
-perc_slowing = np.empty(len(subject_dict))
-number_incr_licking = np.empty(len(subject_dict))
-for i, subject in enumerate(subject_dict.keys()):
+speed_obj1, speed_obj2 = np.empty(subjects.shape[0]), np.empty(subjects.shape[0])
+licks_obj1, licks_obj2 = np.empty(subjects.shape[0]), np.empty(subjects.shape[0])
+for i, subject in enumerate(subjects):
+    print(f'{subject}')
 
-    # List sessions
-    ses = subject_dict[subject]
-
-    # Load in data
-    trials = pd.read_csv(join(data_path, 'Subjects', subject, ses, 'trials.csv'))
-    lick_times = np.load(join(data_path, 'Subjects', subject, ses, 'lick.times.npy'))
-    wheel_times = np.load(join(data_path, 'Subjects', subject, ses, 'continuous.times.npy'))
-    wheel_speed = np.load(join(data_path, 'Subjects', subject,
-                          ses, 'continuous.wheelSpeed.npy'))
-
-    # Get timestamps of entry of goal, no-goal and control object sets
-    goal_obj_enters = np.concatenate((
-        trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound1Obj"]}'],
-        trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound2Obj"]}']))
-    nogoal_obj_enters = np.concatenate((
-        trials.loc[trials['soundId'] == 1, f'enterObj{subjects.loc[i, "Sound2Obj"]}'],
-        trials.loc[trials['soundId'] == 2, f'enterObj{subjects.loc[i, "Sound1Obj"]}']))
-    control_obj_enters = trials[f'enterObj{subjects.loc[i, "ControlObject"]}'].values
-    all_obj_enters = np.concatenate((goal_obj_enters, nogoal_obj_enters, control_obj_enters))
-    all_obj_ids = np.concatenate(
-        (np.ones(goal_obj_enters.shape[0]),
-         np.ones(nogoal_obj_enters.shape[0])*2,
-         np.ones(control_obj_enters.shape[0])*3))
-    all_obj_ids = all_obj_ids[~np.isnan(all_obj_enters)]
-    all_obj_enters = all_obj_enters[~np.isnan(all_obj_enters)]
-
-    # Loop over trials and get speed and licks
-    goal_licks = np.empty(goal_obj_enters.shape)
-    goal_speed = np.empty(goal_obj_enters.shape)
-    for j, this_enter in enumerate(goal_obj_enters):
-        goal_licks[j] = np.sum((lick_times > this_enter - T_BEFORE[0])
-                               & (lick_times < this_enter - T_BEFORE[1]))
-        goal_speed[j] = np.mean(wheel_speed[(wheel_times > this_enter - T_BEFORE[0])
-                                            & (wheel_times < this_enter - T_BEFORE[1])])
+    # Loop over last sessions
+    sessions = list((path_dict['local_data_path'] / 'Subjects' / subject).iterdir())[-LAST_SES:]
+    speed_obj1_ses, speed_obj2_ses, lick_obj1_ses, lick_obj2_ses = [], [], [], []
+    for j, ses_path in enumerate(sessions):
+    
+        # Load in data
+        if not (ses_path / 'trials.csv').is_file():
+            continue
+        trials = pd.read_csv(ses_path / 'trials.csv')
+        if trials.shape[0] < MIN_TRIALS:
+            continue
+        lick_times = np.load(ses_path / 'lick.times.npy')
+        wheel_times = np.load(ses_path / 'continuous.times.npy')
+        wheel_speed = np.load(ses_path / 'continuous.wheelSpeed.npy')
+        obj_df = load_objects(subject, ses_path.stem)
+                
+        # Loop over trials and get speed and licks
+        speed_dict = {'obj1_goal0': [], 'obj1_goal1': [], 'obj2_goal0': [], 'obj2_goal1': []}
+        lick_dict = {'obj1_goal0': [], 'obj1_goal1': [], 'obj2_goal0': [], 'obj2_goal1': []}
+        for k in obj_df[obj_df['object'] != 3].index:
             
-    nogoal_licks = np.empty(goal_obj_enters.shape)
-    nogoal_speed = np.empty(goal_obj_enters.shape)
-    for j, this_enter in enumerate(nogoal_obj_enters):
-        nogoal_licks[j] = np.sum((lick_times > this_enter - T_BEFORE[0])
-                                 & (lick_times < this_enter - T_BEFORE[1]))
-        nogoal_speed[j] = np.nanmedian(wheel_speed[(wheel_times > this_enter - T_BEFORE[0])
-                                                   & (wheel_times < this_enter - T_BEFORE[1])])
+            speed_dict[f'obj{obj_df.loc[k, "object"]}_goal{obj_df.loc[k, "goal"]}'].append(np.mean(
+                wheel_speed[(wheel_times > obj_df.loc[k, 'times'] - T_BEFORE[0])
+                            & (wheel_times < obj_df.loc[k, 'times'] - T_BEFORE[1])]))
+            
+            lick_dict[f'obj{obj_df.loc[k, "object"]}_goal{obj_df.loc[k, "goal"]}'].append(np.sum(
+                (lick_times > obj_df.loc[k, 'times'] - T_BEFORE[0])
+                & (lick_times < obj_df.loc[k, 'times'] - T_BEFORE[1])))
+            
+        # Calculate percentage for this session
+        speed_obj1_ses.append(((np.nanmean(speed_dict['obj1_goal0']) - np.nanmean(speed_dict['obj1_goal1']))
+                               / np.nanmean(speed_dict['obj1_goal0'])) * 100)
+        speed_obj2_ses.append(((np.nanmean(speed_dict['obj2_goal0']) - np.nanmean(speed_dict['obj2_goal1']))
+                               / np.nanmean(speed_dict['obj2_goal0'])) * 100)
         
-    # Calculate percentage slowing and anticipatory licking
-    perc_incr_licking[i] = ((np.mean(goal_licks) - np.mean(nogoal_licks))
-                            / np.mean(nogoal_licks)) * 100
-    number_incr_licking[i] = np.mean(goal_licks) - np.mean(nogoal_licks)
-    perc_slowing[i] = ((np.nanmedian(nogoal_speed) - np.nanmedian(goal_speed))
-                       / np.nanmedian(nogoal_speed)) * 100 
+        lick_obj1_ses.append(np.sum(lick_dict['obj1_goal1']) - np.sum(lick_dict['obj1_goal0']))
+        lick_obj2_ses.append(np.sum(lick_dict['obj2_goal1']) - np.sum(lick_dict['obj2_goal0']))
+        
+    # Take average over sessions
+    speed_obj1[i], speed_obj2[i] = np.mean(speed_obj1_ses), np.mean(speed_obj2_ses)
+    licks_obj1[i], licks_obj2[i] = np.mean(np.abs(lick_obj1_ses)), np.mean(np.abs(lick_obj2_ses))
+          
+# Invert mice that speed up
+speed_obj1[2:4] = np.abs(speed_obj1[2:4])
+speed_obj2[2:4] = np.abs(speed_obj2[2:4])
     
 # %% Stats
-_, p_licks = ttest_1samp(number_incr_licking, 0)
-_, p_running = ttest_1samp(perc_slowing, 0)
-
+_, p_speed_obj1 = stats.ttest_1samp(speed_obj1, 0)
+_, p_speed_obj2 = stats.ttest_1samp(speed_obj2, 0)
+_, p_obj1_obj2 = stats.ttest_rel(speed_obj1, speed_obj2)
     
 # %% Plot
 
 df_results = pd.DataFrame(data={
-    'number_incr_licking': number_incr_licking,
-    'perc_slowing': perc_slowing})
-df_results = df_results.melt()
+    'speed': np.concatenate([speed_obj1, speed_obj2]),
+    'licks': np.concatenate([licks_obj1, licks_obj2]),
+    'object': np.concatenate([np.ones(subjects.shape[0]), np.ones(subjects.shape[0]) + 1])})
 
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(2, 1.75), dpi=dpi)
+f, ax1 = plt.subplots(figsize=(1.3, 1.75), dpi=dpi)
 
-sns.swarmplot(data=df_results[df_results['variable'] == 'perc_slowing'],
-              x='variable', y='value', ax=ax1)
-ax1.set(ylabel='Percentage decrease (%)', xlabel='', title='slowing',
-        xticks=[0.5], yticks=[0, 10, 20, 30])
-ax1.axes.get_xaxis().set_visible(False)
-ax1.text(0, 25, '**', ha='center', va='center', fontsize=12)
+sns.barplot(data=df_results, x='object', y='speed', ax=ax1, errorbar=None, color='grey', width=0.6)
+ax1.plot([np.zeros_like(speed_obj1), np.ones_like(speed_obj2)], [speed_obj1, speed_obj2], color='k')
+ax1.plot([0, 1], [30, 30], color='k')
+ax1.text(0.5, 30, '**', fontsize=12, ha='center', va='center')
+#ax1.text(0, 10, '**', fontsize=12, ha='center', va='center')
+#ax1.text(1, 26, '**', fontsize=12, ha='center', va='center')
+ax1.set(xticks=[0, 1], xticklabels=['First', 'Second'], xlabel='Object',
+        ylabel='Anticipatory speed change (%)',
+        yticks=np.arange(0, 31, 10), ylim=[-5, 30], xlim=[-0.5, 1.5])
 
-sns.swarmplot(data=df_results[df_results['variable'] == 'number_incr_licking'],
-              x='variable', y='value', ax=ax2)
-ax2.set(ylabel='Extra licks per trial', xlabel='', title='licking',
-        xticks=[0.5], yticks=[0, 0.5, 1])
-ax2.axes.get_xaxis().set_visible(False)
-ax2.text(0, 0.82, '**', ha='center', va='center', fontsize=12)
+sns.despine(trim=False)   
+plt.tight_layout()
+plt.savefig(path_dict['google_drive_fig_path'] / 'speed_over_animals.pdf')
+plt.savefig(path_dict['google_drive_fig_path'] / 'speed_over_animals.jpg', dpi=600)
 
-f.suptitle('Anticipatory', y=0.87, x=0.55)
+
+# %%
+f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+sns.swarmplot(data=df_results, x='object', y='licks', ax=ax1)
+
 sns.despine(trim=True)   
-plt.tight_layout(pad=1.5)
-plt.savefig(join(path_dict['fig_path'], 'licking_slowing_over_animals.pdf'))
-
-    
+plt.tight_layout()
+plt.savefig(path_dict['fig_path'] / 'licks_over_animals.pdf')
+   
