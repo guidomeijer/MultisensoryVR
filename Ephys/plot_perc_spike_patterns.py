@@ -132,3 +132,5 @@ ax1.tick_params(axis='x', labelrotation=90)
 sns.despine(trim=False)
 plt.tight_layout()
 plt.savefig(path_dict['google_drive_fig_path'] / 'sig_patterns_ripples.jpg', dpi=600)
+
+

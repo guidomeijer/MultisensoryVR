@@ -173,6 +173,16 @@ plt.tight_layout()
 plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_overlap.jpg'), dpi=600)
 
 
+# %%
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(2, 1.75), dpi=dpi)
+ax1.bar(region_summary.index, region_summary['sum'])
+ax1.tick_params(axis='x', labelrotation=90)
+
+ax1.bar(region_summary.index, region_summary['sum'])
+
+sns.despine(trim=False)
+plt.tight_layout()
+
 """
 # %%
 f, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4, figsize=(1.75*4, 4), dpi=dpi, sharey=False)
