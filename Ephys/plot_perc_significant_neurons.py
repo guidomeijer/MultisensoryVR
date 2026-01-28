@@ -58,6 +58,7 @@ merge_peri.loc[merge_peri['region'] == 'PERI 36', 'region'] = 'PERI'
 merge_peri.loc[merge_peri['region'] == 'PERI 35', 'region'] = 'PERI'
 over_ses = merge_peri[['ses_id', 'region', 'n_neurons']].groupby(['ses_id', 'region', 'n_neurons']).sum().reset_index()
 region_summary = over_ses.groupby('region')['n_neurons'].agg(['mean', 'sum', 'sem'])
+region_summary = region_summary.sort_values(by='sum', ascending=False)
 print(region_summary)
 
 
@@ -174,15 +175,23 @@ plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons_overlap.j
 
 
 # %%
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(2, 1.75), dpi=dpi)
-ax1.bar(region_summary.index, region_summary['sum'])
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(2.5, 1.75), dpi=dpi)
+ax1.bar(region_summary.index, region_summary['sum'], color='grey')
 ax1.tick_params(axis='x', labelrotation=90)
+ax1.set(ylabel='Total number of neurons')
 
-ax1.bar(region_summary.index, region_summary['sum'])
+ax2.bar(region_summary.index, region_summary['mean'], yerr=region_summary['sem'],
+        color='grey')
+ax2.tick_params(axis='x', labelrotation=90)
+ax2.set(ylabel='Simultaneously recorded')
 
 sns.despine(trim=False)
 plt.tight_layout()
 
+plt.savefig(join(path_dict['google_drive_fig_path'], 'n_neurons.jpg'), dpi=600)
+plt.savefig(join(path_dict['google_drive_fig_path'], 'n_neurons.pdf'))
+
+# %%
 """
 # %%
 f, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4, figsize=(1.75*4, 4), dpi=dpi, sharey=False)
