@@ -103,8 +103,15 @@ ax1.set(xticks=[0, 1], xticklabels=['First', 'Second'], xlabel='Object',
 
 sns.despine(trim=False)   
 plt.tight_layout()
-plt.savefig(path_dict['google_drive_paper_path'] / 'Behavior' / 'speed_over_animals.pdf')
-plt.savefig(path_dict['google_drive_paper_path'] / 'Behavior' / 'speed_over_animals.jpg', dpi=600)
+plt.savefig(path_dict['google_drive_fig_path'] / 'speed_over_animals.pdf')
+plt.savefig(path_dict['google_drive_fig_path'] / 'speed_over_animals.jpg', dpi=600)
 
 
+# %%
+f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+sns.swarmplot(data=df_results, x='object', y='licks', ax=ax1)
+
+sns.despine(trim=True)   
+plt.tight_layout()
+plt.savefig(path_dict['fig_path'] / 'licks_over_animals.pdf')
    

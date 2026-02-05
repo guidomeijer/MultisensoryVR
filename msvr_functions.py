@@ -24,7 +24,7 @@ from iblatlas.atlas import BrainRegions
 from iblutil.numerical import ismember
 ba = BrainRegions()
 
-N_PATTERNS = {'AUD': 6, 'CA1': 8, 'LEC': 5, 'PERI': 7, 'TEa': 7, 'VIS': 6}
+N_PATTERNS = {'AUD': 4, 'CA1': 4, 'LEC': 4, 'PERI': 4, 'TEa': 4, 'VIS': 4}
 
 def paths(sync=False, full_sync=False, force_sync=False):
     """

@@ -116,9 +116,8 @@ sns.despine(trim=False)
 plt.tight_layout()
 plt.show(block=False)
 
-plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons.jpg'), dpi=600)
-plt.savefig(join(path_dict['google_drive_fig_path'], 'perc_sig_neurons.pdf'))
-
+plt.savefig(path_dict['google_drive_paper_path'] / 'SingleNeurons' / 'perc_sig_neurons.jpg', dpi=600)
+plt.savefig(path_dict['google_drive_paper_path'] / 'SingleNeurons' / 'perc_sig_neurons.pdf')
 
 
 # %%
@@ -135,6 +134,6 @@ ax2.set(ylabel='Simultaneously recorded')
 sns.despine(trim=False)
 plt.tight_layout()
 
-plt.savefig(join(path_dict['google_drive_fig_path'], 'n_neurons.jpg'), dpi=600)
-plt.savefig(join(path_dict['google_drive_fig_path'], 'n_neurons.pdf'))
+plt.savefig(path_dict['google_drive_paper_path'] / 'SingleNeurons' / 'n_neurons.jpg', dpi=600)
+plt.savefig(path_dict['google_drive_paper_path'] / 'SingleNeurons' / 'n_neurons.pdf')
 

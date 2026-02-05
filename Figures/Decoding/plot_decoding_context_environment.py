@@ -12,7 +12,6 @@ from os.path import join
 import seaborn as sns
 from scipy import stats
 import matplotlib.pyplot as plt
-from statsmodels.stats.multitest import fdrcorrection
 from msvr_functions import paths, load_subjects, figure_style, add_significance
 colors, dpi = figure_style()
 

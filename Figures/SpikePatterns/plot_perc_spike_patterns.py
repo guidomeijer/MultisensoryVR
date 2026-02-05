@@ -55,13 +55,13 @@ for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI', 'LEC', 'CA1']):
     group = pattern_p_df[pattern_p_df['region'] == region]    
     
     # Do Spearman correlation
-    #rho, p_val = stats.spearmanr(group['z_obj2'], group['z_ripples'])
-    rho, p_val = stats.spearmanr(group['log_p_obj2'], group['log_p_ripples'])
+    #rho, p_val = stats.spearmanr(np.abs(group['z_obj1']), np.abs(group['z_ripples']))
+    rho, p_val = stats.spearmanr(group['log_p_obj1'], group['log_p_ripples'])
     print(f'{region}; p = {np.round(p_val, 3)}')
     
     # Plot
-    #axs[i].scatter(group['z_obj2'], group['z_ripples'], s=3)
-    axs[i].scatter(group['log_p_obj2'], group['log_p_ripples'], s=3)
+    #axs[i].scatter(np.abs(group['z_obj1']), np.abs(group['z_ripples']), s=3)
+    axs[i].scatter(group['log_p_obj1'], group['log_p_ripples'], s=3)
     axs[i].set(title=f'{region}; p = {np.round(p_val, 3)}')
     if i == 0:
         axs[i].set(ylabel='Ripples (-log10[p])')
@@ -80,7 +80,7 @@ plt.subplots_adjust(left=0.06, bottom=0.2, top=0.88, right=0.98)
 pattern_n_df['min_max_scaled_log_likelihood'] = (
     pattern_n_df
     .groupby(['region', 'subject', 'date'])
-    ['log_likelihood']
+    ['test_log_likelihood']
     .transform(min_max_scale)
 )
 f, axs = plt.subplots(2, 3, figsize=(7, 3.5), dpi=dpi, sharey=True, sharex=True)
