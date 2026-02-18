@@ -57,7 +57,6 @@ per_ses_df['perc_obj_onset'] = (per_ses_df['sig_obj_onset'] / per_ses_df['n_neur
 per_ses_df = per_ses_df.reset_index()
 
 # Get percentage of positively and negatively modulated neurons
-for col in ['']
 sig_df = stats_df[stats_df['p_context_obj1'] < 0.05].copy()
 sig_totals = sig_df.groupby('ses_id').size().rename('total_sig_neurons')
 sig_pos_counts = sig_df[sig_df['z_context_obj1'] > 0].groupby('ses_id').size().rename('sig_pos_count')
@@ -161,6 +160,7 @@ ax2.set(ylabel='Simultaneously recorded')
 
 sns.despine(trim=False)
 plt.tight_layout()
+plt.show()
 
 plt.savefig(path_dict['google_drive_paper_path'] / 'SingleNeurons' / 'n_neurons.jpg', dpi=600)
 plt.savefig(path_dict['google_drive_paper_path'] / 'SingleNeurons' / 'n_neurons.pdf')

@@ -141,13 +141,14 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         
 # %% Plot
 
-f, axs = plt.subplots(3, 5, figsize=(7, 4), dpi=dpi, sharey=True, sharex=True)
+f, axs = plt.subplots(3, 5, figsize=(7, 4), dpi=dpi, sharey=False, sharex=True)
 axs = axs.flatten()
 plot_df = cca_df[cca_df['event'] == 'obj1']
 for i, region_pair in enumerate(plot_df['region_pair'].unique()):
+    axs[i].plot([-1, 2], [0, 0], lw=0.5, ls='--')
     sns.lineplot(data=plot_df[plot_df['region_pair'] == region_pair], x='time', y='cca_bl',
                  ax=axs[i], errorbar='se', err_kws={'lw': 0})
-    axs[i].set(title=region_pair)
+    axs[i].set(title=region_pair, xlim=[-1, 2])
 sns.despine(trim=True)
 plt.tight_layout()
 

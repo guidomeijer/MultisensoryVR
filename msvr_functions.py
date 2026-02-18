@@ -1319,58 +1319,30 @@ def circ_shift(series1, series2, n_shifts=10000, min_shift_percentage=0.05):
     return observed_r, p_value, null_distribution_r
 
 
-def to_spikeship_dataformat(raw_spike_times, neuron_ids, epoch_intervals):
+def to_spikeship_dataformat(raw_spike_times, neuron_ids, epoch_intervals, min_spikes=0):
     """
-    Processes spike times relative to epoch intervals and return `spike_times` and
-    `ii_spike_times` indices for spikeship's data format. `raw_spike_times` is an
-    array with all the spike times of a dataset, `neuron_ids` is the neuron to
-    which such spike belongs to, and `epoch_intervals` contains the start and end
-    time to consider for defining each epoch.
-
-    Parameters
-    ----------
-    raw_spike_times : numpy.ndarray
-        Array of 1xn which contains all the spike times (n).
-    neuron_ids : numpy.ndarray
-        Array of 1xN labels which correspond to neurons identity of each spike
-        (i.e., N neurons).
-    epoch_intervals : numpy.ndarray
-        Array of `Mx2` values. `M` corresponds to the number of trials or epochs.
-        First and second columns correspond to start and stop times, respectively.
-
-    Returns
-    -------
-    spike_times : numpy.ndarray
-        Array with relative spike times.
-    ii_spikes_times: numpy.ndarray
-        `(M,N,2)`-Array with indices per neuron (N) and epoch (M).
-    n_spikes : numpy.ndarray
-        Total number of spikes per epoch
-    """
+    Reformats spike data for SpikeShip with an added activity threshold.
     
-    # 1. Sort raw data by time strictly (required for searchsorted)
-    # Note: If your data is already sorted, you can skip this to save time.
+    If an epoch has fewer than 'min_spikes', it is treated as a silent trial.
+    This ensures SpikeShip doesn't attempt to compute distances based on 
+    stochastic single-spike events.
+    """
+    # 1. Ensure data is sorted by time
     sort_idx = np.argsort(raw_spike_times)
     raw_spike_times = raw_spike_times[sort_idx]
     neuron_ids = neuron_ids[sort_idx]
 
-    # 2. Pre-compute unique neurons to ensure consistent ordering
+    # 2. Consistent Neuron Mapping
     unique_neurons = np.unique(neuron_ids)
     n_neurons = len(unique_neurons)
     neuron_map = {uid: i for i, uid in enumerate(unique_neurons)}
     
     M = epoch_intervals.shape[0]
-    
-    # Use lists for fast accumulation (O(1) append)
     spike_times_list = []
-    
-    # Pre-allocate the index matrix
-    # Shape: (M, N, 2)
     ii_spike_times = np.zeros((M, n_neurons, 2), dtype=int)
     n_spikes = np.zeros(M, dtype=int)
     
-    # 3. Find all epoch boundaries at once using binary search (O(log N))
-    # This avoids iterating through the whole array for every epoch
+    # 3. Find boundaries
     epoch_starts = np.searchsorted(raw_spike_times, epoch_intervals[:, 0])
     epoch_ends = np.searchsorted(raw_spike_times, epoch_intervals[:, 1])
 
@@ -1380,55 +1352,49 @@ def to_spikeship_dataformat(raw_spike_times, neuron_ids, epoch_intervals):
         idx_start = epoch_starts[i]
         idx_end = epoch_ends[i]
         
-        # Extract slice for this epoch
-        t_start = epoch_intervals[i, 0]
+        n_spikes_raw = idx_end - idx_start
         
-        # If no spikes in this epoch
-        if idx_start >= idx_end:
-            # ii_spike_times is already 0s, just update global offset logic if needed
-            # In Spikeship format, empty neurons usually point to the current global_idx 
-            # with length 0.
+        # --- THRESHOLD LOGIC ---
+        # If below threshold, treat as an empty epoch
+        if n_spikes_raw < min_spikes or n_spikes_raw == 0:
+            # Set all neurons for this epoch to point to the current global index
+            # with 0 length. This is how SpikeShip recognizes an empty epoch.
             ii_spike_times[i, :, :] = current_global_idx
+            n_spikes[i] = 0
             continue
 
+        # Extract and sort by neuron
         spikes_in_epoch = raw_spike_times[idx_start:idx_end]
         neurons_in_epoch = neuron_ids[idx_start:idx_end]
         
-        # 4. Sort by Neuron ID within the epoch
-        # Spikeship expects spikes to be grouped by neuron within the epoch
         sort_order = np.argsort(neurons_in_epoch)
         spikes_sorted = spikes_in_epoch[sort_order]
         neurons_sorted = neurons_in_epoch[sort_order]
         
         # Relative times
-        spikes_rel = spikes_sorted - t_start
+        spikes_rel = spikes_sorted - epoch_intervals[i, 0]
         spike_times_list.append(spikes_rel)
         
-        # 5. Determine indices for each neuron
-        # np.unique on sorted array gives us the counts and start positions efficiently
+        # Get counts per neuron
         unq_in_epoch, idxs_in_epoch, counts_in_epoch = np.unique(
             neurons_sorted, return_index=True, return_counts=True
         )
         
-        # Map back to the global neuron matrix
+        # CRITICAL FIX: Initialize all neurons for this trial to the current pointer
+        ii_spike_times[i, :, :] = current_global_idx
+        
+        # Update only the neurons actually present
         for u_neuron, start_local, count in zip(unq_in_epoch, idxs_in_epoch, counts_in_epoch):
             if u_neuron in neuron_map:
                 n_idx = neuron_map[u_neuron]
                 ii_spike_times[i, n_idx, 0] = current_global_idx + start_local
                 ii_spike_times[i, n_idx, 1] = current_global_idx + start_local + count
         
-        # For neurons NOT present in this epoch, we need to set their start/end 
-        # to the current pointer location (length 0).
-        # (Optional: depends on if Spikeship handles 0-0 ranges implicitly, 
-        # but explicit is safer).
-        # This part is complex to vectorize cleanly without masking, 
-        # but 0-init covers the base case usually.
-        
-        n_count = len(spikes_rel)
-        n_spikes[i] = n_count
-        current_global_idx += n_count
+        epoch_total = len(spikes_rel)
+        n_spikes[i] = epoch_total
+        current_global_idx += epoch_total
 
-    # Concatenate once at the end
+    # 4. Final Concatenation
     if spike_times_list:
         spike_times = np.concatenate(spike_times_list)
     else:
