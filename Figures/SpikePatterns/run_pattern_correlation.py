@@ -8,12 +8,20 @@ By Guido Meijer
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from scipy import stats
+from scipy.ndimage import gaussian_filter1d
 import matplotlib.pyplot as plt
 from msvr_functions import paths, load_objects, figure_style
 colors, dpi = figure_style()
 
-MIN_RIPPLES = 10
+# Settings
+MIN_RIPPLES = 30
+MIN_TRIALS = 30
 PLOT = False
+SMOOTHING_STD = 50  # ms
+PRE_S = 2
+POST_S = 2
+FS = 100
 
 # Initialize
 path_dict = paths()
@@ -22,38 +30,32 @@ rec = rec.drop_duplicates(['subject', 'date'])
 ripples = pd.read_csv(path_dict['save_path'] / 'ripples.csv')
 ripples['subject'] = ripples['subject'].astype(str)
 ripples['date'] = ripples['date'].astype(str)
+time_axis = np.linspace(-PRE_S, POST_S, FS * (PRE_S + POST_S))
 
 # Functions
-def get_event_triggered_activity(amplitudes, times, event_times, window_sec=(-2, 2)):
+def get_event_triggered_activity(amplitudes, times, event_times, fs=FS, s_pre_post=(-PRE_S, POST_S)):
     """
     Slices continuous amplitudes into event-centric windows.
     Returns: (n_events, n_patterns, n_bins)
     """
-    dt = np.mean(np.diff(times))
-    # Convert window seconds to bins
-    bins_pre = int(abs(window_sec[0]) / dt)
-    bins_post = int(abs(window_sec[1]) / dt)
     
-    n_events = len(event_times)
-    n_patterns = amplitudes.shape[0]
-    n_bins = bins_pre + bins_post
-    
-    tensor = np.zeros((n_events, n_patterns, n_bins))
+    bins_pre_post = (np.abs(s_pre_post[0]) * fs, np.abs(s_pre_post[1]) * fs)
+    tensor = np.zeros((len(event_times), amplitudes.shape[0], np.sum(bins_pre_post)))
     
     for i, evt in enumerate(event_times):
         # Find index closest to event time
         idx = np.searchsorted(times, evt)
         
         # Safety check for boundaries
-        start = idx - bins_pre
-        stop = idx + bins_post
+        start = idx - bins_pre_post[0]
+        stop = idx + bins_pre_post[1]
         
         if start >= 0 and stop < amplitudes.shape[1]:
             tensor[i, :, :] = amplitudes[:, start:stop]
         else:
             tensor[i, :, :] = np.nan # Handle edge cases
             
-    return tensor, np.linspace(window_sec[0], window_sec[1], n_bins)
+    return tensor
 
 def compute_noise_correlations(tensor_A, tensor_B):
     """
@@ -162,19 +164,23 @@ def visualize_coactivation(coactivation_map, time_axis, region_A_name, region_B_
     axes[1].grid(True, alpha=0.3)
     
     plt.savefig(path_dict['google_drive_fig_path'] / 'CoactivationPatterns' / f'{event}' 
-                / f'{subject}_{date}_{region_A_name}-{region_B_name}.jpg')
+                / f'{region_A_name}-{region_B_name}_{subject}_{date}.jpg')
     plt.close(fig)
 
 # %% MAIN
 
-coact_df, ripple_df = pd.DataFrame(), pd.DataFrame()
+coact_obj1_df, coact_obj2_df, ripple_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
+    print(f'Processing {i} of {rec.shape[0]} ({subject} {date})')
     
     # Load in data for this session
     session_path = path_dict['local_data_path'] / 'Subjects' / f'{subject}' / f'{date}'
     trials = pd.read_csv(session_path / 'trials.csv')
+    if trials.shape[0] < MIN_TRIALS:
+        continue
     these_ripples = ripples[(ripples['subject'] == subject) & (ripples['date'] == date)]
     obj_df = load_objects(subject, date)
+    obj1_times = obj_df.loc[obj_df['object'] == 1, 'times'].values
     obj2_times = obj_df.loc[obj_df['object'] == 2, 'times'].values
     
     # Get paths to data of this session
@@ -188,20 +194,22 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         _, _, region = amp_path.stem.split('.')[0].split('_')
         amplitudes[region] = np.load(amp_path)
         times = np.load(amp_path.parent / (amp_path.stem.split('.')[0] + '.times.npy'))
+                
+        # Smooth traces and zscore 
+        for pat in range(amplitudes[region].shape[0]):
+            amplitudes[region][pat, :] = gaussian_filter1d(
+                amplitudes[region][pat, :], sigma=SMOOTHING_STD // ((1/FS) * 1000))
+            amplitudes[region][pat, :] = stats.zscore(amplitudes[region][pat, :])
         
     # Loop over region pairs and get co-activation
     these_regions = list(amplitudes.keys())
     for r1, region_A in enumerate(these_regions[:-1]):
         for r2, region_B in enumerate(these_regions[r1+1:]):
             
-            # OBJECT 2
+            # OBJECT 1
             # Extract event windows
-            tensor_A, time_axis = get_event_triggered_activity(
-                amplitudes[region_A], times, obj2_times, window_sec=(-2.0, 2.0)
-            )
-            tensor_B, _ = get_event_triggered_activity(
-                amplitudes[region_B], times, obj2_times, window_sec=(-2.0, 2.0)
-            )
+            tensor_A = get_event_triggered_activity(amplitudes[region_A], times, obj1_times)
+            tensor_B = get_event_triggered_activity(amplitudes[region_B], times, obj1_times)
             
             # Compute correlations
             coactivation_map = compute_noise_correlations(tensor_A, tensor_B)
@@ -212,10 +220,34 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             pre_event_idx = time_axis < 0
             peak_corr = np.mean(reshaped_map, axis=1)
             top_pair_data = reshaped_map[np.argmax(peak_corr), :]
-            baseline_sub = top_pair_data - np.mean(top_pair_data[(time_axis >= -1.5) & (time_axis < -0.5)])
+            baseline_sub = top_pair_data - np.mean(top_pair_data[(time_axis >= -2) & (time_axis < -1.5)])
             
             # Add to df
-            coact_df = pd.concat((coact_df, pd.DataFrame(data={
+            coact_obj1_df = pd.concat((coact_obj1_df, pd.DataFrame(data={
+                'co-activation': top_pair_data, 'baseline_subracted': baseline_sub,
+                'time': time_axis,
+                'region_A': region_A, 'region_B': region_B, 'region_pair': f'{region_A}-{region_B}',
+                'subject': subject, 'date': date
+                })))
+            
+            # OBJECT 2
+            # Extract event windows
+            tensor_A = get_event_triggered_activity(amplitudes[region_A], times, obj2_times)
+            tensor_B = get_event_triggered_activity(amplitudes[region_B], times, obj2_times)
+            
+            # Compute correlations
+            coactivation_map = compute_noise_correlations(tensor_A, tensor_B)
+            
+            # Extract strongest co-activation pair (pre object entry)
+            n_pat_A, n_pat_B, n_bins = coactivation_map.shape
+            reshaped_map = coactivation_map.reshape(n_pat_A * n_pat_B, n_bins)
+            pre_event_idx = time_axis < 0
+            peak_corr = np.mean(reshaped_map, axis=1)
+            top_pair_data = reshaped_map[np.argmax(peak_corr), :]
+            baseline_sub = top_pair_data - np.mean(top_pair_data[(time_axis >= -2) & (time_axis < -1.5)])
+            
+            # Add to df
+            coact_obj2_df = pd.concat((coact_obj2_df, pd.DataFrame(data={
                 'co-activation': top_pair_data, 'baseline_subracted': baseline_sub,
                 'time': time_axis,
                 'region_A': region_A, 'region_B': region_B, 'region_pair': f'{region_A}-{region_B}',
@@ -232,13 +264,9 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                 continue
             
             # Extract event windows
-            tensor_A, time_axis = get_event_triggered_activity(
-                amplitudes[region_A], times, these_ripples['start_times'], window_sec=(-2, 2)
-            )
-            tensor_B, _ = get_event_triggered_activity(
-                amplitudes[region_B], times, these_ripples['start_times'], window_sec=(-2, 2)
-            )
-            
+            tensor_A = get_event_triggered_activity(amplitudes[region_A], times, these_ripples['start_times'])
+            tensor_B = get_event_triggered_activity(amplitudes[region_B], times, these_ripples['start_times'])
+                        
             # Compute correlations
             coactivation_map = compute_noise_correlations(tensor_A, tensor_B)
             
@@ -247,7 +275,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             reshaped_map = coactivation_map.reshape(n_pat_A * n_pat_B, n_bins)
             peak_corr = np.mean(reshaped_map, axis=1)
             top_pair_data = reshaped_map[np.argmax(peak_corr), :]
-            baseline_sub = top_pair_data - np.mean(top_pair_data[(time_axis >= -1.5) & (time_axis < -0.5)])
+            baseline_sub = top_pair_data - np.mean(top_pair_data[(time_axis >= -2) & (time_axis < -1.5)])
             
             # Add to df
             ripple_df = pd.concat((ripple_df, pd.DataFrame(data={
@@ -261,17 +289,30 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                 # Plot 
                 visualize_coactivation(coactivation_map, time_axis, region_A, region_B, path_dict,
                                        subject, date, 'Ripples')
-            
-            
-            
+
 # %% Plot
 
-f, axs = plt.subplots(3, 5, figsize=(1.75 *3, 1.75 * 5), dpi=dpi, sharey=True, sharex=True)
+f, axs = plt.subplots(3, 5, figsize=(7, 4), dpi=dpi, sharey=False, sharex=True)
 axs = axs.flatten()
-for i, region_pair in enumerate(coact_df['region_pair'].unique()):
-    sns.lineplot(data=coact_df[coact_df['region_pair'] == region_pair], x='time', y='baseline_subracted',
+for i, region_pair in enumerate(coact_obj1_df['region_pair'].unique()):
+    axs[i].plot([-2, 2], [0, 0], ls='--', lw=0.5, color='grey')
+    sns.lineplot(data=coact_obj1_df[coact_obj1_df['region_pair'] == region_pair], x='time', y='baseline_subracted',
                  ax=axs[i], errorbar='se', err_kws={'lw': 0})
-    axs[i].set(title=region_pair)
+    axs[i].set(title=region_pair, ylabel='', xlabel='')
+plt.suptitle('Object 1')
+sns.despine(trim=True)
+plt.tight_layout()
+
+# %% Plot
+
+f, axs = plt.subplots(3, 5, figsize=(7, 4), dpi=dpi, sharey=False, sharex=True)
+axs = axs.flatten()
+for i, region_pair in enumerate(coact_obj2_df['region_pair'].unique()):
+    axs[i].plot([-2, 2], [0, 0], ls='--', lw=0.5, color='grey')
+    sns.lineplot(data=coact_obj2_df[coact_obj2_df['region_pair'] == region_pair], x='time', y='baseline_subracted',
+                 ax=axs[i], errorbar='se', err_kws={'lw': 0})
+    axs[i].set(title=region_pair, ylabel='', xlabel='')
+plt.suptitle('Object 2')
 sns.despine(trim=True)
 plt.tight_layout()
 
@@ -283,6 +324,7 @@ for i, region_pair in enumerate(ripple_df['region_pair'].unique()):
     sns.lineplot(data=ripple_df[ripple_df['region_pair'] == region_pair], x='time', y='baseline_subracted',
                  ax=axs[i], errorbar='se', err_kws={'lw': 0})
     axs[i].set(title=region_pair, ylabel='', xlabel='')
+plt.suptitle('Ripples')
 sns.despine(trim=True)
 plt.tight_layout()
     

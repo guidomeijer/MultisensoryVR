@@ -13,6 +13,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import LeaveOneOut, cross_val_predict
 from sklearn.pipeline import make_pipeline
+import pickle
 from joblib import Parallel, delayed
 from msvr_functions import (paths, load_multiple_probes, load_subjects, load_objects,
                             get_spike_counts_in_bins)
@@ -28,19 +29,23 @@ MIN_SPEED = 20  # mm/s
 N_CORES = 18
 MAX_LAG = 100  # mm
 N_PSEUDO = 500
-OVERWRITE = False
+OVERWRITE = True
 
 # Create distance array
 d_centers = np.arange(-D_BEFORE + (BIN_SIZE/2), D_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
 
 # Initialize
 clf = make_pipeline(StandardScaler(), RandomForestClassifier(
-    random_state=42, n_jobs=1, n_estimators=20, max_depth=5))
+    random_state=42, n_jobs=1, n_estimators=100, max_depth=5))
 path_dict = paths(sync=False)
 subjects = load_subjects()
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 rec = rec.drop_duplicates(['subject', 'date'])
 neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
+
+# Load in processed data
+with open(path_dict['google_drive_data_path'] / 'residuals_position.pickle', 'rb') as handle:
+    residuals_dict = pickle.load(handle)
 
 if OVERWRITE:
     granger_df = pd.DataFrame()
@@ -280,7 +285,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             # Decode context per spatial bin and get decoding probabilities
             X = np.concatenate([X_soundA, X_soundB], axis=0)  # shape: (trials, neurons, bins)
             y = np.concatenate([np.zeros(X_soundA.shape[0]), np.ones(X_soundB.shape[0])]).astype(int)
-
+            asd
             # Get trial by trial decoding probabilities and subtract the mean to leave the residuals
             trial_probs = decode_context(X, y, clf)
             subtracted_probs = trial_probs - np.tile(np.mean(trial_probs, axis=0), (trial_probs.shape[0], 1))

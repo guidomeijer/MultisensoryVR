@@ -46,6 +46,17 @@ per_ses_df['perc_sig_obj2'] = (per_ses_df['sig_obj2'] / per_ses_df['n_patterns']
 per_ses_df['perc_sig_sound'] = (per_ses_df['sig_sound'] / per_ses_df['n_patterns']) * 100
 per_ses_df['perc_sig_ripples'] = (per_ses_df['sig_ripples'] / per_ses_df['n_patterns']) * 100
 
+summary_df = pattern_p_df.groupby('region').size().rename('n_total').to_frame()
+summary_df['n_obj1'] = pattern_p_df.groupby('region').sum()['sig_obj1']
+summary_df['n_obj2'] = pattern_p_df.groupby('region').sum()['sig_obj2']
+summary_df['n_ripples'] = pattern_p_df.groupby('region').sum()['sig_ripples']
+summary_df['n_sound'] = pattern_p_df.groupby('region').sum()['sig_sound']
+summary_df['perc_obj1'] = (summary_df['n_obj1'] / summary_df['n_total']) * 100
+summary_df['perc_obj2'] = (summary_df['n_obj2'] / summary_df['n_total']) * 100
+summary_df['perc_ripples'] = (summary_df['n_ripples'] / summary_df['n_total']) * 100
+summary_df['perc_sound'] = (summary_df['n_sound'] / summary_df['n_total']) * 100
+summary_df = summary_df.reset_index()
+
 # %% Do statistics
 
 pattern_p_df = pattern_p_df[~np.isnan(pattern_p_df['p_ripples'])]
@@ -55,13 +66,18 @@ for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI', 'LEC', 'CA1']):
     group = pattern_p_df[pattern_p_df['region'] == region]    
     
     # Do Spearman correlation
-    #rho, p_val = stats.spearmanr(np.abs(group['z_obj1']), np.abs(group['z_ripples']))
-    rho, p_val = stats.spearmanr(group['log_p_obj1'], group['log_p_ripples'])
+    #rho, p_val = stats.spearmanr(np.abs(group['t_obj2']), np.abs(group['amp_ripples']))
+    #rho, p_val = stats.spearmanr(group['log_p_obj2'], group['log_p_ripples'])
+    #rho, p_val = stats.spearmanr(group['z_obj2'], group['z_ripples'])
+    rho, p_val = stats.spearmanr(np.abs(group['z_obj2']), np.abs(group['z_ripples']))
+    #rho, p_val = stats.pearsonr(group['log_p_obj2'], group['log_p_ripples'])
     print(f'{region}; p = {np.round(p_val, 3)}')
     
     # Plot
-    #axs[i].scatter(np.abs(group['z_obj1']), np.abs(group['z_ripples']), s=3)
-    axs[i].scatter(group['log_p_obj1'], group['log_p_ripples'], s=3)
+    #axs[i].scatter(np.abs(group['t_obj2']), np.abs(group['amp_ripples']), s=3)
+    #axs[i].scatter(group['log_p_obj2'], group['log_p_ripples'], s=3)
+    #axs[i].scatter(group['z_obj2'], group['z_ripples'], s=3)
+    axs[i].scatter(np.abs(group['z_obj2']), np.abs(group['z_ripples']), s=3)
     axs[i].set(title=f'{region}; p = {np.round(p_val, 3)}')
     if i == 0:
         axs[i].set(ylabel='Ripples (-log10[p])')
@@ -140,4 +156,28 @@ sns.despine(trim=False)
 plt.tight_layout()
 plt.savefig(path_dict['google_drive_fig_path'] / 'sig_patterns_ripples.jpg', dpi=600)
 
+"""
+# %%
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(1.75*3, 2), dpi=dpi, sharey=True)
 
+this_order = summary_df[['region', 'perc_obj1']].groupby('region').mean().sort_values(
+    'perc_obj1', ascending=False).index.values
+sns.barplot(data=summary_df, x='region', y='perc_obj1', ax=ax1, hue='region', errorbar='se',
+            palette=colors, order=this_order)
+
+this_order = summary_df[['region', 'perc_obj2']].groupby('region').mean().sort_values(
+    'perc_obj2', ascending=False).index.values
+sns.barplot(data=summary_df, x='region', y='perc_obj2', ax=ax2, hue='region', errorbar='se',
+            palette=colors, order=this_order)
+
+this_order = summary_df[['region', 'perc_sound']].groupby('region').mean().sort_values(
+    'perc_sound', ascending=False).index.values
+sns.barplot(data=summary_df, x='region', y='perc_sound', ax=ax3, hue='region', errorbar='se',
+            palette=colors, order=this_order)
+
+f, ax1 = plt.subplots(figsize=(1.75, 1.75))
+this_order = summary_df[['region', 'perc_ripples']].groupby('region').mean().sort_values(
+    'perc_ripples', ascending=False).index.values
+sns.barplot(data=summary_df, x='region', y='perc_ripples', ax=ax1, hue='region', errorbar='se',
+            palette=colors, order=this_order)
+"""

@@ -11,6 +11,7 @@ import torch
 import seaborn as sns
 from scipy import stats, signal
 import matplotlib.pyplot as plt
+from zetapy import zetatstest
 from msvr_functions import (paths, load_multiple_probes, load_objects, combine_regions,
                             peri_event_trace, figure_style, N_PATTERNS, plot_ppseq)
 from ppseq.model import PPSeq
@@ -19,10 +20,12 @@ colors, dpi = figure_style()
 # Settings
 MIN_NEURONS = 5
 BIN_WIDTH = 0.01
+NBINS_PATTERNS = 15
 SIG_TIME = 1  # s
 OVERWRITE = True
-PLOT = True
+PLOT = False
 MIN_RIPPLES = 20
+RIPPLE_WIN = 0.4  # s
 
 # Initialize
 path_dict = paths(sync=False)
@@ -104,14 +107,6 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         region_spikes = spikes[probe]['times'][np.isin(spikes[probe]['clusters'], region_neuron_ids)]
         region_clusters = spikes[probe]['clusters'][np.isin(spikes[probe]['clusters'], region_neuron_ids)]
 
-        """
-        # Select spikes in active period
-        region_clusters = region_clusters[((region_spikes > trials['enterEnvTime'].values[0])
-                                           & (region_spikes < trials['exitEnvTime'].values[-1]))]
-        region_spikes = region_spikes[((region_spikes > trials['enterEnvTime'].values[0])
-                                       & (region_spikes < trials['exitEnvTime'].values[-1]))]
-        """
-
         # Create input for PPSeq
         list_of_spiketimes = []
         for n, neuron_id in enumerate(region_neuron_ids):
@@ -139,7 +134,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         # Run ppseq
         model = PPSeq(num_templates=N_PATTERNS[region],
                       num_neurons=num_neurons,
-                      template_duration=20,
+                      template_duration=NBINS_PATTERNS,
                       alpha_a0=1.5,
                       beta_a0=1,
                       alpha_b0=1,
@@ -174,113 +169,6 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             plt.savefig(path_dict['google_drive_fig_path'] / 'SpikePatterns' / f'{region}_{subject}_{date}_example.jpg', dpi=600)
             plt.close(f)
 
-        # Find patterns that encode reward prediction
-        obj1_goal = all_obj_df.loc[(all_obj_df['object'] == 1) & (all_obj_df['goal'] == 1), 'times'].values
-        obj1_nogoal = all_obj_df.loc[(all_obj_df['object'] == 1) & (all_obj_df['goal'] == 0), 'times'].values
-        obj2_goal = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 1), 'times'].values
-        obj2_nogoal = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 0), 'times'].values
-        p_obj1, p_obj2 = np.empty(activation_rate.shape[0]), np.empty(activation_rate.shape[0])
-        t_obj1, t_obj2 = np.empty(activation_rate.shape[0]), np.empty(activation_rate.shape[0])
-        for pat in range(activation_rate.shape[0]):
-            
-            # Object 1
-            goal_samples = get_windowed_means(obj1_goal, time_ax, activation_rate[pat, :], window=(-SIG_TIME, 0))
-            nogoal_samples = get_windowed_means(obj1_nogoal, time_ax, activation_rate[pat, :], window=(-SIG_TIME, 0))
-            t_obj1[pat], p_obj1[pat] = stats.ttest_ind(goal_samples, nogoal_samples)
-            
-            # Object 2
-            goal_samples = get_windowed_means(obj2_goal, time_ax, activation_rate[pat, :], window=(-SIG_TIME, 0))
-            nogoal_samples = get_windowed_means(obj2_nogoal, time_ax, activation_rate[pat, :], window=(-SIG_TIME, 0))
-            t_obj2[pat], p_obj2[pat] = stats.ttest_ind(goal_samples, nogoal_samples)
-            
-        
-        if PLOT:
-            # Plot
-            f, axs = plt.subplots(2, N_PATTERNS[region], figsize=(1.75*N_PATTERNS[region], 3.5),
-                                  sharex=True, dpi=dpi)
-            for pp in range(N_PATTERNS[region]):
-                peri_event_trace(activation_rate[pp, :], time_ax, all_obj_df.loc[all_obj_df['object'] == 1, 'times'],
-                                 all_obj_df.loc[all_obj_df['object'] == 1, 'goal'].values + 1,
-                                 t_before=3, t_after=1, ax=axs[0, pp],
-                                 color_palette=[colors['no-goal'], colors['goal']])
-                axs[0, pp].set(xticks=np.arange(-3, 1.5), ylabel='Pattern activation',
-                               title=f'p={np.round(p_obj1[pp], 3)}')
-            for pp in range(N_PATTERNS[region]):
-                peri_event_trace(activation_rate[pp, :], time_ax, all_obj_df.loc[all_obj_df['object'] == 2, 'times'],
-                                 all_obj_df.loc[all_obj_df['object'] == 2, 'goal'].values + 1,
-                                 t_before=3, t_after=1, ax=axs[1, pp],
-                                 color_palette=[colors['no-goal'], colors['goal']])
-                axs[1, pp].set(xticks=np.arange(-3, 1.5), ylabel='Pattern activation',
-                               xlabel='Time from object entry (s)', title=f'p={np.round(p_obj2[pp], 3)}')
-            sns.despine(trim=True)
-            plt.tight_layout()
-                        
-            plt.savefig(path_dict['google_drive_fig_path'] / 'SpikePatterns' / f'{region}_{subject}_{date}_reward.jpg', dpi=600)
-            plt.close(f)
-
-        # Find patterns that respond to sound onset
-        sound1 = trials.loc[trials['soundId'] == 1, 'soundOnsetTime'].values
-        sound2 = trials.loc[trials['soundId'] == 2, 'soundOnsetTime'].values
-        p_sound, t_sound = np.empty(activation_rate.shape[0]), np.empty(activation_rate.shape[0])
-        for pat in range(activation_rate.shape[0]):
-
-            # Test for difference
-            goal_samples = get_windowed_means(sound1, time_ax, activation_rate[pat, :], window=(-SIG_TIME, 0))
-            nogoal_samples = get_windowed_means(sound2, time_ax, activation_rate[pat, :], window=(-SIG_TIME, 0))
-            p_sound[pat], t_sound[pat] = stats.ttest_ind(goal_samples, nogoal_samples)
-          
-        if PLOT:
-            # Plot
-            f, axs = plt.subplots(1, N_PATTERNS[region], figsize=(1.75*N_PATTERNS[region], 1.75), dpi=dpi)
-            for pp in range(N_PATTERNS[region]):
-                peri_event_trace(activation_rate[pp, :], time_ax, trials['soundOnsetTime'], trials['soundId'],
-                                 t_before=1, t_after=3, ax=axs[pp],
-                                 color_palette=[colors['sound1'], colors['sound2']])
-                axs[pp].set(xticks=np.arange(-1, 3.5), ylabel='Pattern activation')
-            sns.despine(trim=True)
-            plt.tight_layout()
-            plt.savefig(path_dict['google_drive_fig_path'] / 'SpikePatterns' / f'{region}_{subject}_{date}_sound.jpg', dpi=600)
-            plt.close(f)
-            
-        # Find which spike patterns are active during ripples
-        these_ripples = ripples[(ripples['subject'] == subject) & (ripples['date'] == date)]
-        p_ripples, t_ripples = np.full(activation_rate.shape[0], np.nan), np.full(activation_rate.shape[0], np.nan)
-        if these_ripples.shape[0] >= MIN_RIPPLES:
-            
-            # Drop last ripple if too close to the end of the recording
-            if time_ax[-1] - these_ripples['start_times'].values[-1] < SIG_TIME:
-                these_ripples = these_ripples[:-1]   
-            """
-            # Get significance per spike pattern
-            for pat in range(amplitudes.shape[0]):
-                
-                
-                p_ripples[pat], ZETA = zetatstest(time_ax, amplitudes[pat, :],
-                                                  these_ripples['start_times'].values - (SIG_TIME/2),
-                                                  dblUseMaxDur=SIG_TIME)
-                z_ripples[pat] = ZETA['dblZETADeviation']
-            """
-                
-            if PLOT:
-                # Plot
-                f, axs = plt.subplots(1, N_PATTERNS[region], figsize=(1.75*N_PATTERNS[region], 1.75), dpi=dpi)
-                for pp in range(N_PATTERNS[region]):
-                    peri_event_trace(activation_rate[pp, :], time_ax, these_ripples['start_times'],
-                                     np.ones(these_ripples.shape[0]),
-                                     t_before=1, t_after=1, ax=axs[pp])
-                    axs[pp].set(xticks=[-1, 0, 1], ylabel='Pattern activation')
-                sns.despine(trim=True)
-                plt.tight_layout()
-                plt.savefig(path_dict['google_drive_fig_path'] / 'SpikePatterns' / f'{region}_{subject}_{date}_ripples.jpg', dpi=600)
-                plt.close(f)        
-        
-        # Add to df
-        pattern_df = pd.concat((pattern_df, pd.DataFrame(data={
-            'p_obj1': p_obj1, 'p_obj2': p_obj2, 'p_sound_id': p_sound, 'p_ripples': p_ripples,
-            't_obj1': t_obj1, 't_obj2': t_obj2, 't_sound_id': t_sound, 'z_ripples': t_ripples,
-            'pattern': np.arange(1, N_PATTERNS[region]+1),
-            'region': region, 'subject': subject, 'date': date
-            })))
         
         # Save spike pattern amplitudes to disk
         np.save(path_dict['google_drive_data_path'] / 'SpikePatterns' / f'{subject}_{date}_{region}.amplitudes.npy',
@@ -288,6 +176,4 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         np.save(path_dict['google_drive_data_path'] / 'SpikePatterns' / f'{subject}_{date}_{region}.times.npy',
                 time_ax)
         
-    # Save to disk
-    pattern_df.to_csv(path_dict['save_path'] / 'spike_pattern_sig.csv', index=False)
 

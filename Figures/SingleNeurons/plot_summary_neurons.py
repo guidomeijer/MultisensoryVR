@@ -26,7 +26,11 @@ print(f'{stats_df.shape[0]} neurons ({int(session_df["count"].mean())} +- {int(s
 
 # Do some processing
 stats_df['sig_context_obj1'] = stats_df['p_context_obj1'] < 0.05
+stats_df['suppressed_obj1'] = stats_df['z_context_obj1'] < 0
+stats_df['enhanced_obj1'] = stats_df['z_context_obj1'] > 0
 stats_df['sig_context_obj2'] = stats_df['p_context_obj2'] < 0.05
+stats_df['suppressed_obj2'] = stats_df['z_context_obj2'] < 0
+stats_df['enhanced_obj2'] = stats_df['z_context_obj2'] > 0
 stats_df['sig_context_onset'] = stats_df['p_sound_onset'] < 0.05
 stats_df['sig_context_diff'] = stats_df['p_sound_diff'] < 0.05
 stats_df['sig_reward'] = stats_df['p_reward'] < 0.05
@@ -51,6 +55,30 @@ per_ses_df['perc_context_diff'] = (per_ses_df['sig_context_diff'] / per_ses_df['
 per_ses_df['perc_reward'] = (per_ses_df['sig_reward'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_obj_onset'] = (per_ses_df['sig_obj_onset'] / per_ses_df['n_neurons']) * 100
 per_ses_df = per_ses_df.reset_index()
+
+# Get percentage of positively and negatively modulated neurons
+for col in ['']
+sig_df = stats_df[stats_df['p_context_obj1'] < 0.05].copy()
+sig_totals = sig_df.groupby('ses_id').size().rename('total_sig_neurons')
+sig_pos_counts = sig_df[sig_df['z_context_obj1'] > 0].groupby('ses_id').size().rename('sig_pos_count')
+sig_neg_counts = sig_df[sig_df['z_context_obj1'] < 0].groupby('ses_id').size().rename('sig_neg_count')
+res_sig_only = pd.concat([sig_totals, sig_pos_counts, sig_neg_counts], axis=1).fillna(0)
+res_sig_only['perc_pos_in_sig'] = (res_sig_only['sig_pos_count'] / res_sig_only['total_sig_neurons']) * 100
+res_sig_only['perc_neg_in_sig'] = (res_sig_only['sig_neg_count'] / res_sig_only['total_sig_neurons']) * 100
+
+# Get percentage of positively and negatively modulated neurons
+session_totals = stats_df.groupby('ses_id').size().rename('total_neurons')
+is_sig = stats_df['p_context_obj1'] < 0.05
+is_pos = stats_df['z_context_obj1'] > 0
+is_neg = stats_df['z_context_obj1'] < 0
+sig_pos_counts = stats_df[is_sig & is_pos].groupby('ses_id').size().rename('sig_pos_count')
+sig_neg_counts = stats_df[is_sig & is_neg].groupby('ses_id').size().rename('sig_neg_count')
+results_df = pd.concat([session_totals, sig_pos_counts, sig_neg_counts], axis=1).fillna(0)
+results_df['perc_sig_pos'] = (results_df['sig_pos_count'] / results_df['total_neurons']) * 100
+results_df['perc_sig_neg'] = (results_df['sig_neg_count'] / results_df['total_neurons']) * 100
+
+# Display the resulting percentages per session
+print(results_df[['perc_sig_pos', 'perc_sig_neg']])
 
 # Plot number of neurons per region
 merge_peri = per_ses_df.copy()

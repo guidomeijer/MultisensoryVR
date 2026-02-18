@@ -14,8 +14,8 @@ from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 
 # Settings
 ALPHA = 0.05
-OVERWRITE = False
-N_CORES = 16
+OVERWRITE = True
+N_CORES = 18
 
 # Initialize
 path_dict = paths()
@@ -44,7 +44,7 @@ def run_zetatest2(neuron_id, event_times1, event_times2, t_before, t_after, do_s
     try:
         p_value, zeta_dict = zetatest2(these_spikes, event_times1 - t_before, these_spikes,
                                        event_times2 - t_before, dblUseMaxDur=(t_before + t_after))
-        zeta_score = zeta_dict['dblZETA']
+        zeta_score = zeta_dict['dblZETADeviation']
     except Exception:
         p_value = np.nan    
         zeta_score = np.nan        
@@ -58,7 +58,7 @@ def run_zetatest(neuron_id, event_times, t_before, t_after, do_jitter=False):
                                         size=event_times.shape[0])
     p_value, zeta_dict, _ = zetatest(these_spikes, event_times - t_before, dblUseMaxDur=(t_before + t_after),
                                      boolParallel=False)
-    zeta_score = zeta_dict['dblZETA']
+    zeta_score = zeta_dict['dblZETADeviation']
     return p_value, zeta_score
 
 
@@ -90,6 +90,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         delayed(run_zetatest2)(neuron_id, goal1_times, no_goal1_times, t_before=2, t_after=0)
         for i, neuron_id in enumerate(clusters['cluster_id']))
     goal1_p = np.array([result[0] for result in results])
+    goal1_z = np.array([result[1] for result in results])
 
     results = Parallel(n_jobs=N_CORES)(
         delayed(run_zetatest2)(neuron_id, goal1_times, no_goal1_times, t_before=2, t_after=0, do_shuffle=True)
@@ -101,6 +102,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         delayed(run_zetatest2)(neuron_id, goal2_times, no_goal2_times, t_before=2, t_after=0)
         for i, neuron_id in enumerate(clusters['cluster_id']))
     goal2_p = np.array([result[0] for result in results])
+    goal2_z = np.array([result[1] for result in results])
 
     results = Parallel(n_jobs=N_CORES)(
         delayed(run_zetatest2)(neuron_id, goal2_times, no_goal2_times, t_before=2, t_after=0, do_shuffle=True)
@@ -112,6 +114,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         delayed(run_zetatest2)(neuron_id, reward_times, no_reward_times, t_before=0, t_after=2)
         for i, neuron_id in enumerate(clusters['cluster_id']))
     reward_p = np.array([result[0] for result in results])
+    reward_z = np.array([result[1] for result in results])
 
     results = Parallel(n_jobs=N_CORES)(
         delayed(run_zetatest2)(neuron_id, reward_times, no_reward_times, t_before=0, t_after=2, do_shuffle=True)
@@ -124,6 +127,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         delayed(run_zetatest)(neuron_id, all_obj_df['times'], t_before=2, t_after=0)
         for i, neuron_id in enumerate(clusters['cluster_id']))
     obj_p = np.array([result[0] for result in results])
+    obj_z = np.array([result[1] for result in results])
     
     results = Parallel(n_jobs=N_CORES)(
         delayed(run_zetatest)(neuron_id, all_obj_df['times'], t_before=2, t_after=0, do_jitter=True)
@@ -142,11 +146,12 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     sound_diff_p_shuf = np.array([result[0] for result in results])
     
     # Get neurons which significantly respond to sound onset
-    print('Calculating significant object responses')
+    print('Calculating significant sound onset responses')
     results = Parallel(n_jobs=N_CORES)(
         delayed(run_zetatest)(neuron_id, trials['soundOnsetTime'].values, t_before=0, t_after=2)
         for i, neuron_id in enumerate(clusters['cluster_id']))
     sound_onset_p = np.array([result[0] for result in results])
+    sound_onset_z = np.array([result[1] for result in results])
     
     results = Parallel(n_jobs=N_CORES)(
         delayed(run_zetatest)(neuron_id, trials['soundOnsetTime'].values, t_before=0, t_after=2, do_jitter=True)
@@ -158,11 +163,11 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         'subject': subject, 'date': date, 'probe': probe, 'neuron_id': clusters['cluster_id'],
         'region': clusters['region'], 'allen_acronym': clusters['acronym'],
         'x': clusters['x'], 'y': clusters['y'], 'z': clusters['z'],
-        'p_context_obj1': goal1_p, 'p_context_obj1_shuf': goal1_p_shuf,
-        'p_context_obj2': goal2_p, 'p_context_obj2_shuf': goal2_p_shuf,
-        'p_obj_onset': obj_p, 'p_obj_onset_shuf': obj_p_shuf,
-        'p_reward': reward_p, 'p_reward_onset_shuf': reward_p_shuf, 
-        'p_sound_onset': sound_onset_p,  'p_sound_onset_shuf': sound_onset_p_shuf,
+        'p_context_obj1': goal1_p, 'p_context_obj1_shuf': goal1_p_shuf, 'z_context_obj1': goal1_z,
+        'p_context_obj2': goal2_p, 'p_context_obj2_shuf': goal2_p_shuf, 'z_context_obj2': goal2_z,
+        'p_obj_onset': obj_p, 'p_obj_onset_shuf': obj_p_shuf, 'z_obj_onset': obj_z,
+        'p_reward': reward_p, 'p_reward_onset_shuf': reward_p_shuf, 'z_reward': reward_z,
+        'p_sound_onset': sound_onset_p,  'p_sound_onset_shuf': sound_onset_p_shuf,  'z_sound_onset': sound_onset_z,
         'p_sound_diff': sound_diff_p,  'p_sound_diff_shuf': sound_diff_p_shuf
         })))
     
