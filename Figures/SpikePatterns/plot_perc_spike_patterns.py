@@ -154,7 +154,46 @@ ax1.tick_params(axis='x', labelrotation=90)
 
 sns.despine(trim=False)
 plt.tight_layout()
+plt.show()
 plt.savefig(path_dict['google_drive_fig_path'] / 'sig_patterns_ripples.jpg', dpi=600)
+
+
+# %% Calculate overlap
+pattern_p_df['sig_both_objs'] = pattern_p_df['sig_obj1'] & pattern_p_df['sig_obj2']
+pattern_p_df['sig_obj1_ripple'] = pattern_p_df['sig_obj1'] & pattern_p_df['sig_ripples']
+pattern_p_df['sig_obj2_ripple'] = pattern_p_df['sig_obj2'] & pattern_p_df['sig_ripples']
+pattern_p_df['sig_all'] = pattern_p_df['sig_obj1'] & pattern_p_df['sig_obj2'] & pattern_p_df['sig_ripples']
+
+overlap_ses = pattern_p_df.groupby(['ses_id', 'region']).agg(
+    n_patterns=('sig_obj1', 'size'),
+    n_obj1=('sig_obj1', 'sum'),
+    n_obj2=('sig_obj2', 'sum'),
+    n_ripples=('sig_ripples', 'sum'),
+    n_obj1_ripple=('sig_obj1_ripple', 'sum'),
+    n_obj2_ripple=('sig_obj2_ripple', 'sum')
+).reset_index()
+
+overlap_ses['perc_obj1_ripple'] = (overlap_ses['n_obj1_ripple'] / overlap_ses['n_patterns']) * 100
+overlap_ses['perc_obj2_ripple'] = (overlap_ses['n_obj2_ripple'] / overlap_ses['n_patterns']) * 100
+
+# Plot overlap
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(3.5, 2), dpi=dpi, sharey=True)
+
+this_order = overlap_ses.groupby('region')['perc_obj1_ripple'].mean().sort_values(ascending=False).index.values
+sns.barplot(data=overlap_ses, x='region', y='perc_obj1_ripple', ax=ax1, hue='region',
+            palette=colors, order=this_order, errorbar='se')
+ax1.set(ylabel='Overlap (%)', title='Obj 1 & Ripples', xlabel='')
+ax1.tick_params(axis='x', labelrotation=90)
+
+this_order = overlap_ses.groupby('region')['perc_obj2_ripple'].mean().sort_values(ascending=False).index.values
+sns.barplot(data=overlap_ses, x='region', y='perc_obj2_ripple', ax=ax2, hue='region',
+            palette=colors, order=this_order, errorbar='se')
+ax2.set(ylabel='', title='Obj 2 & Ripples', xlabel='')
+ax2.tick_params(axis='x', labelrotation=90)
+
+sns.despine(trim=False)
+plt.tight_layout()
+plt.show()
 
 """
 # %%

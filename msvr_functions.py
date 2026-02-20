@@ -897,6 +897,34 @@ def event_aligned_averages(signal, timestamps, events, timebins, baseline=None, 
 
 def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, t_after=3,
                      event_labels=None, color_palette='colorblind', ind_lines=False, kwargs={}):
+    """
+    Plots a peri-event time trace of a continuous signal aligned to specific events.
+
+    Parameters:
+    -----------
+    array : numpy.ndarray
+        1D array containing the continuous signal to be plotted.
+    timestamps : numpy.ndarray
+        1D array of timestamps corresponding to each sample in 'array'.
+    event_times : array-like
+        Timestamps of the events to align the signal to.
+    event_ids : array-like
+        Identifiers (e.g., condition types) for each event in 'event_times'.
+    ax : matplotlib.axes.Axes
+        The axes object on which to plot.
+    t_before : float, optional
+        Time (seconds) to include before each event. Default is 1.
+    t_after : float, optional
+        Time (seconds) to include after each event. Default is 3.
+    event_labels : list of str, optional
+        Labels for the legend corresponding to unique event_ids.
+    color_palette : str or list, optional
+        Seaborn color palette name or list of colors. Default is 'colorblind'.
+    ind_lines : bool, optional
+        If True, plots individual trial traces. If False, plots mean and SEM.
+    kwargs : dict, optional
+        Additional keyword arguments passed to sns.lineplot.
+    """
 
     # Construct dataframe for plotting
     plot_df = pd.DataFrame()

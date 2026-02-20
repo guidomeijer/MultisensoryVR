@@ -1,3 +1,4 @@
+#%%
 # -*- coding: utf-8 -*-
 """
 Created on Thu Nov 21 2025
@@ -11,19 +12,22 @@ import seaborn as sns
 from spikeship import spikeship
 import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
+from scipy.ndimage import gaussian_filter
 from msvr_functions import (paths, load_neural_data, load_objects, combine_regions,
                             to_spikeship_dataformat, figure_style)
 colors, dpi = figure_style()
 
 # Settings
-T_BEFORE = 2  # s
+T_BEFORE = 1  # s
 T_AFTER = 2
 BIN_SIZE = 0.3
 STEP_SIZE = 0.05
 MIN_NEURONS = 5
 MIN_RIPPLES = 20
-N_CPUS = 18
+N_CPUS = 20
 MIN_SPIKES_PER_BIN = 10
+SMOOTHING_SIGMA = 1
+RIPPLE_DELAY = {'CA1': 0, 'LEC': 0, 'PERI': 0.2, 'TEa': 0.3, 'VIS': 0.4, 'AUD': 0.2}
 
 # Create time array
 t_centers = np.arange(-T_BEFORE + (BIN_SIZE/2), T_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
@@ -37,13 +41,13 @@ ripples['subject'] = ripples['subject'].astype(str)
 ripples['date'] = ripples['date'].astype(str)
 
 #%% FUNCTIONS
-def run_spikeship(this_bin_center, use_spikes, use_clusters, event_times, ripple_times, min_spikes):
+def run_spikeship(this_bin_center, use_spikes, use_clusters, event_times, use_ripple_times, min_spikes):
         
     # Get time intervals
     event_intervals = np.vstack((event_times + (this_bin_center - (BIN_SIZE/2)),
                                  event_times + (this_bin_center + (BIN_SIZE/2)))).T
-    ripple_intervals = np.vstack((ripple_times - (BIN_SIZE/2),
-                                  ripple_times + (BIN_SIZE/2))).T
+    ripple_intervals = np.vstack((use_ripple_times - (BIN_SIZE/2),
+                                  use_ripple_times + (BIN_SIZE/2))).T
     use_intervals = np.vstack((event_intervals, ripple_intervals))
     
     # Transform to spikeship data format
@@ -92,11 +96,11 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     trials = pd.read_csv(path_dict['local_data_path'] / 'Subjects' / subject / date / 'trials.csv')
     all_obj_df = load_objects(subject, date)    
     these_ripples = ripples[(ripples['subject'] == subject) & (ripples['date'] == date)]
-    ripple_centers = (these_ripples['start_times'] + ((these_ripples['end_times'] - these_ripples['start_times']) / 2)).values
-    if ripple_centers.shape[0] < MIN_RIPPLES:
+    ripple_times = these_ripples['start_times'] + ((these_ripples['end_times'] - these_ripples['start_times']) / 2)
+    if ripple_times.shape[0] < MIN_RIPPLES:
         continue    
         
-    # %% Loop over regions
+    # Loop over regions
     for r, region in enumerate(np.unique(clusters['region'])):
         if region == 'root':
             continue
@@ -112,44 +116,79 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         # Loop over objects
         for obj in [1, 2]:
             
-            # Run SpikeShip in parallel over timebins
-            trial_times = all_obj_df.loc[all_obj_df['object'] == obj, 'times'].values
-            results = Parallel(n_jobs=N_CPUS)(
-                delayed(run_spikeship)(bin_center, region_spikes, region_clusters, trial_times,
-                                       ripple_centers, min_spikes=MIN_SPIKES_PER_BIN)
+            # Run SpikeShip on goal entries
+            goal_times = all_obj_df.loc[(all_obj_df['object'] == obj) & (all_obj_df['goal'] == 1), 'times'].values
+            goal_results = Parallel(n_jobs=N_CPUS)(
+                delayed(run_spikeship)(bin_center, region_spikes, region_clusters, goal_times,
+                                       ripple_times + RIPPLE_DELAY[region], min_spikes=MIN_SPIKES_PER_BIN)
                 for bin_center in t_centers)
-            
-            # Clean up NaNs (trials with too few spikes)
-            clean_results = [clean_spikeship_nans(i) for i in results]
-            diss_arr_3d = np.array(clean_results)
-            
-            # Calculate similarity metrics
-            within_a = diss_arr_3d[:, :trial_times.shape[0], :trial_times.shape[0]]
-            within_b = diss_arr_3d[:, trial_times.shape[0]:, trial_times.shape[0]:]
-            between_block = diss_arr_3d[:, :trial_times.shape[0], trial_times.shape[0]:]
-            contrast_metric = np.mean(between_block, axis=(1, 2)) - (mean_no_diag(within_a) + mean_no_diag(within_b)) / 2
-            similarity_metric = np.median(between_block, axis=(1, 2))
-            
-            # Baseline subtract
-            contrast_bl = contrast_metric - np.mean(contrast_metric[t_centers < 0])
-            similarity_bl = similarity_metric - np.mean(similarity_metric[t_centers < 0])
-            
+            goal_diss = np.array([clean_spikeship_nans(i) for i in goal_results])
+
+            # Calculate contrast metric
+            within_a = goal_diss[:, :goal_times.shape[0], :goal_times.shape[0]]
+            within_b = goal_diss[:, goal_times.shape[0]:, goal_times.shape[0]:]
+            between_block = goal_diss[:, :goal_times.shape[0], goal_times.shape[0]:]
+            goal_contrast = np.mean(between_block, axis=(1, 2)) - (mean_no_diag(within_a) + mean_no_diag(within_b)) / 2
+            goal_contrast = gaussian_filter(goal_contrast, SMOOTHING_SIGMA)
+            goal_contrast_bl = goal_contrast - np.mean(goal_contrast[t_centers < 0])
+
             # Add to dataframe
             spikeship_df = pd.concat((spikeship_df, pd.DataFrame(data={
-                'similarity': similarity_metric, 'contrast': contrast_metric, 'time': t_centers,
-                'similarity_bl': similarity_bl, 'contrast_bl': contrast_bl,
+                'contrast': goal_contrast, 'contrast_bl': goal_contrast_bl, 'goal': 1, 'time': t_centers,
                 'object': obj, 'region': region, 'subject': subject, 'date': date, 'probe': probe
                 })))
 
+            # No goal entries
+            no_goal_times = all_obj_df.loc[(all_obj_df['object'] == obj) & (all_obj_df['goal'] == 0), 'times'].values
+            no_goal_results = Parallel(n_jobs=N_CPUS)(
+                delayed(run_spikeship)(bin_center, region_spikes, region_clusters, no_goal_times,
+                                       ripple_times + RIPPLE_DELAY[region], min_spikes=MIN_SPIKES_PER_BIN)
+                for bin_center in t_centers)
+            no_goal_diss = np.array([clean_spikeship_nans(i) for i in no_goal_results])
+
+            # Calculate contrast metric
+            within_a = no_goal_diss[:, :no_goal_times.shape[0], :no_goal_times.shape[0]]
+            within_b = no_goal_diss[:, no_goal_times.shape[0]:, no_goal_times.shape[0]:]
+            between_block = no_goal_diss[:, :no_goal_times.shape[0], no_goal_times.shape[0]:]
+            no_goal_contrast = np.mean(between_block, axis=(1, 2)) - (mean_no_diag(within_a) + mean_no_diag(within_b)) / 2
+            no_goal_contrast = gaussian_filter(no_goal_contrast, SMOOTHING_SIGMA)
+            no_goal_contrast_bl = no_goal_contrast - np.mean(no_goal_contrast[t_centers < -0.5])
+
+            # Add to dataframe
+            spikeship_df = pd.concat((spikeship_df, pd.DataFrame(data={
+                'contrast': no_goal_contrast, 'contrast_bl': no_goal_contrast_bl, 'goal': 0, 'time': t_centers,
+                'object': obj, 'region': region, 'subject': subject, 'date': date, 'probe': probe
+                })))
+
+    # Save to disk
+    spikeship_df.to_csv(path_dict['google_drive_data_path'] / 'spikeship_ripples.csv', index=False)
+
 # %% Plot
 
-f, axs = plt.subplots(1, 6, figsize=(7, 2), dpi=dpi, sharey=False, sharex=True)
+f, axs = plt.subplots(1, 6, figsize=(8, 2), dpi=dpi, sharey=False, sharex=True)
+axs = axs.flatten()
+plot_df = spikeship_df[spikeship_df['object'] == 1]
+for i, region in enumerate(plot_df['region'].unique()):
+    axs[i].plot([-1, 2], [0, 0], lw=0.5, ls='--')
+    sns.lineplot(data=plot_df[plot_df['region'] == region], x='time', y='contrast_bl', hue='goal', hue_order=[1, 0],
+                 palette=[colors['goal'], colors['no-goal']], ax=axs[i], errorbar='se', err_kws={'lw': 0},
+                 legend=None)
+    axs[i].set(title=region, xlim=[-1, 2], ylabel='')
+sns.despine(trim=True)
+plt.tight_layout()
+plt.savefig(path_dict['google_drive_fig_path'] / 'pattern_ripples_obj1.jpg', dpi=600)
+
+f, axs = plt.subplots(1, 6, figsize=(8, 2), dpi=dpi, sharey=False, sharex=True)
 axs = axs.flatten()
 plot_df = spikeship_df[spikeship_df['object'] == 2]
 for i, region in enumerate(plot_df['region'].unique()):
     axs[i].plot([-1, 2], [0, 0], lw=0.5, ls='--')
-    sns.lineplot(data=plot_df[plot_df['region'] == region], x='time', y='contrast_bl',
-                 ax=axs[i], errorbar='se', err_kws={'lw': 0})
-    axs[i].set(title=region, xlim=[-1, 2])
+    sns.lineplot(data=plot_df[plot_df['region'] == region], x='time', y='contrast_bl', hue='goal', hue_order=[1, 0],
+                 palette=[colors['goal'], colors['no-goal']], ax=axs[i], errorbar='se', err_kws={'lw': 0},
+                 legend=None)
+    axs[i].set(title=region, xlim=[-1, 2], ylabel='')
 sns.despine(trim=True)
 plt.tight_layout()
+plt.savefig(path_dict['google_drive_fig_path'] / 'pattern_ripples_obj2.jpg', dpi=600)
+
+plt.show()
