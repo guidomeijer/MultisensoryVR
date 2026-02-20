@@ -1,12 +1,10 @@
 # %%
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import matplotlib.pyplot as plt
-from joblib import Parallel, delayed
 from scipy.ndimage import gaussian_filter
 from sklearn.decomposition import FastICA
-from msvr_functions import (paths, load_neural_data, load_objects, combine_regions,
+from msvr_functions import (paths, load_neural_data, load_objects,
                             calculate_peths, figure_style)
 colors, dpi = figure_style()
 
@@ -27,7 +25,6 @@ ripples['date'] = ripples['date'].astype(str)
 
 # %% MAIN
 
-spikeship_df = pd.DataFrame()
 for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
     print(f'\n{subject} {date} {probe} ({i} of {rec.shape[0]})')
 
@@ -60,7 +57,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             region_neurons, [0],
             pre_time=0, post_time=spikes['times'][-1],
             bin_size=BIN_SIZE, smoothing=0)
-        binned_spikes = np.squeeze(binned_spikes)  # (neurons x timebins)
+        binned_spikes = binned_spikes[0]  # (neurons x timebins)
         n_timebins = binned_spikes.shape[1]
         binned_time = peths_task['tscale']
 
@@ -76,10 +73,10 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         z_spikes = (binned_spikes - np.mean(binned_spikes, axis=1, keepdims=True)) / np.std(binned_spikes, axis=1, keepdims=True)
 
         # Correlation matrix
-        corr_mat = np.corrcoef(z_spikes)
+        corr_arr = np.corrcoef(z_spikes)
 
         # Eigen decomposition
-        evals, evecs = np.linalg.eigh(corr_mat)
+        evals, evecs = np.linalg.eigh(corr_arr)
         idx = evals.argsort()[::-1]
         evals = evals[idx]
         evecs = evecs[:, idx]
@@ -100,7 +97,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
 
         # ICA
         ica = FastICA(n_components=n_assemblies, random_state=0)
-        ica.fit(projected_data.T)
+        activations = ica.fit_transform(projected_data.T).T
 
         # Assembly patterns (neurons x assemblies)
         assembly_patterns = pcs @ ica.mixing_
@@ -109,10 +106,10 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         for k in range(n_assemblies):
             if np.abs(assembly_patterns[:, k].min()) > np.abs(assembly_patterns[:, k].max()):
                 assembly_patterns[:, k] *= -1
+                activations[k, :] *= -1
 
         # Assembly activations (assemblies x timebins)
-        assembly_activations = assembly_patterns.T @ z_spikes
-        assembly_activations = gaussian_filter(assembly_activations, SMOOTHING_SIGMA)
+        assembly_activations = gaussian_filter(activations, [0, SMOOTHING_SIGMA])
 
         # Save assemblies to disk
         np.save(path_dict['google_drive_data_path'] / 'Assemblies' / f'{subject}_{date}_{region}.amplitudes.npy',
