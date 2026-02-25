@@ -11,17 +11,12 @@ colors, dpi = figure_style()
 # Settings
 BIN_SIZE = 0.05
 MIN_NEURONS = 5
-MIN_RIPPLES = 0
-SMOOTHING_SIGMA = 2
-MP_THRESHOLD_SCALE = 1.2  # Scale factor for Marchenko-Pastur threshold (higher -> fewer assemblies)
+SMOOTHING_SIGMA = 1
+MP_THRESHOLD_SCALE = 1  # Scale factor for Marchenko-Pastur threshold (higher -> fewer assemblies)
 
 # Initialize
 path_dict = paths(sync=False)
 rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)
-rec = rec.drop_duplicates(['subject', 'date'])
-ripples = pd.read_csv(path_dict['save_path'] / 'ripples.csv')
-ripples['subject'] = ripples['subject'].astype(str)
-ripples['date'] = ripples['date'].astype(str)
 
 # %% MAIN
 
@@ -33,12 +28,8 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     spikes, clusters, channels = load_neural_data(session_path, probe)
     trials = pd.read_csv(path_dict['local_data_path'] / 'Subjects' / subject / date / 'trials.csv')
     all_obj_df = load_objects(subject, date)
-    these_ripples = ripples[(ripples['subject'] == subject) & (ripples['date'] == date)]
-    ripple_times = these_ripples['start_times'] + ((these_ripples['end_times'] - these_ripples['start_times']) / 2)
-    if ripple_times.shape[0] < MIN_RIPPLES:
-        continue
 
-        # Loop over regions
+    # Loop over regions
     for r, region in enumerate(np.unique(clusters['region'])):
         if region == 'root':
             continue
@@ -112,7 +103,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         assembly_activations = gaussian_filter(activations, [0, SMOOTHING_SIGMA])
 
         # Save assemblies to disk
-        np.save(path_dict['google_drive_data_path'] / 'Assemblies' / f'{subject}_{date}_{region}.amplitudes.npy',
+        np.save(path_dict['google_drive_data_path'] / 'Assemblies' / f'{subject}_{date}_{probe}_{region}.amplitudes.npy',
                 assembly_activations)
-        np.save(path_dict['google_drive_data_path'] / 'Assemblies' / f'{subject}_{date}_{region}.times.npy',
+        np.save(path_dict['google_drive_data_path'] / 'Assemblies' / f'{subject}_{date}_{probe}_{region}.times.npy',
                 binned_time)

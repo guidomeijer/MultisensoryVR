@@ -357,9 +357,9 @@ def figure_style(font_size=7):
     matplotlib.rcParams['backend'] = 'QtAgg'
 
     colors = {
-        'obj1': sns.color_palette('Set2')[0],
-        'obj2': sns.color_palette('Set2')[1],
-        'obj3': sns.color_palette('Set2')[2],
+        'obj1': sns.color_palette('Set2')[2],
+        'obj2': sns.color_palette('Set2')[3],
+        'obj3': sns.color_palette('Set2')[6],
         'goal': matplotlib.colors.to_rgb('mediumseagreen'),
         'no-goal': matplotlib.colors.to_rgb('tomato'),
         'control': matplotlib.colors.to_rgb('gray'),
@@ -928,17 +928,33 @@ def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, 
 
     # Construct dataframe for plotting
     plot_df = pd.DataFrame()
-    samp_rate = np.round(np.mean(np.diff(timestamps)), 3)
-    time_x = np.arange(0, t_before + t_after, samp_rate)
-    time_x = time_x - time_x[int(t_before * (1/samp_rate))]
+    dt = np.mean(np.diff(timestamps))
+    fs = 1 / dt
+    n_pre = int(np.round(t_before * fs))
+    n_post = int(np.round(t_after * fs))
+    time_x = np.linspace(-n_pre * dt, n_post * dt, n_pre + n_post + 1)
+    dfs = []
     for i, t in enumerate(event_times[~np.isnan(event_times)]):
-        zero_point = np.argmin(np.abs(timestamps - t))
-        this_array = array[zero_point - np.sum(time_x < 0) : (zero_point + np.sum(time_x > 0)) + 1]
+        zero_point = np.searchsorted(timestamps, t)
+        if zero_point >= len(timestamps):
+            zero_point = len(timestamps) - 1
+        elif zero_point > 0:
+            if np.abs(timestamps[zero_point - 1] - t) < np.abs(timestamps[zero_point] - t):
+                zero_point -= 1
+
+        start_idx = zero_point - n_pre
+        end_idx = zero_point + n_post + 1
+        if start_idx < 0 or end_idx > len(array):
+            continue
+        this_array = array[start_idx:end_idx]
         if this_array.shape[0] != time_x.shape[0]:
             print('Trial time mismatch')
             continue
-        plot_df = pd.concat((plot_df, pd.DataFrame(data={
-            'y': this_array, 'time': time_x, 'event_id': event_ids[i], 'event_nr': i})))
+        dfs.append(pd.DataFrame(data={
+            'y': this_array, 'time': time_x, 'event_id': event_ids[i], 'event_nr': i}))
+
+    if len(dfs) > 0:
+        plot_df = pd.concat(dfs)
 
     # Plot
     if ind_lines:

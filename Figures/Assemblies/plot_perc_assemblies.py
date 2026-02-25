@@ -21,38 +21,65 @@ assembly_df = pd.read_csv(join(path_dict['save_path'], 'assembly_sig.csv'))
 regions = np.unique(assembly_df['region'])
 
 # Calculate percentage significant per session
-assembly_df['ses_id'] = assembly_df['subject'] + assembly_df['date']
+#assembly_df['ses_id'] = assembly_df['subject'] + assembly_df['date']
+assembly_df['ses_id'] = assembly_df['date']
 assembly_df['sig_obj1'] = assembly_df['p_obj1'] < 0.05
 assembly_df['sig_obj2'] = assembly_df['p_obj2'] < 0.05
 assembly_df['sig_sound'] = assembly_df['p_sound_id'] < 0.05
 assembly_df['sig_ripples'] = assembly_df['p_ripples'] < 0.05
+assembly_df['valid_obj1'] = ~np.isnan(assembly_df['p_obj1'])
+assembly_df['valid_obj2'] = ~np.isnan(assembly_df['p_obj2'])
+assembly_df['valid_sound'] = ~np.isnan(assembly_df['p_sound_id'])
+assembly_df['valid_ripples'] = ~np.isnan(assembly_df['p_ripples'])
 assembly_df['log_p_obj1'] = -np.log10(assembly_df['p_obj1'])
 assembly_df['log_p_obj2'] = -np.log10(assembly_df['p_obj2'])
 assembly_df['log_p_sound'] = -np.log10(assembly_df['p_sound_id'])
 assembly_df['log_p_ripples'] = -np.log10(assembly_df['p_ripples'])
-per_ses_df = assembly_df[['ses_id', 'region']].groupby(['ses_id', 'region']).size().to_frame()
-per_ses_df = per_ses_df.rename(columns={0: 'n_patterns'})
-per_ses_df['sig_obj1'] = assembly_df[['ses_id', 'sig_obj1', 'region']].groupby(['ses_id', 'region']).sum()['sig_obj1']
-per_ses_df['sig_obj2'] = assembly_df[['ses_id', 'sig_obj2', 'region']].groupby(['ses_id', 'region']).sum()['sig_obj2']
-per_ses_df['sig_sound'] = assembly_df[['ses_id', 'sig_sound', 'region']].groupby(['ses_id', 'region']).sum()[
-    'sig_sound']
-per_ses_df['sig_ripples'] = assembly_df[['ses_id', 'sig_ripples', 'region']].groupby(['ses_id', 'region']).sum()[
-    'sig_ripples']
-per_ses_df = per_ses_df.reset_index()
-per_ses_df['perc_sig_obj1'] = (per_ses_df['sig_obj1'] / per_ses_df['n_patterns']) * 100
-per_ses_df['perc_sig_obj2'] = (per_ses_df['sig_obj2'] / per_ses_df['n_patterns']) * 100
-per_ses_df['perc_sig_sound'] = (per_ses_df['sig_sound'] / per_ses_df['n_patterns']) * 100
-per_ses_df['perc_sig_ripples'] = (per_ses_df['sig_ripples'] / per_ses_df['n_patterns']) * 100
 
-summary_df = assembly_df.groupby('region').size().rename('n_total').to_frame()
-summary_df['n_obj1'] = assembly_df.groupby('region').sum()['sig_obj1']
-summary_df['n_obj2'] = assembly_df.groupby('region').sum()['sig_obj2']
-summary_df['n_ripples'] = assembly_df.groupby('region').sum()['sig_ripples']
-summary_df['n_sound'] = assembly_df.groupby('region').sum()['sig_sound']
-summary_df['perc_obj1'] = (summary_df['n_obj1'] / summary_df['n_total']) * 100
-summary_df['perc_obj2'] = (summary_df['n_obj2'] / summary_df['n_total']) * 100
-summary_df['perc_ripples'] = (summary_df['n_ripples'] / summary_df['n_total']) * 100
-summary_df['perc_sound'] = (summary_df['n_sound'] / summary_df['n_total']) * 100
+# Add columns for stacked plot
+assembly_df['sig_ripples_only'] = (assembly_df['sig_ripples']) & (~assembly_df['sig_obj2'])
+assembly_df['sig_obj2_only'] = (~assembly_df['sig_ripples']) & (assembly_df['sig_obj2'])
+assembly_df['sig_both'] = (assembly_df['sig_ripples']) & (assembly_df['sig_obj2'])
+assembly_df['valid_both'] = (assembly_df['valid_ripples']) & (assembly_df['valid_obj2'])
+
+per_ses_df = assembly_df.groupby(['ses_id', 'region']).agg(
+    n_obj1=('valid_obj1', 'sum'),
+    sig_obj1=('sig_obj1', 'sum'),
+    n_obj2=('valid_obj2', 'sum'),
+    sig_obj2=('sig_obj2', 'sum'),
+    n_sound=('valid_sound', 'sum'),
+    sig_sound=('sig_sound', 'sum'),
+    n_ripples=('valid_ripples', 'sum'),
+    sig_ripples=('sig_ripples', 'sum'),
+    n_both=('valid_both', 'sum'),
+    sig_ripples_only=('sig_ripples_only', 'sum'),
+    sig_obj2_only=('sig_obj2_only', 'sum'),
+    sig_both=('sig_both', 'sum')
+).reset_index()
+
+per_ses_df['perc_sig_obj1'] = (per_ses_df['sig_obj1'] / per_ses_df['n_obj1']) * 100
+per_ses_df['perc_sig_obj2'] = (per_ses_df['sig_obj2'] / per_ses_df['n_obj2']) * 100
+per_ses_df['perc_sig_sound'] = (per_ses_df['sig_sound'] / per_ses_df['n_sound']) * 100
+per_ses_df['perc_sig_ripples'] = (per_ses_df['sig_ripples'] / per_ses_df['n_ripples']) * 100
+per_ses_df['perc_sig_ripples_only'] = (per_ses_df['sig_ripples_only'] / per_ses_df['n_both']) * 100
+per_ses_df['perc_sig_obj2_only'] = (per_ses_df['sig_obj2_only'] / per_ses_df['n_both']) * 100
+per_ses_df['perc_sig_both'] = (per_ses_df['sig_both'] / per_ses_df['n_both']) * 100
+per_ses_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+summary_df = assembly_df.groupby('region').agg(
+    n_total_obj1=('valid_obj1', 'sum'),
+    n_sig_obj1=('sig_obj1', 'sum'),
+    n_total_obj2=('valid_obj2', 'sum'),
+    n_sig_obj2=('sig_obj2', 'sum'),
+    n_total_sound=('valid_sound', 'sum'),
+    n_sig_sound=('sig_sound', 'sum'),
+    n_total_ripples=('valid_ripples', 'sum'),
+    n_sig_ripples=('sig_ripples', 'sum')
+)
+summary_df['perc_obj1'] = (summary_df['n_sig_obj1'] / summary_df['n_total_obj1']) * 100
+summary_df['perc_obj2'] = (summary_df['n_sig_obj2'] / summary_df['n_total_obj2']) * 100
+summary_df['perc_ripples'] = (summary_df['n_sig_ripples'] / summary_df['n_total_ripples']) * 100
+summary_df['perc_sound'] = (summary_df['n_sig_sound'] / summary_df['n_total_sound']) * 100
 summary_df = summary_df.reset_index()
 
 # %% Do statistics
@@ -67,7 +94,7 @@ for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI', 'LEC', 'CA1']):
     # rho, p_val = stats.spearmanr(np.abs(group['t_obj2']), np.abs(group['amp_ripples']))
     # rho, p_val = stats.spearmanr(group['log_p_obj2'], group['log_p_ripples'])
     # rho, p_val = stats.spearmanr(group['z_obj2'], group['z_ripples'])
-    rho, p_val = stats.spearmanr(np.abs(group['z_obj2']), np.abs(group['z_ripples']))
+    rho, p_val = stats.pearsonr(np.abs(group['z_obj2']), np.abs(group['z_ripples']))
     # rho, p_val = stats.pearsonr(group['log_p_obj2'], group['log_p_ripples'])
     print(f'{region}; p = {np.round(p_val, 3)}')
 
@@ -139,39 +166,20 @@ plt.tight_layout()
 plt.show()
 plt.savefig(path_dict['google_drive_fig_path'] / 'sig_assemblies_ripples.jpg', dpi=600)
 
-# %% Calculate overlap
-assembly_df['sig_both_objs'] = assembly_df['sig_obj1'] & assembly_df['sig_obj2']
-assembly_df['sig_obj1_ripple'] = assembly_df['sig_obj1'] & assembly_df['sig_ripples']
-assembly_df['sig_obj2_ripple'] = assembly_df['sig_obj2'] & assembly_df['sig_ripples']
-assembly_df['sig_all'] = assembly_df['sig_obj1'] & assembly_df['sig_obj2'] & assembly_df['sig_ripples']
-
-overlap_ses = assembly_df.groupby(['ses_id', 'region']).agg(
-    n_patterns=('sig_obj1', 'size'),
-    n_obj1=('sig_obj1', 'sum'),
-    n_obj2=('sig_obj2', 'sum'),
-    n_ripples=('sig_ripples', 'sum'),
-    n_obj1_ripple=('sig_obj1_ripple', 'sum'),
-    n_obj2_ripple=('sig_obj2_ripple', 'sum')
-).reset_index()
-
-overlap_ses['perc_obj1_ripple'] = (overlap_ses['n_obj1_ripple'] / overlap_ses['n_patterns']) * 100
-overlap_ses['perc_obj2_ripple'] = (overlap_ses['n_obj2_ripple'] / overlap_ses['n_patterns']) * 100
-
-# Plot overlap
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(3.5, 2), dpi=dpi, sharey=True)
-
-this_order = overlap_ses.groupby('region')['perc_obj1_ripple'].mean().sort_values(ascending=False).index.values
-sns.barplot(data=overlap_ses, x='region', y='perc_obj1_ripple', ax=ax1, hue='region',
-            palette=colors, order=this_order, errorbar='se')
-ax1.set(ylabel='Overlap (%)', title='Obj 1 & Ripples', xlabel='')
-ax1.tick_params(axis='x', labelrotation=90)
-
-this_order = overlap_ses.groupby('region')['perc_obj2_ripple'].mean().sort_values(ascending=False).index.values
-sns.barplot(data=overlap_ses, x='region', y='perc_obj2_ripple', ax=ax2, hue='region',
-            palette=colors, order=this_order, errorbar='se')
-ax2.set(ylabel='', title='Obj 2 & Ripples', xlabel='')
-ax2.tick_params(axis='x', labelrotation=90)
-
+# %% Stacked bar plot
+f, ax = plt.subplots(figsize=(2, 2), dpi=dpi)
+stacked_df = per_ses_df.groupby('region')[['perc_sig_ripples_only', 'perc_sig_obj2_only', 'perc_sig_both']].mean()
+stacked_df = stacked_df.fillna(0)
+stacked_df['total'] = stacked_df.sum(axis=1)
+stacked_df = stacked_df.sort_values('total', ascending=False).drop(columns='total')
+stacked_df.rename(columns={'perc_sig_ripples_only': 'Ripples only',
+                           'perc_sig_obj2_only': 'Object 2 only',
+                           'perc_sig_both': 'Both'}, inplace=True)
+stacked_df.plot(kind='bar', stacked=True, ax=ax)
+ax.set(ylabel='Significant assemblies (%)', xlabel='', title='Ripples & Object 2')
+ax.legend(frameon=False, bbox_to_anchor=(1, 1))
+ax.tick_params(axis='x', labelrotation=90)
 sns.despine(trim=False)
 plt.tight_layout()
+plt.savefig(path_dict['google_drive_fig_path'] / 'sig_assemblies_stacked.jpg', dpi=600)
 plt.show()

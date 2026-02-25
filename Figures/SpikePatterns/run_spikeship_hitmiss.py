@@ -137,13 +137,13 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
 
 f, axs = plt.subplots(1, 6, figsize=(8, 2), dpi=dpi, sharey=False, sharex=True)
 axs = axs.flatten()
-plot_df = spikeship_df[spikeship_df['object'] == 1]
-for i, region in enumerate(plot_df['region'].unique()):
+for i, region in enumerate(spikeship_df['region'].unique()):
     axs[i].plot([-1, 2], [0, 0], lw=0.5, ls='--')
-    sns.lineplot(data=plot_df[plot_df['region'] == region], x='time', y='contrast_bl', hue='object', hue_order=[1, 0],
-                 palette=[colors['obj1'], colors['obj2']], ax=axs[i], errorbar='se', err_kws={'lw': 0},
+    sns.lineplot(data=spikeship_df[spikeship_df['region'] == region], x='time', y='contrast_bl', hue='object',
+                 hue_order=[1, 2], palette=[colors['obj1'], colors['obj2']], ax=axs[i], errorbar='se', err_kws={'lw': 0},
                  legend=None)
     axs[i].set(title=region, xlim=[-1, 2], ylabel='')
 sns.despine(trim=True)
 plt.tight_layout()
+plt.show()
 plt.savefig(path_dict['google_drive_fig_path'] / 'pattern_hitmiss.jpg', dpi=600)
