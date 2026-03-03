@@ -10,22 +10,21 @@ import pandas as pd
 import pickle
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.model_selection import KFold
 from joblib import Parallel, delayed
 from brainbox.population.decode import classify
 from msvr_functions import paths
 
 # Settings
-MIN_NEURONS = 25
-MIN_TRIALS = 20
+MIN_NEURONS = 2
+MIN_TRIALS = 10
 N_CORES = 18
 
 # Initialize
 path_dict = paths(sync=False)
 rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)
 kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
-clf = RandomForestClassifier(random_state=42, n_jobs=1, n_estimators=20, max_depth=5)
+clf = RandomForestClassifier(random_state=42, n_jobs=1, n_estimators=100, max_depth=5)
 #clf = LinearDiscriminantAnalysis()
 scaler = StandardScaler()
 
