@@ -20,6 +20,7 @@ EYE_HEIGHT_PX = 70
 MIN_PROB = 0.99  # minimum probablitiy of tracked points to contribute to pupil fitting
 MIN_POINTS = 5  # minimum number of points to fit pupil ellipse
 MAX_WH_RATIO = 1.5  # maximum ratio between width and height to prevent bad fits
+EYE_FLAG = 'eyetrack_me_fr.flag'
 
 # %% Functions
 def fit_ellipse(i, eye_dlc):
@@ -175,14 +176,15 @@ def non_uniform_savgol(x, y, window, polynom):
 
 # %% Main script to process eye tracking data
 for root, directory, files in os.walk(SERVER_PATH):
-    if ('eyetrack_me.flag' in files) and ('ephys_session.flag' in files):
-        print(f'\nFound eyetrack_me.flag in {root}')
+    #if ('eyetrack_me.flag' in files) and ('ephys_session.flag' in files):
+    if EYE_FLAG in files:
+        print(f'\nFound {EYE_FLAG} in {root}')
         
         h264_path = glob(join(root, 'raw_video_data', '*.h264'))
         mp4_path = glob(join(root, 'raw_video_data', '*.mp4'))
         if (len(h264_path) == 0) and (len(mp4_path) == 0):
-            print('No video files! Deleting eyetrack_me.flag')
-            os.remove(join(root, 'eyetrack_me.flag'))
+            print('No video files! Deleting {EYE_FLAG}')
+            os.remove(join(root, EYE_FLAG))
             continue
         elif (len(h264_path) == 1) and (len(mp4_path) == 0):
             server_video_path = h264_path[0]
