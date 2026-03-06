@@ -12,7 +12,7 @@ colors, dpi = figure_style()
 BIN_SIZE = 0.05
 MIN_NEURONS = 5
 SMOOTHING_SIGMA = 1
-MP_THRESHOLD_SCALE = 1  # Scale factor for Marchenko-Pastur threshold (higher -> fewer assemblies)
+MP_THRESHOLD_SCALE = 1.2  # Scale factor for Marchenko-Pastur threshold (higher -> fewer assemblies)
 
 # Initialize
 path_dict = paths(sync=False)

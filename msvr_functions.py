@@ -1363,13 +1363,30 @@ def circ_shift(series1, series2, n_shifts=10000, min_shift_percentage=0.05):
     return observed_r, p_value, null_distribution_r
 
 
-def to_spikeship_dataformat(raw_spike_times, neuron_ids, epoch_intervals, min_spikes=0):
+def to_spikeship_dataformat(raw_spike_times, neuron_ids, epoch_intervals, min_spikes=0, compression_factor=1):
     """
     Reformats spike data for SpikeShip with an added activity threshold.
     
     If an epoch has fewer than 'min_spikes', it is treated as a silent trial.
     This ensures SpikeShip doesn't attempt to compute distances based on 
     stochastic single-spike events.
+
+    Parameters
+    ----------
+    raw_spike_times : 1D array
+        Spike times (in seconds).
+    neuron_ids : 1D array
+        Cluster IDs for each spike.
+    epoch_intervals : 2D array of shape (n_epochs, 2)
+        Start and end times for each epoch.
+    min_spikes : int, optional
+        Minimum number of spikes required in an epoch to be processed. Default is 0.
+    compression_factor : float, optional
+        Factor to compress or expand spike times relative to the epoch center. Default is 1.
+
+    Returns
+    -------
+    spike_times, ii_spike_times, n_spikes : tuple
     """
     # 1. Ensure data is sorted by time
     sort_idx = np.argsort(raw_spike_times)
@@ -1411,6 +1428,17 @@ def to_spikeship_dataformat(raw_spike_times, neuron_ids, epoch_intervals, min_sp
         spikes_in_epoch = raw_spike_times[idx_start:idx_end]
         neurons_in_epoch = neuron_ids[idx_start:idx_end]
         
+        if compression_factor != 1:
+            epoch_center = (epoch_intervals[i, 0] + epoch_intervals[i, 1]) / 2
+            relative_spikes = spikes_in_epoch - epoch_center
+            expanded_relative = relative_spikes * compression_factor
+            spikes_in_epoch = expanded_relative + epoch_center
+
+            # Filter out spikes that fall outside the epoch intervals
+            keep_mask = (spikes_in_epoch >= epoch_intervals[i, 0]) & (spikes_in_epoch <= epoch_intervals[i, 1])
+            spikes_in_epoch = spikes_in_epoch[keep_mask]
+            neurons_in_epoch = neurons_in_epoch[keep_mask]
+        
         sort_order = np.argsort(neurons_in_epoch)
         spikes_sorted = spikes_in_epoch[sort_order]
         neurons_sorted = neurons_in_epoch[sort_order]
@@ -1449,6 +1477,25 @@ def to_spikeship_dataformat(raw_spike_times, neuron_ids, epoch_intervals, min_sp
 
 def load_lfp(probe_path, channels, start_time=0, end_time=None):
     """
+    Load Local Field Potential (LFP) data using SpikeInterface.
+
+    Parameters
+    ----------
+    probe_path : Path or str
+        Path to the probe folder containing 'lfp_raw_binary'.
+    channels : list or array-like
+        Indices of the channels to load.
+    start_time : float, optional
+        Start time in seconds. Default is 0.
+    end_time : float, optional
+        End time in seconds. If None, loads until the end of the recording.
+
+    Returns
+    -------
+    lfp_traces : numpy.ndarray
+        2D array of LFP traces (frames x channels).
+    timestamps : numpy.ndarray
+        1D array of timestamps for each frame.
     """
     import spikeinterface.full as si
     
@@ -1466,7 +1513,31 @@ def load_lfp(probe_path, channels, start_time=0, end_time=None):
     
 
 def get_ripple_channels(target_chan, n_above, n_below, channels, shank_indices):
- 
+    """
+    Identify a subset of channels for ripple detection based on a target channel.
+
+    This function selects channels located at specific axial (vertical) levels
+    above and below a target channel on a specific shank. It alternates columns
+    based on the vertical distance to follow the Neuropixels staggered geometry.
+
+    Parameters
+    ----------
+    target_chan : int
+        The index of the channel with the maximum ripple power.
+    n_above : int
+        Number of axial levels to include above the target channel.
+    n_below : int
+        Number of axial levels to include below the target channel.
+    channels : dict
+        Dictionary containing channel metadata, including 'lateral_um' and 'axial_um'.
+    shank_indices : numpy.ndarray
+        Array of channel indices belonging to the same shank as the target channel.
+
+    Returns
+    -------
+    numpy.ndarray
+        An array of selected channel indices for ripple analysis.
+    """
     # 1. Get coordinates for the subset of channels on this shank
     lateral = channels['lateral_um'][shank_indices]
     axial = channels['axial_um'][shank_indices]

@@ -82,39 +82,6 @@ summary_df['perc_ripples'] = (summary_df['n_sig_ripples'] / summary_df['n_total_
 summary_df['perc_sound'] = (summary_df['n_sig_sound'] / summary_df['n_total_sound']) * 100
 summary_df = summary_df.reset_index()
 
-# %% Do statistics
-
-assembly_df = assembly_df[~np.isnan(assembly_df['p_ripples'])]
-# Iterate through regions
-f, axs = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi)
-for i, region in enumerate(['VIS', 'AUD', 'TEa', 'PERI', 'LEC', 'CA1']):
-    group = assembly_df[assembly_df['region'] == region]
-
-    # Do Spearman correlation
-    # rho, p_val = stats.spearmanr(np.abs(group['t_obj2']), np.abs(group['amp_ripples']))
-    # rho, p_val = stats.spearmanr(group['log_p_obj2'], group['log_p_ripples'])
-    # rho, p_val = stats.spearmanr(group['z_obj2'], group['z_ripples'])
-    rho, p_val = stats.pearsonr(np.abs(group['z_obj2']), np.abs(group['z_ripples']))
-    # rho, p_val = stats.pearsonr(group['log_p_obj2'], group['log_p_ripples'])
-    print(f'{region}; p = {np.round(p_val, 3)}')
-
-    # Plot
-    # axs[i].scatter(np.abs(group['t_obj2']), np.abs(group['amp_ripples']), s=3)
-    # axs[i].scatter(group['log_p_obj2'], group['log_p_ripples'], s=3)
-    # axs[i].scatter(group['z_obj2'], group['z_ripples'], s=3)
-    axs[i].scatter(np.abs(group['z_obj2']), np.abs(group['z_ripples']), s=3)
-    axs[i].set(title=f'{region}; p = {np.round(p_val, 3)}')
-    if i == 0:
-        axs[i].set(ylabel='Ripples (-log10[p])')
-
-    # if p_val < 0.05:
-    #    axs[i].text(4.5, 10, f'p = {np.round(p_val,3)}', ha='center', va='center')
-    #    axs[i].text(4.5, 8.5, '**', fontsize=12, ha='center', va='center')
-
-f.text(0.5, 0.04, 'Second object (-log10[p])', ha='center')
-
-sns.despine(trim=False)
-plt.subplots_adjust(left=0.06, bottom=0.2, top=0.88, right=0.98)
 
 # %%
 
@@ -166,20 +133,3 @@ plt.tight_layout()
 plt.show()
 plt.savefig(path_dict['google_drive_fig_path'] / 'sig_assemblies_ripples.jpg', dpi=600)
 
-# %% Stacked bar plot
-f, ax = plt.subplots(figsize=(2, 2), dpi=dpi)
-stacked_df = per_ses_df.groupby('region')[['perc_sig_ripples_only', 'perc_sig_obj2_only', 'perc_sig_both']].mean()
-stacked_df = stacked_df.fillna(0)
-stacked_df['total'] = stacked_df.sum(axis=1)
-stacked_df = stacked_df.sort_values('total', ascending=False).drop(columns='total')
-stacked_df.rename(columns={'perc_sig_ripples_only': 'Ripples only',
-                           'perc_sig_obj2_only': 'Object 2 only',
-                           'perc_sig_both': 'Both'}, inplace=True)
-stacked_df.plot(kind='bar', stacked=True, ax=ax)
-ax.set(ylabel='Significant assemblies (%)', xlabel='', title='Ripples & Object 2')
-ax.legend(frameon=False, bbox_to_anchor=(1, 1))
-ax.tick_params(axis='x', labelrotation=90)
-sns.despine(trim=False)
-plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / 'sig_assemblies_stacked.jpg', dpi=600)
-plt.show()

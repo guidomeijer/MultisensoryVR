@@ -1,41 +1,45 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jan 27 10:24:57 2026
-
-By Guido Meijer
+Author: Guido Meijer
+Date: 05/03/2026
 """
+# %%
 
 import numpy as np
 import pandas as pd
-from msvr_functions import paths, load_neural_data
+import matplotlib.pyplot as plt
+from pathlib import Path
 import spikeinterface.full as si
-path_dict = paths()
 
 # Settings
-SUBJECT = '478154'
-DATE = '20251003'
-PROBE = 'probe01'
+SES_PATH = Path(r'V:\imaging1\guido\Subjects\466396\20241031\probe01')
+PLOT_SHANK = 1
 
-# Get max channel data
-rec_df = pd.read_csv(path_dict['save_path'] / 'ripple_channel.csv')
-rec_df['subject'] = rec_df['subject'].astype(str)
-rec_df['date'] = rec_df['date'].astype(str)
-
-ses_path = path_dict['local_data_path'] / 'Subjects' / SUBJECT / DATE
-rec = si.read_binary(ses_path / PROBE / 'lfp_raw_binary' / 'traces_cached_seg0.raw',
+# Load in LFP data
+rec = si.read_binary(SES_PATH / 'lfp_raw_binary' / 'traces_cached_seg0.raw',
                      sampling_frequency=2500, dtype='int16', num_channels=384)
-max_channel = rec_df.loc[(rec_df['subject'] == SUBJECT) & (rec_df['date'] == DATE) & (rec_df['probe'] == PROBE),
-                         'max_channel'].values[0]
-_, _, channels = load_neural_data(ses_path, PROBE)
 
-# Get channels to plot
-column_channels = np.where(channels['lateral_um'] == channels['lateral_um'][max_channel])[0]
+# Load in channel locations
+channel_locs = np.load(SES_PATH / 'channels.localCoordinates.npy').astype(int)
+shank_map = {
+    1: 0,
+    2: 250,
+    3: 500,
+    4: 750
+}
+channel_ids = rec.get_channel_ids()
+shank_channels = channel_ids[np.isin(channel_locs[:, 0], shank_map[PLOT_SHANK])]
 
-# Plot
-w = si.plot_traces(recording=rec, backend="matplotlib", mode='line', channel_ids=column_channels,
-                   time_range=[rec.get_duration()-800, rec.get_duration()-790], show_channel_ids=True)
+# %% Plot
+PLOT_DURATION = 3  # s
+TIME_FROM_END = (12 * 60) + 10 # s
+w = si.plot_traces(recording=rec, backend='matplotlib', mode='line', channel_ids=shank_channels,
+                   time_range=[rec.get_duration()-TIME_FROM_END, rec.get_duration()-(TIME_FROM_END - PLOT_DURATION)],
+                   show_channel_ids=True, figsize=(12, 8), vspacing_factor=0.8)
+plt.show()
 
-
-
-
-
+# %% This is how you get the LFP traces from certain channels
+LAST_MIN = 5  # last minutes of the recording
+GET_CHANNELS = [30, 32, 34]
+start_frame = rec.time_to_sample_index(rec.get_duration()-(LAST_MIN * 60))
+lfp_traces = rec.get_traces(start_frame=start_frame, end_frame=rec.get_total_samples(), channel_ids=GET_CHANNELS)

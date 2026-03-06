@@ -9,3 +9,5 @@ paths.json
 .spyproject/config/
 
 .vscode/
+
+.ipynb_checkpoints/

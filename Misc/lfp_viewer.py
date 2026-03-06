@@ -14,6 +14,8 @@ from pathlib import Path
 from scipy.signal import butter, filtfilt
 from matplotlib.ticker import MultipleLocator
 from collections import defaultdict
+from msvr_functions import figure_style
+colors, dpi = figure_style()
 
 
 

@@ -19,7 +19,7 @@ from msvr_functions import paths, load_objects, figure_style, peri_event_trace, 
 SIG_TIME = 2
 MIN_RIPPLES = 10
 PLOT = True
-N_JOBS = -6
+N_JOBS = -10
 
 # Initialize
 path_dict = paths()
