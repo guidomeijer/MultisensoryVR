@@ -11,8 +11,7 @@ colors, dpi = figure_style()
 # Settings
 BIN_SIZE = 0.05
 MIN_NEURONS = 5
-SMOOTHING_SIGMA = 1
-MP_THRESHOLD_SCALE = 1.2  # Scale factor for Marchenko-Pastur threshold (higher -> fewer assemblies)
+MP_THRESHOLD_SCALE = 1  # Scale factor for Marchenko-Pastur threshold (higher -> fewer assemblies)
 
 # Initialize
 path_dict = paths(sync=False)
@@ -99,11 +98,8 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
                 assembly_patterns[:, k] *= -1
                 activations[k, :] *= -1
 
-        # Assembly activations (assemblies x timebins)
-        assembly_activations = gaussian_filter(activations, [0, SMOOTHING_SIGMA])
-
         # Save assemblies to disk
         np.save(path_dict['google_drive_data_path'] / 'Assemblies' / f'{subject}_{date}_{probe}_{region}.amplitudes.npy',
-                assembly_activations)
+                activations)
         np.save(path_dict['google_drive_data_path'] / 'Assemblies' / f'{subject}_{date}_{probe}_{region}.times.npy',
                 binned_time)

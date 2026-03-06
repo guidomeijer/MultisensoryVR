@@ -64,4 +64,4 @@ for i, region in enumerate(regions):
 plt.tight_layout()
 sns.despine(trim=True)
 plt.show()
-plt.savefig(join(path_dict['save_path'], 'ripple_obj_overlap.pdf'))
+plt.savefig(join(path_dict['google_drive_fig_path'], 'ripple_obj_overlap.pdf'))
