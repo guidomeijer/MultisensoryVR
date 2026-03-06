@@ -17,7 +17,7 @@ DLC_FIND_EYE = '/home/user/DLC/find-eye-guido-2023-11-10/config.yaml'
 DLC_EYE_TRACK = '/home/user/DLC/pupil-tracking-guido-2023-11-13/config.yaml'
 EYE_WIDTH_PX = 80
 EYE_HEIGHT_PX = 70
-MIN_PROB = 0.99  # minimum probablitiy of tracked points to contribute to pupil fitting
+MIN_PROB = 0.7  # minimum probablitiy of tracked points to contribute to pupil fitting
 MIN_POINTS = 5  # minimum number of points to fit pupil ellipse
 MAX_WH_RATIO = 1.5  # maximum ratio between width and height to prevent bad fits
 EYE_FLAG = 'eyetrack_me_fr.flag'
@@ -52,9 +52,9 @@ def fit_ellipse(i, eye_dlc):
     """
 
     
-    x = eye_dlc.xs('x', level=1, axis=1).loc[i].values
-    y = eye_dlc.xs('y', level=1, axis=1).loc[i].values
-    xy_prob = eye_dlc.xs('likelihood', level=1, axis=1).loc[i].values
+    x = eye_dlc.xs('x', level='coords', axis=1).loc[i].values
+    y = eye_dlc.xs('y', level='coords', axis=1).loc[i].values
+    xy_prob = eye_dlc.xs('likelihood', level='coords', axis=1).loc[i].values
     if np.sum(xy_prob > MIN_PROB) >= MIN_POINTS:
         x = x[xy_prob > MIN_PROB]
         y = y[xy_prob > MIN_PROB]
@@ -255,7 +255,7 @@ for root, directory, files in os.walk(SERVER_PATH):
         # Get pupil by fitting elipse using least squares method
         if not isfile(join(local_folder_path, 'pupil.csv')):
             dlc_out = glob(join(local_folder_path, '*pupil-tracking*_filtered.csv'))[0]
-            eye_dlc = pd.read_csv(dlc_out, header=[1, 2], index_col=0)
+            eye_dlc = pd.read_csv(dlc_out, header=[0, 1, 2], index_col=0)
             eye_df = pd.DataFrame()
             print('\nFitting ellipse to tracked points')
 
