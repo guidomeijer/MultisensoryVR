@@ -25,7 +25,7 @@ for i, region in enumerate(regions):
                             & np.isin(pv_corr_df['subject'].values,
                                       subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
     pv_corr = np.mean(np.stack(region_df['pv_corr'].values), axis=0)
-    sns.heatmap(pv_corr, cmap='coolwarm', clim=[-1, 1], square=True, ax=ax[i])
+    sns.heatmap(pv_corr, cmap='coolwarm', vmin=-1, vmax=1, square=True, ax=ax[i])
     ax[i].set(title=f'{region} (n={region_df.shape[0]})',
               xticks=[0, pv_corr.shape[0]], yticks=[0, pv_corr.shape[0]],
               xticklabels=[1, pv_corr.shape[0]], yticklabels=[1, pv_corr.shape[0]],

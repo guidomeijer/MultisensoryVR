@@ -11,66 +11,33 @@ from sklearn.preprocessing import StandardScaler
 import statsmodels.api as sm
 import pickle
 from patsy import dmatrix
+from joblib import Parallel, delayed
 from msvr_functions import paths, load_neural_data, load_objects, bin_signal
 
 # Settings
-BIN_SIZE = 60  # mm
+BIN_SIZE = 50  # mm
 STEP_SIZE = 10
 MIN_TRIALS = 0
-MIN_SPEED = 0  # mm/s
-N_CORES = 2
+MIN_SPEED = 50  # mm/s
+N_CORES = 18
 OVERWRITE = True
 
 # Create position bins
 rel_bin_centers = np.arange((BIN_SIZE/2), 1500 - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
 
-"""
-# Drop bins which overlap the object entry
-drop_bins = np.full(rel_bin_centers.shape[0], False)
-for obj_pos in [450, 900, 1350]:
-    drop_bins[((((rel_bin_centers + (BIN_SIZE/2)) - obj_pos) < (BIN_SIZE/2))
-               & (((rel_bin_centers + (BIN_SIZE/2)) - obj_pos) > 0))] = True
-rel_bin_centers = rel_bin_centers[drop_bins == False]
-"""
-
-# Initialize
-path_dict = paths(sync=False)
-rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)
-scaler = StandardScaler()
-
-if OVERWRITE:
-    residuals_dict = {
-        'residuals': [],
-        'neuron_id': [],
-        'region': [],
-        'acronym': [],
-        'position': [],
-        'trial': [],
-        'context': [],
-        'glm_results': [],
-        'subject': [],
-        'date': [],
-        'probe': []
-        }
-else:
-    with open(path_dict['google_drive_data_path'] / 'residuals_position.pickle', 'rb') as handle:
-        residuals_dict = pickle.load(handle)
-    match_cols = ['subject', 'date', 'probe']
-    res_df = pd.DataFrame({c: residuals_dict[c] for c in match_cols}).astype(str)
-    rec[match_cols] = rec[match_cols].astype(str)
-    merged = rec.merge(res_df, on=match_cols, how='left', indicator=True)
-    rec = merged[merged['_merge'] == 'left_only'].drop(columns='_merge')
+def process_recording(i, subject, date, probe, n_recs, path_dict, rel_bin_centers):
+    print(f'\n{subject} {date} {probe} ({i} of {n_recs})')
     
-# Loop over recordings
-for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe'])):
-    print(f'\n{subject} {date} {probe} ({i} of {rec.shape[0]})')
+    # Initialize
+    scaler = StandardScaler()
 
     # Load in data
     session_path = path_dict['local_data_path'] / 'subjects' / f'{subject}' / f'{date}'
     trials = pd.read_csv(session_path / 'trials.csv')
     if trials.shape[0] < MIN_TRIALS:
         print('Too few trials, skipping session')
-        continue
+        return None
+        
     spikes, clusters, channels = load_neural_data(session_path, probe)
     position = np.load(session_path / 'continuous.wheelDistance.npy')
     running_speed = np.load(session_path / 'continuous.wheelSpeed.npy')
@@ -146,7 +113,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             # Append
             binned_spikes[f'neuron{neuron_id}'].append(these_binned_spikes)
 
-    print('Matrix build complete.')
+    # print('Matrix build complete.')
 
     # --- Final Step (Post-processing) ---
     exposure_vector = np.concatenate(time_per_bin_list)
@@ -180,7 +147,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     X_full = sm.add_constant(X_motor_with_pos, prepend=False)
 
     # Fit GLM
-    print("Fitting GLM...")
+    # print("Fitting GLM...")
     residual_arr, glm_results = [], []
     neuron_columns = [col for col in df.columns if col.startswith('neuron')]
     for neuron_col in neuron_columns:
@@ -204,28 +171,70 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             print(f"Failed to fit model for {neuron_col}: {e}")
             residual_arr.append(np.zeros(df[neuron_col].shape))
 
-    print("GLM fitting complete.")
+    # print("GLM fitting complete.")
 
     # Finalize
     residual_arr = np.vstack(residual_arr).T  # bins x neurons
     all_rel_position = np.concatenate(rel_pos_list)
     neuron_ids = np.array([int(i[6:]) for i in neuron_columns])
     assert all(neuron_ids == clusters['cluster_id'])
-
-    # Add to dictionary
-    residuals_dict['residuals'].append(residual_arr)
-    residuals_dict['neuron_id'].append(neuron_ids)
-    residuals_dict['region'].append(clusters['region'])
-    residuals_dict['acronym'].append(clusters['acronym'])
-    residuals_dict['position'].append(all_rel_position)
-    residuals_dict['trial'].append(trial_id)
-    residuals_dict['context'].append(np.array([trials.loc[i, 'soundId'] for i in trial_id]))
-    residuals_dict['glm_results'].append(glm_results)
-    residuals_dict['subject'].append(subject)
-    residuals_dict['date'].append(date)
-    residuals_dict['probe'].append(probe)
     
-# Save to disk
-with open(path_dict['google_drive_data_path'] / 'residuals_position.pickle', 'wb') as handle:
-    pickle.dump(residuals_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    return {
+        'residuals': residual_arr,
+        'neuron_id': neuron_ids,
+        'region': clusters['region'],
+        'acronym': clusters['acronym'],
+        'position': all_rel_position,
+        'trial': trial_id,
+        'context': np.array([trials.loc[i, 'soundId'] for i in trial_id]),
+        'glm_results': glm_results,
+        'subject': subject,
+        'date': date,
+        'probe': probe
+    }
+
+if __name__ == '__main__':
+    # Initialize
+    path_dict = paths(sync=False)
+    rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)
+
+    if OVERWRITE:
+        residuals_dict = {
+            'residuals': [],
+            'neuron_id': [],
+            'region': [],
+            'acronym': [],
+            'position': [],
+            'trial': [],
+            'context': [],
+            'glm_results': [],
+            'subject': [],
+            'date': [],
+            'probe': []
+            }
+    else:
+        with open(path_dict['google_drive_data_path'] / 'residuals_position.pickle', 'rb') as handle:
+            residuals_dict = pickle.load(handle)
+        match_cols = ['subject', 'date', 'probe']
+        res_df = pd.DataFrame({c: residuals_dict[c] for c in match_cols}).astype(str)
+        rec[match_cols] = rec[match_cols].astype(str)
+        merged = rec.merge(res_df, on=match_cols, how='left', indicator=True)
+        rec = merged[merged['_merge'] == 'left_only'].drop(columns='_merge')
+        
+    # Loop over recordings
+    print(f'Processing {rec.shape[0]} recordings')
+    results = Parallel(n_jobs=N_CORES)(
+        delayed(process_recording)(i, subject, date, probe, rec.shape[0], path_dict, rel_bin_centers)
+        for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe']))
+    )
+    
+    # Add results to dictionary
+    for result in results:
+        if result is not None:
+            for key in residuals_dict.keys():
+                residuals_dict[key].append(result[key])
+        
+    # Save to disk
+    with open(path_dict['google_drive_data_path'] / f'residuals_position_{MIN_SPEED}mms.pickle', 'wb') as handle:
+        pickle.dump(residuals_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
     

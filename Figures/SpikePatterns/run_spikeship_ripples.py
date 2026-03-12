@@ -26,8 +26,8 @@ MIN_NEURONS = 5
 MIN_RIPPLES = 20
 N_CPUS = 20
 MIN_SPIKES_PER_BIN = 5
-SMOOTHING_SIGMA = 1.5
-CA1_COMPR = 7
+SMOOTHING_SIGMA = 1
+CA1_COMPR = 5
 RIPPLE_DELAY = 0.75
 
 # Create time array
@@ -178,33 +178,3 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
 # Save to disk
 spikeship_df.to_csv(path_dict['google_drive_data_path'] / f'spikeship_ripples_{RIPPLE_DELAY}s_{CA1_COMPR}x.csv',
                     index=False)
-
-# %% Plot
-
-f, axs = plt.subplots(1, 6, figsize=(8, 2), dpi=dpi, sharey=False, sharex=True)
-axs = axs.flatten()
-plot_df = spikeship_df[spikeship_df['object'] == 1]
-for i, region in enumerate(plot_df['region'].unique()):
-    axs[i].plot([-1, 2], [0, 0], lw=0.5, ls='--')
-    sns.lineplot(data=plot_df[plot_df['region'] == region], x='time', y='contrast_bl', hue='goal', hue_order=[1, 0],
-                 palette=[colors['goal'], colors['no-goal']], ax=axs[i], errorbar='se', err_kws={'lw': 0},
-                 legend=None)
-    axs[i].set(title=region, xlim=[-1, 2], ylabel='')
-sns.despine(trim=True)
-plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / f'pattern_ripples_obj1_{RIPPLE_DELAY}s_{CA1_COMPR}x.jpg', dpi=600)
-
-f, axs = plt.subplots(1, 6, figsize=(8, 2), dpi=dpi, sharey=False, sharex=True)
-axs = axs.flatten()
-plot_df = spikeship_df[spikeship_df['object'] == 2]
-for i, region in enumerate(plot_df['region'].unique()):
-    axs[i].plot([-1, 2], [0, 0], lw=0.5, ls='--')
-    sns.lineplot(data=plot_df[plot_df['region'] == region], x='time', y='contrast_bl', hue='goal', hue_order=[1, 0],
-                 palette=[colors['goal'], colors['no-goal']], ax=axs[i], errorbar='se', err_kws={'lw': 0},
-                 legend=None)
-    axs[i].set(title=region, xlim=[-1, 2], ylabel='')
-sns.despine(trim=True)
-plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / f'pattern_ripples_obj2_{RIPPLE_DELAY}s_{CA1_COMPR}x.jpg', dpi=600)
-
-plt.show()

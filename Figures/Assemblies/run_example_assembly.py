@@ -8,25 +8,29 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter1d
 from sklearn.decomposition import FastICA
 from msvr_functions import (paths, load_neural_data, load_objects,
-                            calculate_peths, figure_style)
+                            calculate_peths, figure_style, peri_event_trace)
 colors, dpi = figure_style()
 
 # Settings
 SUBJECT = '462910'
-DATE = '20240815'
-PROBE = 'probe00'
+DATE = '20240813'
+PROBE = 'probe01'
 REGION = 'CA1'
 BIN_SIZE = 0.05
-MIN_NEURONS = 5
-SMOOTHING_SIGMA = 1
-MP_THRESHOLD_SCALE = 1.5  # Scale factor for Marchenko-Pastur threshold (higher -> fewer assemblies)
+MP_THRESHOLD_SCALE = 1.2  # Scale factor for Marchenko-Pastur threshold (higher -> fewer assemblies)
+MEMBER_THRESHOLD_Z = 1  # z-score for assembly membership
+SMOOTHING = 1
 
 # Initialize
 path_dict = paths(sync=False)
 rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)
+ripples = pd.read_csv(path_dict['save_path'] / 'ripples.csv')
+ripples['subject'] = ripples['subject'].astype(str)
+ripples['date'] = ripples['date'].astype(str)
+these_ripples = ripples[(ripples['subject'] == SUBJECT) & (ripples['date'] == DATE)]
 
 # %% MAIN
 
@@ -93,71 +97,159 @@ for k in range(n_assemblies):
         assembly_patterns[:, k] *= -1
         activations[k, :] *= -1
 
-# Assembly activations (assemblies x timebins)
-assembly_activations = gaussian_filter(activations, [0, SMOOTHING_SIGMA])
+
+# %% Assign neurons to assemblies
+# A neuron is considered a member of an assembly if its weight is MEMBER_THRESHOLD_Z
+# standard deviations above the mean of all weights for that assembly.
+# We assign each neuron to only one assembly, the one where it has the highest z-scored weight.
+neuron_assembly_assignment = -1 * np.ones(n_neurons, dtype=int)  # -1 for no assembly
+z_assembly_patterns = np.zeros_like(assembly_patterns)
+for k in range(n_assemblies):
+    weights = assembly_patterns[:, k]
+    z_assembly_patterns[:, k] = (weights - np.mean(weights)) / np.std(weights)
+
+# For each neuron, find the assembly it has the max z-scored weight for
+max_z_assembly_idx = np.argmax(z_assembly_patterns, axis=1)
+
+for i in range(n_neurons):
+    assembly_idx = max_z_assembly_idx[i]
+    if z_assembly_patterns[i, assembly_idx] > MEMBER_THRESHOLD_Z:
+        neuron_assembly_assignment[i] = assembly_idx
+
+# Create an ordered list of neurons that are part of an assembly
+# Neurons are ordered by assembly, and within each assembly, by weight.
+ordered_neurons = np.array([], dtype=int)
+assembly_boundaries = [0]
+for k in range(n_assemblies):
+    # Get members of this assembly
+    members = np.where(neuron_assembly_assignment == k)[0]
+    if len(members) == 0:
+        assembly_boundaries.append(assembly_boundaries[-1])
+        continue
+
+    # Sort members by their weight in the assembly pattern
+    member_weights = assembly_patterns[members, k]
+    sorted_member_indices = np.argsort(member_weights)[::-1]
+    ordered_neurons = np.concatenate((ordered_neurons, members[sorted_member_indices]))
+    assembly_boundaries.append(len(ordered_neurons))
+
+print(f'Found {len(ordered_neurons)} neurons belonging to {n_assemblies} assemblies.')
+
 
 # %% Plotting
 
+# --- 1. Eigenvalue spectrum plot ---
+plot_n = 20
 f, ax = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
-ax.plot(np.arange(1, evals.shape[0]+1), evals)
-ax.plot([0, evals.shape[0]], [lambda_max, lambda_max], ls='--', color='red')
-ax.set(xlim=[0, 40], ylabel='Eigenvalue', xlabel='Principal component',
-       xticks=[1, 10, 20, 30, 40], yticks=[0, 2, 4, 6, 8])
+ax.plot(np.arange(1, plot_n+1), evals[:plot_n], marker='o')
+ax.plot([0, plot_n], [lambda_max, lambda_max], ls='--', color='red')
+ax.text(16, lambda_max + 1, 'MP threshold', color='red', ha='center')
+ax.plot([n_assemblies, n_assemblies], [0, lambda_max], ls='--', color='grey')
+ax.set(ylabel='Eigenvalue', xlabel='Component',
+       xticks=[1, n_assemblies, 10, 20], yticks=[0, np.ceil(evals[0])],
+       ylim=[0, np.ceil(evals[0])], xlim=[0.5, plot_n + 0.5])
+sns.despine(trim=True)
+plt.tight_layout()
+plt.savefig(path_dict['google_drive_fig_path'] / f'n_assemblies_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
+plt.show()
+
+# %% --- 2. Example assembly activation plot ---
+# Select a time window around an event
+t_center = these_ripples['start_times'].values[0]
+
+t_win = [-1, 1]  # seconds around t_center
+time_slice = (binned_time >= t_center + t_win[0]) & (binned_time <= t_center + t_win[1])
+plot_time = binned_time[time_slice]
+
+# Get the activity of the ordered neurons in this time window
+plot_z_spikes = z_spikes[ordered_neurons, :][:, time_slice]
+
+# Get the assembly activations in this time window
+plot_activations = activations[:, time_slice]
+
+# Define colors
+assembly_colors = sns.color_palette('tab10', n_assemblies)
+
+# Create figure
+f, axs = plt.subplots(2, 3, figsize=(4.5, 3.5), dpi=dpi,
+                      gridspec_kw={'height_ratios': [3, 1], 'width_ratios': [0.03, 1, 0.05], 'wspace': 0.05},
+                      sharex='col')
+(ax_assembly, ax1, cax), (ax_dummy, ax2, _) = axs
+ax_dummy.axis('off')
+axs[1, 2].axis('off')
+f.suptitle(f'{REGION} assemblies for {SUBJECT} on {DATE}')
+
+# Plot heatmap of neural activity
+im = ax1.imshow(plot_z_spikes, aspect='auto', cmap='coolwarm',
+                vmin=-2, vmax=2,  # clip z-scores for better visualization
+                extent=[plot_time[0], plot_time[-1], len(ordered_neurons), 0])
+ax1.set_ylabel('Neurons sorted by assembly membership', labelpad=15)
+ax1.set_yticks([])  # No y-ticks for individual neurons
+
+# Plot assembly identity bar
+ax_assembly.set_ylim(len(ordered_neurons), 0)
+ax_assembly.set_xlim(0, 1)
+ax_assembly.axis('off')
+for k in range(n_assemblies):
+    rect = plt.Rectangle((0, assembly_boundaries[k]), 1, assembly_boundaries[k+1]-assembly_boundaries[k],
+                         color=assembly_colors[k])
+    ax_assembly.add_patch(rect)
+
+# Add colorbar for heatmap
+cbar = f.colorbar(im, cax=cax, label='Z-scored activity', ticks=[-2, 0, 2])
+
+# Plot assembly activations
+for k in range(n_assemblies):
+    ax2.plot(plot_time, plot_activations[k, :], lw=1.5, label=f'Assembly {k+1}', color=assembly_colors[k])
+ax2.set_xlabel('Time from ripple onset (s)')
+ax2.set_ylabel('Assembly\nactivation')
+ax2.set(xticks=[t_center-1, t_center-0.5, t_center, t_center+0.5, t_center+1], xticklabels=[-1, -0.5, 0, 0.5, 1])
+
+# Add event marker
+ax1.axvline(x=t_center, color='white', linestyle='--')
+ax2.axvline(x=t_center, color='grey', linestyle='--')
+
+sns.despine(fig=f)
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.savefig(path_dict['google_drive_fig_path'] / f'assembly_activity_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
+plt.show()
+
+# %%
+
+plot_assembly = 4
+
+f, ax = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+peri_event_trace(activations[plot_assembly, :], binned_time, these_ripples['start_times'],
+                 np.ones(these_ripples.shape[0]), t_before=1, t_after=1, ax=ax,
+                 color_palette=[assembly_colors[plot_assembly]])
+ax.set(xticks=[-1, 0, 1], xlabel='Time from ripple start (s)', ylabel='Assembly activation', yticks=[0, 1, 2, 3, 4])
 
 sns.despine(trim=True)
 plt.tight_layout()
+plt.savefig(path_dict['google_drive_fig_path'] / f'assembly_example_ripple_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
+
+# Do some smoothing
+activations_smooth = gaussian_filter1d(activations, sigma=SMOOTHING, axis=1)
+
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.75*2, 1.75), dpi=dpi, sharey=True)
+
+peri_event_trace(activations_smooth[plot_assembly, :], binned_time,
+                 all_obj_df.loc[all_obj_df['object'] == 1, 'times'],
+                 all_obj_df.loc[all_obj_df['object'] == 1, 'goal'].values + 1,
+                 t_before=2, t_after=1, ax=ax1,
+                 color_palette=[colors['no-goal'], colors['goal']])
+ax1.set(xticks=np.arange(-2, 1.5), ylabel='Assembly activation', xlabel='', yticks=[-0.6, -0.1], ylim=[-0.6, -0.1],
+        title='Object 1')
+
+peri_event_trace(activations_smooth[plot_assembly, :], binned_time,
+                 all_obj_df.loc[all_obj_df['object'] == 2, 'times'],
+                 all_obj_df.loc[all_obj_df['object'] == 2, 'goal'].values + 1,
+                 t_before=2, t_after=1, ax=ax2,
+                 color_palette=[colors['no-goal'], colors['goal']])
+ax2.set(xticks=np.arange(-2, 1.5), xlabel='', title='Object 2')
+
+f.text(0.5, 0.04, 'Time from ripple start (s)', ha='center')
+sns.despine(trim=True)
+plt.subplots_adjust(left=0.15, right=0.98, top=0.85, bottom=0.21)
+plt.savefig(path_dict['google_drive_fig_path'] / f'assembly_example_hitmis_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
 plt.show()
-
-
-# %%
-# Get active cluster IDs
-active_clusters = np.array(region_neurons)[active_idx]
-
-for i in range(n_assemblies):
-    fig, ax = plt.subplots(3, 1, figsize=(5, 8), dpi=dpi)
-
-    # 1. Assembly weights
-    weights = assembly_patterns[:, i]
-    # Sort by weight
-    sort_idx = np.argsort(weights)
-    ax[0].stem(weights[sort_idx], basefmt=' ')
-    ax[0].set_ylabel('Weight')
-    ax[0].set_xlabel('Neuron (sorted)')
-    ax[0].set_title(f'Assembly {i+1}')
-
-    # Find a time window with high activation
-    act = assembly_activations[i, :]
-    peak_idx = np.argmax(act)
-    center_time = binned_time[peak_idx]
-    win = 2  # seconds
-
-    # 2. Raster plot of high-weight neurons
-    # Define high weight neurons (e.g., > 2 std)
-    thresh = np.mean(weights) + 2 * np.std(weights)
-    high_weight_indices = np.where(weights > thresh)[0]
-
-    # Sort these by weight
-    hw_weights = weights[high_weight_indices]
-    sorted_hw_indices = high_weight_indices[np.argsort(hw_weights)]
-
-    # Plot raster
-    for y, idx in enumerate(sorted_hw_indices):
-        cluster_id = active_clusters[idx]
-        st = spikes['times'][spikes['clusters'] == cluster_id]
-        st_win = st[(st >= center_time - win) & (st <= center_time + win)]
-        ax[1].vlines(st_win, y, y + 1, color='k')
-
-    ax[1].set_ylim(0, len(high_weight_indices))
-    ax[1].set_ylabel('Neurons (high weight)')
-    ax[1].set_xlim(center_time - win, center_time + win)
-    ax[1].set_xticks([])  # Share x with bottom
-
-    # 3. Activation
-    t_mask = (binned_time >= center_time - win) & (binned_time <= center_time + win)
-    ax[2].plot(binned_time[t_mask], act[t_mask])
-    ax[2].set_ylabel('Activation')
-    ax[2].set_xlabel('Time (s)')
-    ax[2].set_xlim(center_time - win, center_time + win)
-
-    plt.tight_layout()
-    plt.show()
