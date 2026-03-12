@@ -285,7 +285,7 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
             # Decode context per spatial bin and get decoding probabilities
             X = np.concatenate([X_soundA, X_soundB], axis=0)  # shape: (trials, neurons, bins)
             y = np.concatenate([np.zeros(X_soundA.shape[0]), np.ones(X_soundB.shape[0])]).astype(int)
-            asd
+
             # Get trial by trial decoding probabilities and subtract the mean to leave the residuals
             trial_probs = decode_context(X, y, clf)
             subtracted_probs = trial_probs - np.tile(np.mean(trial_probs, axis=0), (trial_probs.shape[0], 1))

@@ -149,10 +149,14 @@ axs = axs.flatten()
 plot_df = cca_df[(cca_df['event'] == 'obj1') | (cca_df['event'] == 'obj2') | (cca_df['event'] == 'obj3')]
 for i, region_pair in enumerate(plot_df['region_pair'].unique()):
     axs[i].plot([-1, 2], [0, 0], lw=0.5, ls='--')
+    if i == 0:
+        legend='brief'
+    else:
+        legend=None
     sns.lineplot(data=plot_df[plot_df['region_pair'] == region_pair], x='time', y='cca_bl', hue='event',
                  hue_order=['obj1', 'obj2', 'obj3'], palette=[colors['obj1'], colors['obj2'], colors['obj3']],
-                 ax=axs[i], errorbar='se', err_kws={'lw': 0}, legend=None)
-    axs[i].set(title=region_pair, xlim=[-1, 2])
+                 ax=axs[i], errorbar='se', err_kws={'lw': 0}, legend=legend)
+    axs[i].set(title=region_pair, xlim=[-1, 2], ylabel='')
 sns.despine(trim=True)
 plt.tight_layout()
 plt.show()
@@ -165,7 +169,7 @@ for i, region_pair in enumerate(plot_df['region_pair'].unique()):
     axs[i].plot([-1, 2], [0, 0], lw=0.5, ls='--')
     sns.lineplot(data=plot_df[plot_df['region_pair'] == region_pair], x='time', y='cca_bl',
                  ax=axs[i], errorbar='se', err_kws={'lw': 0})
-    axs[i].set(title=region_pair, xlim=[-1, 2])
+    axs[i].set(title=region_pair, xlim=[-1, 2], ylabel='')
 sns.despine(trim=True)
 plt.tight_layout()
 plt.show()

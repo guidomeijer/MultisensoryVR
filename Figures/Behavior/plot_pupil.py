@@ -63,13 +63,16 @@ for i, subject in enumerate(np.unique(rec['subject'])):
         timestamps = np.load(ses_path / 'camera.times.npy')
         all_obj_df = load_objects(subject, ses_path.stem)
     
-        # Correct for timestamps difference
-        timestamps = timestamps[:pupil_df.shape[0]]
-    
         # Transform into percentage
         perc_pupil = ((pupil_df['width_smooth'] - np.percentile(pupil_df['width_smooth'], 0.05))
                       / np.percentile(pupil_df['width_smooth'], 0.05)) * 100
-        
+
+        # Correct for timestamps difference
+        if timestamps.shape[0] > perc_pupil.shape[0]:
+            timestamps = timestamps[:perc_pupil.shape[0]]
+        else:
+            perc_pupil = perc_pupil[:timestamps.shape[0]]
+
         # Do it per object
         obj1_goal_df = event_aligned_averages(
             perc_pupil, timestamps,

@@ -872,7 +872,7 @@ def event_aligned_averages(signal, timestamps, events, timebins, baseline=None, 
 
         # Baseline normalization
         if baseline is not None:
-            baseline_start, baseline_end = baseline + event
+            baseline_start, baseline_end = np.asarray(baseline) + event
             baseline_mask = (timestamps >= baseline_start) & (timestamps < baseline_end)
             if np.any(baseline_mask):
                 baseline_mean = np.mean(signal[baseline_mask])
@@ -893,6 +893,91 @@ def event_aligned_averages(signal, timestamps, events, timebins, baseline=None, 
 
     else:
         return averages
+
+
+def event_aligned_trace(signal, timestamps, events, t_before, t_after, baseline=None, fs=None):
+    """
+    Aligns a continuous signal to events and computes the average trace across events.
+    Does not bin the signal but extracts samples based on the sampling rate.
+
+    Parameters:
+    -----------
+    signal : numpy.ndarray
+        1D array of signal values.
+    timestamps : numpy.ndarray
+        1D array of timestamps corresponding to the signal values.
+    events : numpy.ndarray
+        1D array of event timestamps.
+    t_before : float
+        Time in seconds to include before the event.
+    t_after : float
+        Time in seconds to include after the event.
+    baseline : numpy.ndarray, optional
+        A two-element array [start, end] defining the time period relative to each event
+        to use for baseline normalization. If None, no baseline normalization is performed.
+    fs : float, optional
+        Sampling frequency of the signal. If None, it is estimated from timestamps.
+
+    Returns:
+    --------
+    avg_trace : numpy.ndarray
+        1D array containing the average signal trace across all events.
+    """
+    if fs is None:
+        fs = 1 / np.mean(np.diff(timestamps))
+
+    n_pre = int(np.round(t_before * fs))
+    n_post = int(np.round(t_after * fs))
+
+    traces = []
+
+    for event in events:
+        # Find the index of the event in the timestamps
+        idx = np.searchsorted(timestamps, event)
+
+        # Handle edge cases where searchsorted returns an index out of bounds or slightly off
+        if idx >= len(timestamps):
+            idx = len(timestamps) - 1
+        elif idx > 0:
+            # Check which timestamp is closer
+            if np.abs(timestamps[idx-1] - event) < np.abs(timestamps[idx] - event):
+                idx -= 1
+
+        start_idx = idx - n_pre
+        end_idx = idx + n_post + 1
+
+        if start_idx >= 0 and end_idx <= len(signal):
+            trace = signal[start_idx:end_idx]
+
+            # Baseline normalization
+            if baseline is not None:
+                # Calculate baseline indices relative to the trace start
+                # baseline is [start, end] relative to event (e.g. [-0.5, -0.1])
+                # event is at index n_pre in the trace
+
+                bl_start_sec = baseline[0]
+                bl_end_sec = baseline[1]
+
+                bl_start_idx = n_pre + int(np.round(bl_start_sec * fs))
+                bl_end_idx = n_pre + int(np.round(bl_end_sec * fs))
+
+                # Ensure indices are within bounds of the trace
+                bl_start_idx = max(0, bl_start_idx)
+                bl_end_idx = min(len(trace), bl_end_idx)
+
+                if bl_end_idx > bl_start_idx:
+                    baseline_val = np.mean(trace[bl_start_idx:bl_end_idx])
+                    trace = trace - baseline_val
+
+            traces.append(trace)
+
+    if len(traces) == 0:
+        return np.array([])
+
+    traces = np.array(traces)
+    avg_trace = np.mean(traces, axis=0)
+
+    return avg_trace
 
 
 def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, t_after=3,

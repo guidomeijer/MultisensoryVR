@@ -83,7 +83,7 @@ for obj in ['object1', 'object2', 'object3']:
         G.add_edge(row['region1'], row['region2'], weight=row['f_stat'])
 
     # Add all expected nodes explicitly to ensure isolated ones are included
-    node_order = ['VIS', 'AUD', 'TEa', 'PERI 36', 'PERI 35', 'LEC', 'CA1']
+    node_order = ['VIS', 'AUD', 'TEa', 'PERI', 'LEC', 'CA1']
     G.add_nodes_from(node_order)
 
     # Layout
