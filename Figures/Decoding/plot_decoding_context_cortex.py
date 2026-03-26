@@ -1,0 +1,91 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Mar 12 13:27:02 2025
+
+By Guido Meijer
+"""
+
+
+import numpy as np
+import pandas as pd
+from os.path import join
+import seaborn as sns
+from scipy import stats
+import matplotlib.pyplot as plt
+from msvr_functions import paths, load_subjects, figure_style, add_significance
+colors, dpi = figure_style()
+
+# Load in data
+path_dict = paths()
+subjects = load_subjects()
+context_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_GLM_position_subsampled_cortex.csv'))
+context_df['region'] = context_df['region'].astype(str)
+
+
+def run_ttest(df):
+    """
+    Runs an independent samples t-test between 'Cortex' and 'CA1' regions.
+    """
+    cortex_acc = df.loc[df['region'] == 'Cortex', 'accuracy']
+    ca1_acc = df.loc[df['region'] == 'CA1', 'accuracy']
+    
+    if len(cortex_acc) < 2 or len(ca1_acc) < 2:
+        return pd.Series([np.nan], index=['pvalue'])
+    
+    _, pvalue = stats.ttest_ind(cortex_acc, ca1_acc)
+    return pd.Series([pvalue], index=['pvalue'])
+
+
+# %%
+
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.75 * 2, 1.75), dpi=dpi, sharey=True)
+
+# Do statistics
+this_df = context_df[np.isin(context_df['subject'].values,
+                     subjects.loc[subjects['Far'] == 0, 'SubjectID'].values.astype(int))]
+results_df = this_df.groupby('position').apply(run_ttest).reset_index()
+p_values = results_df['pvalue'].values
+
+# Plot
+sns.lineplot(this_df, x='position', y='accuracy', hue='region', errorbar='se',
+             ax=ax1, err_kws={'lw': 0}, legend=None, zorder=1,
+             hue_order=['Cortex', 'CA1'], palette=[colors['PERI'], colors['CA1']])
+ax1.plot([0, 1500], [0.5, 0.5], ls='--', color='grey', zorder=0)
+ax1.plot([450, 450], [0.3, 0.9], ls='--', color='grey', zorder=0, lw=0.5)
+ax1.plot([900, 900], [0.3, 0.9], ls='--', color='grey', zorder=0, lw=0.5)
+add_significance(results_df['position'].values, p_values, ax1, y_pos=0.875, alpha=0.05)
+ax1.set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
+       yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90],
+       ylim=[0.3, 0.9], xlabel='', ylabel='', title='Near')
+
+# Do statistics
+this_df = context_df[np.isin(context_df['subject'].values,
+                     subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
+results_df = this_df.groupby('position').apply(run_ttest).reset_index()
+p_values = results_df['pvalue'].values
+
+# Plot
+sns.lineplot(this_df, x='position', y='accuracy', hue='region', errorbar='se',
+             ax=ax2, err_kws={'lw': 0}, legend='brief', zorder=1,
+             hue_order=['Cortex', 'CA1'], palette=[colors['PERI'], colors['CA1']])
+ax2.plot([0, 1500], [0.5, 0.5], ls='--', color='grey', zorder=0)
+ax2.plot([450, 450], [0.3, 0.9], ls='--', color='grey', zorder=0, lw=0.5)
+ax2.plot([1350, 1350], [0.3, 0.9], ls='--', color='grey', zorder=0, lw=0.5)
+add_significance(results_df['position'].values, p_values, ax2, y_pos=0.875, alpha=0.05)
+ax2.set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
+       yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90],
+       ylim=[0.3, 0.9], xlabel='', ylabel='', title='Far')
+ax2.legend(title='', bbox_to_anchor=(0.38, 0.3))
+
+f.text(0.5, 0.04, 'Position (cm)', ha='center')
+f.text(0.06, 0.5, 'Context decoding accuracy (%)', ha='center', va='center', rotation='vertical')
+plt.subplots_adjust(left=0.15, bottom=0.2, right=0.98, top=0.9, wspace=0, hspace=0.2)
+sns.despine(trim=True)
+
+ax2.spines['left'].set_visible(False)
+ax2.yaxis.set_ticks_position('none')
+ax2.tick_params(labelleft=False)
+
+plt.savefig(join(path_dict['google_drive_fig_path'], 'decode_context_GLM_cortex.pdf'))
+plt.savefig(join(path_dict['google_drive_fig_path'], 'decode_context_GLM_cortex.jpg'), dpi=600)
+plt.show()

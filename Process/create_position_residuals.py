@@ -18,7 +18,7 @@ from msvr_functions import paths, load_neural_data, load_objects, bin_signal
 BIN_SIZE = 50  # mm
 STEP_SIZE = 10
 MIN_TRIALS = 0
-MIN_SPEED = 50  # mm/s
+MIN_SPEED = 0  # mm/s
 N_CORES = 18
 OVERWRITE = True
 
@@ -213,7 +213,7 @@ if __name__ == '__main__':
             'probe': []
             }
     else:
-        with open(path_dict['google_drive_data_path'] / 'residuals_position.pickle', 'rb') as handle:
+        with open(path_dict['google_drive_data_path'] / f'residuals_position_motor.pickle', 'rb') as handle:
             residuals_dict = pickle.load(handle)
         match_cols = ['subject', 'date', 'probe']
         res_df = pd.DataFrame({c: residuals_dict[c] for c in match_cols}).astype(str)
@@ -235,6 +235,6 @@ if __name__ == '__main__':
                 residuals_dict[key].append(result[key])
         
     # Save to disk
-    with open(path_dict['google_drive_data_path'] / f'residuals_position_{MIN_SPEED}mms.pickle', 'wb') as handle:
+    with open(path_dict['google_drive_data_path'] / f'residuals_position_motor.pickle', 'wb') as handle:
         pickle.dump(residuals_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
