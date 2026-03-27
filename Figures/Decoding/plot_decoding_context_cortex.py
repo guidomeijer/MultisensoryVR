@@ -86,6 +86,6 @@ ax2.spines['left'].set_visible(False)
 ax2.yaxis.set_ticks_position('none')
 ax2.tick_params(labelleft=False)
 
-plt.savefig(join(path_dict['google_drive_fig_path'], 'decode_context_GLM_cortex.pdf'))
-plt.savefig(join(path_dict['google_drive_fig_path'], 'decode_context_GLM_cortex.jpg'), dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Decoding' / 'decode_context_GLM_cortex.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'Decoding' /'decode_context_GLM_cortex.jpg', dpi=600)
 plt.show()

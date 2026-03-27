@@ -90,78 +90,79 @@ print(region_summary)
 
 
 # %%
-f, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(1, 5, figsize=(1.6*5, 2), dpi=dpi, sharey=False)
+use_xlim = [-0.7, 5.5]
+f, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(1, 5, figsize=(1.1*5, 2), dpi=dpi, sharey=False)
 
 this_order = per_ses_df[['region', 'perc_obj_onset']].groupby('region').mean().sort_values(
     'perc_obj_onset', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_obj_onset', ax=ax1, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax1.plot(ax1.get_xlim(), [obj_onset_chance, obj_onset_chance], ls='--', color='lightgrey',
+ax1.plot(use_xlim, [obj_onset_chance, obj_onset_chance], ls='--', color='lightgrey',
          lw=0.75)
 ax1.set(ylabel='Significant neurons (%)',  yticks=[0, 20, 40, 60, 80], xlabel='',
-        title='Object modulation', ylim=[0, 80])
+        title='Object modulation', ylim=[0, 80], xlim=use_xlim)
 ax1.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_obj1']].groupby('region').mean().sort_values(
     'perc_context_obj1', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_context_obj1', ax=ax2, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax2.plot(ax1.get_xlim(), [context_obj1_chance, context_obj1_chance], ls='--', color='lightgrey',
+ax2.plot(use_xlim, [context_obj1_chance, context_obj1_chance], ls='--', color='lightgrey',
          lw=0.75)
 #ax2.set(xlabel='', title='Context first landmark', yticks=[0, 1, 2, 3, 4, 5, 6], ylim=[0, 6], ylabel='')
-ax2.set(xlabel='', title='Context modulation (first object)', yticks=[0, 5, 10, 15], ylim=[0, 15], ylabel='')
+ax2.set(xlabel='', title='Rewarded object 1', yticks=[0, 5, 10, 15], ylim=[0, 16], ylabel='', xlim=use_xlim)
 ax2.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_obj2']].groupby('region').mean().sort_values(
     'perc_context_obj2', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_context_obj2', ax=ax3, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax3.plot(ax1.get_xlim(), [context_obj2_chance, context_obj2_chance], ls='--', color='lightgrey',
+ax3.plot(use_xlim, [context_obj2_chance, context_obj2_chance], ls='--', color='lightgrey',
          lw=0.75)
-ax3.set(xlabel='', title='Context modulation (second object)', yticks=[0, 5, 10, 15], ylim=[0, 15], ylabel='')
+ax3.set(xlabel='', title='Rewarded object 2', yticks=[0, 5, 10, 15], ylim=[0, 16], ylabel='', xlim=use_xlim)
 ax3.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_diff']].groupby('region').mean().sort_values(
     'perc_context_diff', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_context_diff', ax=ax4, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax4.plot(ax1.get_xlim(), [context_onset_chance, context_onset_chance], ls='--', color='lightgrey',
+ax4.plot(use_xlim, [context_onset_chance, context_onset_chance], ls='--', color='lightgrey',
          lw=0.75)
-ax4.set(xlabel='', title='Sound identity', yticks=[0, 5, 10], ylim=[0, 10], ylabel='')
+ax4.set(xlabel='', title='Sound identity', yticks=[0, 5, 10], ylim=[0, 10], ylabel='', xlim=use_xlim)
 ax4.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_reward']].groupby('region').mean().sort_values(
     'perc_reward', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_reward', ax=ax5, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax5.plot(ax1.get_xlim(), [reward_chance, reward_chance], ls='--', color='lightgrey',
+ax5.plot(use_xlim, [reward_chance, reward_chance], ls='--', color='lightgrey',
          lw=0.75)
-ax5.set(xlabel='', title='Outcome modulation', yticks=[0, 10, 20, 30, 40, 50, 60], ylim=[0, 60], ylabel='')
+ax5.set(xlabel='', title='Outcome modulation', yticks=[0, 10, 20, 30, 40, 50, 60], ylim=[0, 63], ylabel='',
+        xlim=use_xlim)
 ax5.tick_params(axis='x', labelrotation=90)
 
 sns.despine(trim=False)
 plt.tight_layout()
 plt.show(block=False)
 
-plt.savefig(path_dict['google_drive_paper_path'] / 'SingleNeurons' / 'perc_sig_neurons.jpg', dpi=600)
-plt.savefig(path_dict['google_drive_paper_path'] / 'SingleNeurons' / 'perc_sig_neurons.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'perc_sig_neurons.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'perc_sig_neurons.pdf')
 
 
 # %%
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(2.5, 1.75), dpi=dpi)
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(2.3, 1.75), dpi=dpi)
 ax1.bar(region_summary.index, region_summary['sum'], color='grey')
 ax1.tick_params(axis='x', labelrotation=90)
-ax1.set(ylabel='Total number of neurons')
+ax1.set_ylabel('Total number of neurons', labelpad=1)
 
 ax2.bar(region_summary.index, region_summary['mean'], yerr=region_summary['sem'],
         color='grey')
 ax2.tick_params(axis='x', labelrotation=90)
-ax2.set(ylabel='Simultaneously recorded')
+ax2.set_ylabel('Simultaneously recorded', labelpad=1)
 
 sns.despine(trim=False)
-plt.tight_layout()
+plt.tight_layout(w_pad=0.8)
+
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'n_neurons.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'n_neurons.pdf')
 plt.show()
-
-plt.savefig(path_dict['google_drive_paper_path'] / 'SingleNeurons' / 'n_neurons.jpg', dpi=600)
-plt.savefig(path_dict['google_drive_paper_path'] / 'SingleNeurons' / 'n_neurons.pdf')
-

@@ -77,11 +77,11 @@ ax.plot([135, 135], ax.get_ylim(), ls='--', color='grey', lw=0.75)
 ax.yaxis.set_label_coords(-0.175, 0.75)
 
 plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / 'Example neurons' / 'position_VIS.pdf')
-plt.savefig(path_dict['google_drive_fig_path'] / 'Example neurons' / 'position_VIS.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'position_VIS.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'position_VIS.jpg', dpi=600)
 
-# Plot centered on object
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(4, 2), dpi=dpi, sharey=True)
+# %% Plot centered on object
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(2.8, 2), dpi=dpi, sharey=True)
 
 peri_multiple_events_time_histogram(
     spikes_dist, clusters_dist,
@@ -94,9 +94,9 @@ peri_multiple_events_time_histogram(
                    {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax1.set(title='Rewarded object 1', ylabel='Firing rate (spks/cm)', yticks=[0, 1],
+ax1.set(title='Rew. object 1', ylabel='Firing rate (spks/cm)', yticks=[0, 1],
         xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
-ax1.yaxis.set_label_coords(-0.3, 0.75)
+ax1.yaxis.set_label_coords(-0.25, 0.75)
 ax1.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
 peri_multiple_events_time_histogram(
@@ -110,7 +110,7 @@ peri_multiple_events_time_histogram(
                    {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax2.set(title='Rewarded object 2', yticks=[0, 1], ylabel='',
+ax2.set(title='Rew. object 2', yticks=[0, 1], ylabel='',
         xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
 ax2.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
@@ -129,9 +129,9 @@ ax3.set(title='Control object', yticks=[0, 1], ylabel='',
 ax3.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
 f.text(0.5, 0.05, 'Distance from object entry (s)', ha='center')
-plt.subplots_adjust(bottom=0.2, top=0.8)
-plt.savefig(path_dict['google_drive_fig_path'] / 'Example neurons' / 'objects_VIS.pdf')
-plt.savefig(path_dict['google_drive_fig_path'] / 'Example neurons' / 'objects_VIS.jpg', dpi=600)
+plt.subplots_adjust(bottom=0.2, top=0.85, left=0.11, right=0.97)
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'objects_VIS.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'objects_VIS.jpg', dpi=600)
 plt.show()
 
 # %% Expectation neuron
@@ -162,7 +162,7 @@ spikes_dist = spikes_dist / 10
 trials['enterEnvPos'] = trials['enterEnvPos'] / 10
 all_obj_df['distances'] = all_obj_df['distances'] / 10
 
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(4, 2), dpi=dpi, sharey=True)
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(2.8, 2), dpi=dpi, sharey=True)
         
 peri_multiple_events_time_histogram(
     spikes_dist, clusters_dist, 
@@ -174,9 +174,9 @@ peri_multiple_events_time_histogram(
     errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax1.set(title='Rewarded object 1', ylabel='Firing rate (spks/cm)', yticks=[0, 1],
+ax1.set(title='Rew. object 1', ylabel='Firing rate (spks/cm)', yticks=[0, 1],
         xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
-ax1.yaxis.set_label_coords(-0.3, 0.75)
+ax1.yaxis.set_label_coords(-0.25, 0.75)
 ax1.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
     
 peri_multiple_events_time_histogram(
@@ -189,7 +189,7 @@ peri_multiple_events_time_histogram(
     errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax2.set(title='Rewarded object 2', yticks=[0, 1], ylabel='',
+ax2.set(title='Rew. object 2', yticks=[0, 1], ylabel='',
         xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
 ax2.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
     
@@ -208,9 +208,9 @@ ax3.set(title='Control object', yticks=[0, 1], ylabel='',
 ax3.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
 f.text(0.5, 0.05, 'Distance from object entry (s)', ha='center')
-plt.subplots_adjust(bottom=0.2, top=0.8)
-plt.savefig(path_dict['google_drive_fig_path'] / 'Example neurons' / 'expectation_PERI36.pdf')
-plt.savefig(path_dict['google_drive_fig_path'] / 'Example neurons' / 'expectation_PERI36.jpg', dpi=600)
+plt.subplots_adjust(bottom=0.2, top=0.85, left=0.11, right=0.97)
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'expectation_PERI36.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'expectation_PERI36.jpg', dpi=600)
 plt.show()
 
 # %% outcome neuron
@@ -242,7 +242,7 @@ trials['enterEnvPos'] = trials['enterEnvPos'] / 10
 all_obj_df['distances'] = all_obj_df['distances'] / 10
 
 # Plot
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(4, 2), dpi=dpi, sharey=True)
+f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(3, 2), dpi=dpi, sharey=True)
         
 peri_multiple_events_time_histogram(
     spikes_dist, clusters_dist, 
@@ -254,7 +254,7 @@ peri_multiple_events_time_histogram(
     errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax1.set(title='Rewarded object 1', ylabel='Firing rate (spks/cm)', yticks=[0, 1],
+ax1.set(title='Rew. object 1', ylabel='Firing rate (spks/cm)', yticks=[0, 1],
         xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
 ax1.yaxis.set_label_coords(-0.3, 0.75)
 ax1.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
@@ -269,7 +269,7 @@ peri_multiple_events_time_histogram(
     errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax2.set(title='Rewarded object 2', yticks=[0, 1], ylabel='',
+ax2.set(title='Rew. object 2', yticks=[0, 1], ylabel='',
         xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
 ax2.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
     
@@ -288,7 +288,47 @@ ax3.set(title='Control object', yticks=[0, 1], ylabel='',
 ax3.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
 f.text(0.5, 0.05, 'Distance from object entry (s)', ha='center')
-plt.subplots_adjust(bottom=0.2, top=0.8)
-plt.savefig(path_dict['google_drive_fig_path'] / 'Example neurons' / 'outcome_TEa.pdf')
-plt.savefig(path_dict['google_drive_fig_path'] / 'Example neurons' / 'outcome_TEa.jpg', dpi=600)
+plt.subplots_adjust(bottom=0.2, top=0.85)
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'outcome_TEa_w_control.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'outcome_TEa_w_control.jpg', dpi=600)
+plt.show()
+
+# %% Plot without control
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.9, 2), dpi=dpi, sharey=True)
+
+peri_multiple_events_time_histogram(
+    spikes_dist, clusters_dist,
+    all_obj_df.loc[all_obj_df['object'] == 1, 'distances'],
+    all_obj_df.loc[all_obj_df['object'] == 1, 'goal'],
+    [neuron_id], t_before=D_BEFORE_OBJ, t_after=D_AFTER_OBJ, bin_size=D_BIN_SIZE, ax=ax1,
+    smoothing=D_SMOOTHING, ylim=1,
+    pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}],
+    errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0},
+                   {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
+    raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
+    eventline_kwargs={'lw': 0}, include_raster=True)
+ax1.set(title='Rew. object 1', yticks=[0, 1], xlabel='', ylabel='Firing rate (spks/cm)',
+        xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
+ax1.yaxis.set_label_coords(-0.25, 0.75)
+ax1.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+
+peri_multiple_events_time_histogram(
+    spikes_dist, clusters_dist,
+    all_obj_df.loc[all_obj_df['object'] == 2, 'distances'],
+    all_obj_df.loc[all_obj_df['object'] == 2, 'goal'],
+    [neuron_id], t_before=D_BEFORE_OBJ, t_after=D_AFTER_OBJ, bin_size=D_BIN_SIZE, ax=ax2,
+    smoothing=D_SMOOTHING, ylim=1,
+    pethline_kwargs=[{'color': colors['goal'], 'lw': 1}, {'color': colors['no-goal'], 'lw': 1}],
+    errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0},
+                   {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
+    raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
+    eventline_kwargs={'lw': 0}, include_raster=True)
+ax2.set(title='Rew. object 2', yticks=[0, 1], ylabel='',
+        xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
+ax2.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+
+f.text(0.6, 0.05, 'Distance from object entry (s)', ha='center')
+plt.subplots_adjust(bottom=0.2, top=0.85, left=0.16, right=0.97)
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'outcome_TEa.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'outcome_TEa.jpg', dpi=600)
 plt.show()

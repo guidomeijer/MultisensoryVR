@@ -8,9 +8,6 @@ By Guido Meijer
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import os
-import datetime
-from os.path import join, isfile
 import pandas as pd
 from msvr_functions import (load_subjects, paths, figure_style, event_aligned_averages, load_objects)
 
@@ -34,7 +31,7 @@ bin_edges = np.round(np.arange(-T_BEFORE, T_AFTER + (BIN_SIZE/2), step=BIN_SIZE)
 time_ax = bin_edges[:-1] + (BIN_SIZE/2)
 
 # Load in recording sessions
-rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
+rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)
 subject = '466395'
 both_obj_df, obj1_df, obj2_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
     
@@ -49,9 +46,9 @@ for j, date in enumerate(sub_rec['date']):
     control_obj = subjects.loc[subjects['SubjectID'] == subject, "ControlObject"].values[0]    
    
     # Load in data
-    trials = pd.read_csv(join(data_path, 'Subjects', subject, date, 'trials.csv'))
-    wheel_times = np.load(join(data_path, 'Subjects', subject, date, 'continuous.times.npy'))
-    wheel_speed = np.load(join(data_path, 'Subjects', subject, date, 'continuous.wheelSpeed.npy'))
+    trials = pd.read_csv(data_path / 'Subjects' / subject / date / 'trials.csv')
+    wheel_times = np.load(data_path / 'Subjects' / subject / date / 'continuous.times.npy')
+    wheel_speed = np.load(data_path / 'Subjects' / subject / date / 'continuous.wheelSpeed.npy')
     all_obj_df = load_objects(subject, date)
 
     # Convert to cm/s and downsample
@@ -108,18 +105,18 @@ for j, date in enumerate(sub_rec['date']):
 
 # %%
 
-f, axs = plt.subplots(1, 2, figsize=(1.75 * 2, 1.75), dpi=dpi, sharey=True)
+f, axs = plt.subplots(1, 2, figsize=(3.2, 1.75), dpi=dpi, sharey=True)
 
 sns.lineplot(data=obj1_df[obj1_df['subject'] == subject], x='time', y='value', hue='goal',
              ax=axs[0], hue_order=[1, 0], palette=[colors['goal'], colors['no-goal']],
              errorbar='se', err_kws={'lw': 0}, legend=None)
 axs[0].set(ylabel='Running speed (cm/s)', xlabel='',
-           title='First object', xticks=[-2, -1, 0, 1, 2, 3], yticks=[5, 10, 15, 20])
+           title='Rewarded object 1', xticks=[-2, -1, 0, 1, 2, 3], yticks=[5, 10, 15, 20])
 
 sns.lineplot(data=obj2_df[obj2_df['subject'] == subject], x='time', y='value', hue='goal',
              ax=axs[1], hue_order=[1, 0], palette=[colors['goal'], colors['no-goal']],
              errorbar='se', err_kws={'lw': 0})
-axs[1].set(title='Second object', xticks=[-2, -1, 0, 1, 2, 3], yticks=[5, 10, 15, 20], xlabel='')
+axs[1].set(title='Rewarded object 2', xticks=[-2, -1, 0, 1, 2, 3], yticks=[5, 10, 15, 20], xlabel='')
 handles, previous_labels = axs[1].get_legend_handles_labels()
 axs[1].legend(handles=handles, labels=['Reward', 'No Reward'], title='', bbox_to_anchor=[0.5, 0.7])
 
@@ -129,4 +126,5 @@ f.text(0.5, 0.05, 'Time from object entry (s)', ha='center')
 sns.despine(trim=True)
 plt.subplots_adjust(bottom=0.22, top=0.85)
 
-plt.savefig(join(path_dict['google_drive_fig_path'], 'example_mouse_running.pdf'))
+plt.savefig(path_dict['paper_fig_path'] / 'Behavior' / 'example_mouse_running.pdf')
+plt.show()
