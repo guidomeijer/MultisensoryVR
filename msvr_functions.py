@@ -981,7 +981,8 @@ def event_aligned_trace(signal, timestamps, events, t_before, t_after, baseline=
 
 
 def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, t_after=3,
-                     event_labels=None, color_palette='colorblind', ind_lines=False, kwargs={}):
+                     event_labels=None, color_palette='colorblind', ind_lines=False, return_df=True,
+                     kwargs={}):
     """
     Plots a peri-event time trace of a continuous signal aligned to specific events.
 
@@ -1055,9 +1056,10 @@ def peri_event_trace(array, timestamps, event_times, event_ids, ax, t_before=1, 
         for t, l in zip(g.texts, event_labels):
             t.set_text(l)
 
-    # sns.despine(trim=True)
-    # plt.tight_layout()
-
+    if return_df:
+        return plot_df
+    else:
+        return None
 
 def get_spike_counts_in_bins(spike_times, spike_clusters, intervals):
     """

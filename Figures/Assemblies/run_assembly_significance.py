@@ -8,6 +8,7 @@ Date: 20/02/2026
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from scipy.ndimage import gaussian_filter1d
 from joblib import Parallel, delayed
 import matplotlib
 matplotlib.use('Agg')
@@ -66,6 +67,10 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
             activation_rate = amplitudes[this_region]
             time_ax = times[this_region]
             n_assemblies = activation_rate.shape[0]
+
+            # Smooth traces
+            if SMOOTHING > 0:
+                activation_rate = gaussian_filter1d(activation_rate, SMOOTHING, axis=1)
 
             # Find patterns that encode reward prediction
             p_obj1, p_obj2 = np.empty(n_assemblies), np.empty(n_assemblies)
@@ -170,16 +175,20 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                 np.save(path_dict['google_drive_data_path'] / 'RippleAssemblies' / f'{subject}_{date}_{probe}_{this_region}_time.npy',
                         rel_ripple_time)
 
-                if PLOT & (n_assemblies > 1):
+                if PLOT:
                     # Plot
                     f, axs = plt.subplots(1, n_assemblies, figsize=(3 * activation_rate.shape[0], 3),
                                           dpi=dpi)
+                    if len(axs) == 1:
+                        axs = [axs]
                     for pp in range(activation_rate.shape[0]):
-                        peri_event_trace(activation_rate[pp, :], time_ax, these_ripples_sess['start_times'],
-                                         np.ones(these_ripples_sess.shape[0]),
-                                         t_before=1, t_after=1, ax=axs[pp])
+                        ripple_df = peri_event_trace(activation_rate[pp, :], time_ax, these_ripples_sess['start_times'],
+                                                     np.ones(these_ripples_sess.shape[0]),
+                                                     t_before=1, t_after=1, ax=axs[pp], return_df=True)
                         axs[pp].set(xticks=[-1, 0, 1], xlabel='', ylabel='',
                                     title=f'p={np.round(p_ripples[pp], 2)}, amp={np.round(amp_ripples[pp], 2)}')
+                        print(ripple_df)
+                        asd
                     sns.despine(trim=True)
                     plt.tight_layout()
                     plt.savefig(path_dict['google_drive_fig_path'] / 'Assemblies'

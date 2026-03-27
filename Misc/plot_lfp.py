@@ -12,7 +12,7 @@ from pathlib import Path
 import spikeinterface.full as si
 
 # Settings
-SES_PATH = Path(r'V:\imaging1\guido\Subjects\466396\20241031\probe01')
+SES_PATH = Path(r'U:\imaging1\guido\Subjects\466396\20241031\probe01')
 PLOT_SHANK = 1
 
 # Load in LFP data

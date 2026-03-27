@@ -12,7 +12,6 @@ import seaborn as sns
 from scipy import stats
 import matplotlib.pyplot as plt
 from msvr_functions import paths, figure_style
-
 colors, dpi = figure_style()
 
 # Load in data
@@ -25,7 +24,7 @@ assembly_df['ripple_sig'] = assembly_df['p_ripples'] < 0.05
 assembly_df['obj1_sig'] = assembly_df['p_obj1'] < 0.05
 assembly_df['obj2_sig'] = assembly_df['p_obj2'] < 0.05
 
-f, axs = plt.subplots(2, len(regions), figsize=(1.75 * len(regions), 3.5), dpi=dpi)
+p_val_df = pd.DataFrame(index=regions, columns=['obj1', 'obj2'])
 
 for i, region in enumerate(regions):
     region_df = assembly_df[assembly_df['region'] == region]
@@ -37,7 +36,6 @@ for i, region in enumerate(regions):
 
     for j, obj in enumerate(['obj1', 'obj2']):
         n_overlap = np.sum(region_df['ripple_sig'] & region_df[f'{obj}_sig'])
-        obs_pct = (n_overlap / n_ripple) * 100
 
         # Permutation test
         n_shuffles = 10000
@@ -50,18 +48,15 @@ for i, region in enumerate(regions):
 
         # Calculate p-value
         p_value = (np.sum(shuffled_overlap >= n_overlap) + 1) / (n_shuffles + 1)
+        p_val_df.loc[region, obj] = p_value
 
-        # Plot results
-        ax = axs[j, i]
-        ax.hist(shuffled_overlap / n_ripple * 100, bins=20, color='grey')
-        ax.axvline(obs_pct, color='r', linestyle='--')
-        if j == 0:
-            ax.set(title=f'{region}\n{obj}\np = {p_value:.3f}')
-        else:
-            ax.set(title=f'{obj}\np = {p_value:.3f}')
-        ax.set(xlabel=f'% Ripple assemblies\nmodulated by {obj}', ylabel='Count')
+# %% Plot
+f, ax = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+sns.heatmap(p_val_df.astype(float), annot=True, fmt='.3f', cmap='magma_r', vmin=0, vmax=1, ax=ax,
+            cbar_kws={'label': 'p-value'})
+ax.set(ylabel='', xlabel='', xticks=[0.5, 1.5], xticklabels=['Object 1', 'Object 2'])
+ax.tick_params(axis='y', labelrotation=0)
 
 plt.tight_layout()
-sns.despine(trim=True)
 plt.show()
 plt.savefig(join(path_dict['google_drive_fig_path'], 'ripple_obj_overlap.pdf'))
