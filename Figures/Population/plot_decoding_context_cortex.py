@@ -22,18 +22,18 @@ context_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_GLM_positi
 context_df['region'] = context_df['region'].astype(str)
 
 
-def run_ttest(df):
+def run_ttest_chance(df):
     """
-    Runs an independent samples t-test between 'Cortex' and 'CA1' regions.
+    Runs a one-sample t-test against chance (0.5) for Cortex and CA1.
     """
     cortex_acc = df.loc[df['region'] == 'Cortex', 'accuracy']
     ca1_acc = df.loc[df['region'] == 'CA1', 'accuracy']
-    
-    if len(cortex_acc) < 2 or len(ca1_acc) < 2:
-        return pd.Series([np.nan], index=['pvalue'])
-    
-    _, pvalue = stats.ttest_ind(cortex_acc, ca1_acc)
-    return pd.Series([pvalue], index=['pvalue'])
+
+    # Test against 0.5 chance level
+    p_cortex = stats.ttest_1samp(cortex_acc, 0.5)[1] if len(cortex_acc) > 1 else np.nan
+    p_ca1 = stats.ttest_1samp(ca1_acc, 0.5)[1] if len(ca1_acc) > 1 else np.nan
+
+    return pd.Series([p_cortex, p_ca1], index=['p_cortex', 'p_ca1'])
 
 
 # %%
@@ -43,8 +43,7 @@ f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.75 * 2, 1.75), dpi=dpi, sharey=Tru
 # Do statistics
 this_df = context_df[np.isin(context_df['subject'].values,
                      subjects.loc[subjects['Far'] == 0, 'SubjectID'].values.astype(int))]
-results_df = this_df.groupby('position').apply(run_ttest).reset_index()
-p_values = results_df['pvalue'].values
+results_df = this_df.groupby('position').apply(run_ttest_chance).reset_index()
 
 # Plot
 sns.lineplot(this_df, x='position', y='accuracy', hue='region', errorbar='se',
@@ -53,7 +52,8 @@ sns.lineplot(this_df, x='position', y='accuracy', hue='region', errorbar='se',
 ax1.plot([0, 1500], [0.5, 0.5], ls='--', color='grey', zorder=0)
 ax1.plot([450, 450], [0.3, 0.9], ls='--', color='grey', zorder=0, lw=0.5)
 ax1.plot([900, 900], [0.3, 0.9], ls='--', color='grey', zorder=0, lw=0.5)
-add_significance(results_df['position'].values, p_values, ax1, y_pos=0.875, alpha=0.05)
+add_significance(results_df['position'].values, results_df['p_cortex'].values, ax1, y_pos=0.88, alpha=0.05, color=colors['PERI'])
+add_significance(results_df['position'].values, results_df['p_ca1'].values, ax1, y_pos=0.86, alpha=0.05, color=colors['CA1'])
 ax1.set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
        yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90],
        ylim=[0.3, 0.9], xlabel='', ylabel='', title='Near')
@@ -61,8 +61,7 @@ ax1.set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
 # Do statistics
 this_df = context_df[np.isin(context_df['subject'].values,
                      subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
-results_df = this_df.groupby('position').apply(run_ttest).reset_index()
-p_values = results_df['pvalue'].values
+results_df = this_df.groupby('position').apply(run_ttest_chance).reset_index()
 
 # Plot
 sns.lineplot(this_df, x='position', y='accuracy', hue='region', errorbar='se',
@@ -71,7 +70,8 @@ sns.lineplot(this_df, x='position', y='accuracy', hue='region', errorbar='se',
 ax2.plot([0, 1500], [0.5, 0.5], ls='--', color='grey', zorder=0)
 ax2.plot([450, 450], [0.3, 0.9], ls='--', color='grey', zorder=0, lw=0.5)
 ax2.plot([1350, 1350], [0.3, 0.9], ls='--', color='grey', zorder=0, lw=0.5)
-add_significance(results_df['position'].values, p_values, ax2, y_pos=0.875, alpha=0.05)
+add_significance(results_df['position'].values, results_df['p_cortex'].values, ax2, y_pos=0.88, alpha=0.05, color=colors['PERI'])
+add_significance(results_df['position'].values, results_df['p_ca1'].values, ax2, y_pos=0.86, alpha=0.05, color=colors['CA1'])
 ax2.set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
        yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90],
        ylim=[0.3, 0.9], xlabel='', ylabel='', title='Far')

@@ -789,7 +789,7 @@ def bin_signal(x, y, bin_centers, bin_size, statistic='mean'):
     return bin_values
 
 
-def add_significance(x, p_values, ax, y_pos='auto', alpha=0.05):
+def add_significance(x, p_values, ax, y_pos='auto', alpha=0.05, color='k'):
     """
     Adds significance markers to a plot based on p-values.
     This function identifies regions of significance in the provided p-values
@@ -819,7 +819,7 @@ def add_significance(x, p_values, ax, y_pos='auto', alpha=0.05):
     else:
         y = y_pos
     for (i, ind) in zip(np.arange(start_end.shape[0])[::2], start_end[::2]):
-        ax.plot([x[ind], x[start_end[i+1]]], [y + (y*0.05), y + (y*0.05)], color='k', lw=1.5,
+        ax.plot([x[ind], x[start_end[i+1]]], [y + (y*0.05), y + (y*0.05)], color=color, lw=1.5,
                 clip_on=False)
 
 

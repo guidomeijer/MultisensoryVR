@@ -151,3 +151,4 @@ for i in [1, 2, 4, 5]:
 
 plt.savefig(join(path_dict['google_drive_fig_path'], 'decode_context_GLM_position_far.pdf'))
 plt.savefig(join(path_dict['google_drive_fig_path'], 'decode_context_GLM_position_far.jpg'), dpi=600)
+plt.show()
