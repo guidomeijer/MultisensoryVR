@@ -111,28 +111,30 @@ plt.tight_layout()
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'sig_assemblies.jpg', dpi=600)
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'sig_assemblies.pdf')
 
-f, ax1 = plt.subplots(figsize=(1.5, 1.75), dpi=dpi)
+f, ax1 = plt.subplots(figsize=(1.2, 1.75), dpi=dpi)
 this_order = per_ses_df[['region', 'perc_sig_ripples']].groupby('region').mean().sort_values(
     'perc_sig_ripples', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_sig_ripples', ax=ax1, hue='region', errorbar='se',
             palette=colors, order=this_order)
 ax1.plot([-0.5, regions.shape[0] - 0.5], [5, 5], ls='--', color='grey')
-ax1.set(ylabel='Significant assemblies (%)', xlabel='', yticks=np.arange(0, 101, 20),
-        title='Ripples', xlim=[-0.5, regions.shape[0] - 0.5])
+ax1.set(xlabel='', yticks=np.arange(0, 101, 20), xlim=[-0.5, regions.shape[0] - 0.5])
+ax1.set_ylabel('Significant assemblies (%)', labelpad=0)
 ax1.tick_params(axis='x', labelrotation=90)
 
 sns.despine(trim=False)
-plt.tight_layout()
+plt.subplots_adjust(left=0.35, right=0.98, top=0.9, bottom=0.2)
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' /'sig_assemblies_ripples.jpg', dpi=600)
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' /'sig_assemblies_ripples.pdf')
+plt.show()
 
 f, ax1 = plt.subplots(figsize=(1.5, 1.75), dpi=dpi)
 this_order = per_ses_df[['region', 'perc_obj2_ripple']].groupby('region').mean().sort_values(
     'perc_obj2_ripple', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_obj2_ripple', ax=ax1, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax1.set(ylabel='Ripple modulated (%)', xlabel='', yticks=np.arange(0, 101, 20),
-        title='Obj 2 assemblies', xlim=[-0.5, regions.shape[0] - 0.5])
+ax1.plot([-0.5, regions.shape[0] - 0.5], [5, 5], ls='--', color='grey') # Add chance level line
+ax1.set(ylabel='Percentage of Obj2-sig assemblies also Ripple-sig (%)', xlabel='', yticks=np.arange(0, 101, 20),
+        title='Obj 2 & ripple modulated', xlim=[-0.5, regions.shape[0] - 0.5])
 ax1.tick_params(axis='x', labelrotation=90)
 
 sns.despine(trim=False)

@@ -188,7 +188,7 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                         axs[pp].set(xticks=[-1, 0, 1], xlabel='', ylabel='',
                                     title=f'p={np.round(p_ripples[pp], 2)}, amp={np.round(amp_ripples[pp], 2)}')
                         print(ripple_df)
-                        asd
+
                     sns.despine(trim=True)
                     plt.tight_layout()
                     plt.savefig(path_dict['google_drive_fig_path'] / 'Assemblies'

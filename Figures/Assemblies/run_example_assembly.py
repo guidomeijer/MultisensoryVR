@@ -9,6 +9,7 @@ np.random.seed(42)
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from zetapy import zetatstest, zetatstest2
 from scipy.ndimage import gaussian_filter1d
 from sklearn.decomposition import FastICA
 from msvr_functions import (paths, load_neural_data, load_objects,
@@ -21,6 +22,7 @@ DATE = '20240813'
 PROBE = 'probe01'
 REGION = 'CA1'
 BIN_SIZE = 0.05
+SIG_TIME = 2
 MP_THRESHOLD_SCALE = 1.2  # Scale factor for Marchenko-Pastur threshold (higher -> fewer assemblies)
 MEMBER_THRESHOLD_Z = 1  # z-score for assembly membership
 SMOOTHING = 1
@@ -97,6 +99,13 @@ for k in range(n_assemblies):
     if np.abs(assembly_patterns[:, k].min()) > np.abs(assembly_patterns[:, k].max()):
         assembly_patterns[:, k] *= -1
         activations[k, :] *= -1
+
+# Sort assemblies deterministically (e.g., by L2 norm of their pattern)
+# This addresses the permutation ambiguity of ICA, ensuring consistent ordering.
+assembly_strength = np.linalg.norm(assembly_patterns, axis=0)
+sort_idx = np.argsort(assembly_strength)[::-1] # Sort in descending order
+assembly_patterns = assembly_patterns[:, sort_idx]
+activations = activations[sort_idx, :]
 
 
 # %% Assign neurons to assemblies
@@ -183,7 +192,7 @@ axs[1, 2].axis('off')
 im = ax1.imshow(plot_z_spikes, aspect='auto', cmap='coolwarm',
                 vmin=-2, vmax=2,  # clip z-scores for better visualization
                 extent=[plot_time[0], plot_time[-1], len(ordered_neurons), 0])
-ax1.set_ylabel('Neurons', labelpad=15)
+ax1.set_ylabel('Neurons sorted\nby assembly', labelpad=15)
 ax1.set_yticks([])  # No y-ticks for individual neurons
 
 # Plot assembly identity bar
@@ -200,7 +209,7 @@ cbar = f.colorbar(im, cax=cax, label='Z-scored activity', ticks=[-2, 0, 2])
 
 # Plot assembly activations
 for k in range(n_assemblies):
-    ax2.plot(plot_time, plot_activations[k, :], lw=1.5, label=f'Assembly {k+1}', color=assembly_colors[k])
+    ax2.plot(plot_time, plot_activations[k, :], lw=1, label=f'Assembly {k+1}', color=assembly_colors[k])
 ax2.set_xlabel('Time from ripple onset (s)')
 ax2.set_ylabel('Assembly\nactivation')
 ax2.set(xticks=[t_center-1, t_center-0.5, t_center, t_center+0.5, t_center+1], xticklabels=[-1, -0.5, 0, 0.5, 1])
@@ -217,41 +226,64 @@ plt.show()
 
 # %%
 
-plot_assembly = 3
+plot_assembly = 0
 
-f, ax = plt.subplots(figsize=(1.3, 1.8), dpi=dpi)
+# Do stats
+#p_ripple, _ = zetatstest(binned_time, activations[plot_assembly, :], these_ripples['start_times'] - 1,
+#                         dblUseMaxDur=2)
+#print(f'ZETA test ripple; p = {p_ripple}')
+
+f, ax = plt.subplots(figsize=(1.75, 1.8), dpi=dpi)
 peri_event_trace(activations[plot_assembly, :], binned_time, these_ripples['start_times'],
                  np.ones(these_ripples.shape[0]), t_before=1, t_after=1, ax=ax,
                  color_palette=[assembly_colors[plot_assembly]])
-ax.set(xticks=[-1, 0, 1], xlabel='Time from ripple start (s)', ylabel='Assembly activation', yticks=[0, 1, 2, 3, 4],
-       title='Ripples', ylim=[0, 4])
+ax.text(0, 4.5, '***', fontsize=12, ha='center', va='center')
+ax.set(xticks=[-1, 0, 1], xlabel='Time from ripple start (s)', ylabel='Assembly activation', yticks=[0, 1, 2, 3, 4, 5],
+       ylim=[0, 5])
 
 sns.despine(trim=True)
-plt.subplots_adjust(left=0.22, right=0.98, top=0.85, bottom=0.21)
+plt.subplots_adjust(left=0.25, right=0.9, top=0.85, bottom=0.21)
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_example_ripple_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_example_ripple_{SUBJECT}_{DATE}_{REGION}.pdf')
 plt.show()
 
-#%%
 # Do some smoothing
 activations_smooth = gaussian_filter1d(activations, sigma=SMOOTHING, axis=1)
 
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.2*2, 1.8), dpi=dpi, sharey=True)
+# Do statistics
+obj1_goal = all_obj_df.loc[(all_obj_df['object'] == 1) & (all_obj_df['goal'] == 1), 'times'].values
+obj1_no_goal = all_obj_df.loc[(all_obj_df['object'] == 1) & (all_obj_df['goal'] == 0), 'times'].values
+p_obj1, _ = zetatstest2(binned_time, activations_smooth[plot_assembly, :], obj1_goal - SIG_TIME,
+                        binned_time, activations_smooth[plot_assembly, :], obj1_no_goal - SIG_TIME,
+                        dblUseMaxDur=SIG_TIME)
+print(f'ZETA test object 1; p = {np.round(p_obj1, 3)}')
+obj2_goal = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 1), 'times'].values
+obj2_no_goal = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 0), 'times'].values
+p_obj2, _ = zetatstest2(binned_time, activations_smooth[plot_assembly, :], obj2_goal - SIG_TIME,
+                        binned_time, activations_smooth[plot_assembly, :], obj2_no_goal - SIG_TIME,
+                        dblUseMaxDur=SIG_TIME)
+print(f'ZETA test object 2; p = {np.round(p_obj2, 3)}')
 
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.1*2, 1.75), dpi=dpi, sharey=True)
+
+ax1.plot([0, 0], [-0.6, -0.1], lw=0.5, ls='--', color='grey')
 peri_event_trace(activations_smooth[plot_assembly, :], binned_time,
                  all_obj_df.loc[all_obj_df['object'] == 1, 'times'],
                  all_obj_df.loc[all_obj_df['object'] == 1, 'goal'].values + 1,
                  t_before=2, t_after=1, ax=ax1,
                  color_palette=[colors['no-goal'], colors['goal']])
+ax1.text(-0.5, -0.12, 'n.s.', fontsize=7, ha='center', va='center')
 ax1.set(xticks=np.arange(-2, 1.5), xlabel='', yticks=[-0.6, -0.1], ylim=[-0.6, -0.1],
         title='Rewarded object 1')
 ax1.set_ylabel('Assembly activation', labelpad=-10)
 
+ax2.plot([0, 0], [-0.6, -0.1], lw=0.5, ls='--', color='grey', zorder=0)
 peri_event_trace(activations_smooth[plot_assembly, :], binned_time,
                  all_obj_df.loc[all_obj_df['object'] == 2, 'times'],
                  all_obj_df.loc[all_obj_df['object'] == 2, 'goal'].values + 1,
                  t_before=2, t_after=1, ax=ax2,
                  color_palette=[colors['no-goal'], colors['goal']])
+ax2.text(-0.5, -0.12, '*', fontsize=12, ha='center', va='center')
 ax2.set(xticks=np.arange(-2, 1.5), xlabel='', title='Rewarded object 2')
 
 f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')

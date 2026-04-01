@@ -35,19 +35,13 @@ for i, region in enumerate(regions):
         continue
 
     for j, obj in enumerate(['obj1', 'obj2']):
-        n_overlap = np.sum(region_df['ripple_sig'] & region_df[f'{obj}_sig'])
-
-        # Permutation test
-        n_shuffles = 10000
-        shuffled_overlap = np.zeros(n_shuffles)
-        obj_labels = region_df[f'{obj}_sig'].values.copy()
-        ripple_sig = region_df['ripple_sig'].values
-        for k in range(n_shuffles):
-            np.random.shuffle(obj_labels)
-            shuffled_overlap[k] = np.sum(ripple_sig & obj_labels)
-
-        # Calculate p-value
-        p_value = (np.sum(shuffled_overlap >= n_overlap) + 1) / (n_shuffles + 1)
+        # Chi-squared test
+        contingency_table = pd.crosstab(region_df['ripple_sig'], region_df[f'{obj}_sig'])
+        if contingency_table.shape == (2, 2):
+            _, p_value, _, _ = stats.chi2_contingency(contingency_table)
+        else:
+            # Cannot perform chi-squared if a category is entirely missing
+            p_value = 1.0
         p_val_df.loc[region, obj] = p_value
 
 # %% Plot
