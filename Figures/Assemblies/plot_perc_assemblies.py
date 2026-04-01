@@ -64,6 +64,7 @@ per_ses_df['perc_sig_ripples'] = (per_ses_df['sig_ripples'] / per_ses_df['n_ripp
 per_ses_df['perc_sig_ripples_only'] = (per_ses_df['sig_ripples_only'] / per_ses_df['n_both']) * 100
 per_ses_df['perc_sig_obj2_only'] = (per_ses_df['sig_obj2_only'] / per_ses_df['n_both']) * 100
 per_ses_df['perc_sig_both'] = (per_ses_df['sig_both'] / per_ses_df['n_both']) * 100
+per_ses_df['perc_obj2_ripple'] = (per_ses_df['sig_both'] / per_ses_df['sig_obj2']) * 100
 per_ses_df.replace([np.inf, -np.inf], np.nan, inplace=True)
 
 summary_df = assembly_df.groupby('region').agg(
@@ -85,15 +86,15 @@ summary_df = summary_df.reset_index()
 
 # %%
 
-f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(1.75 * 3, 2), dpi=dpi, sharey=True)
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.2 * 2, 1.75), dpi=dpi, sharey=True)
 
 this_order = per_ses_df[['region', 'perc_sig_obj1']].groupby('region').mean().sort_values(
     'perc_sig_obj1', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_sig_obj1', ax=ax1, hue='region', errorbar='se',
             palette=colors, order=this_order)
 ax1.plot([-0.5, regions.shape[0] - 0.5], [5, 5], ls='--', color='grey')
-ax1.set(ylabel='Significant assemblies (%)', yticks=[0, 10, 20, 30, 40], xlabel='',
-        title='Object 1', ylim=[0, 40], xlim=[-0.5, regions.shape[0] - 0.5])
+ax1.set(ylabel='Significant assemblies (%)', yticks=[0, 10, 20, 30], xlabel='',
+        title='Rewarded object 1', ylim=[0, 30], xlim=[-0.5, regions.shape[0] - 0.5])
 ax1.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_sig_obj2']].groupby('region').mean().sort_values(
@@ -102,23 +103,15 @@ sns.barplot(data=per_ses_df, x='region', y='perc_sig_obj2', ax=ax2, hue='region'
             palette=colors, order=this_order)
 ax2.plot([-0.5, regions.shape[0] - 0.5], [5, 5], ls='--', color='grey')
 ax2.set(ylabel='Significant assemblies (%)', xlabel='',
-        title='Object 2', xlim=[-0.5, regions.shape[0] - 0.5])
+        title='Rewarded object 2', xlim=[-0.5, regions.shape[0] - 0.5])
 ax2.tick_params(axis='x', labelrotation=90)
-
-this_order = per_ses_df[['region', 'perc_sig_sound']].groupby('region').mean().sort_values(
-    'perc_sig_sound', ascending=False).index.values
-sns.barplot(data=per_ses_df, x='region', y='perc_sig_sound', ax=ax3, hue='region', errorbar='se',
-            palette=colors, order=this_order)
-ax3.plot([-0.5, regions.shape[0] - 0.5], [5, 5], ls='--', color='grey')
-ax3.set(ylabel='Significant assemblies (%)', xlabel='',
-        title='Sound onset', xlim=[-0.5, regions.shape[0] - 0.5])
-ax3.tick_params(axis='x', labelrotation=90)
 
 sns.despine(trim=False)
 plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / 'sig_assemblies.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'sig_assemblies.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'sig_assemblies.pdf')
 
-f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+f, ax1 = plt.subplots(figsize=(1.5, 1.75), dpi=dpi)
 this_order = per_ses_df[['region', 'perc_sig_ripples']].groupby('region').mean().sort_values(
     'perc_sig_ripples', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_sig_ripples', ax=ax1, hue='region', errorbar='se',
@@ -130,6 +123,20 @@ ax1.tick_params(axis='x', labelrotation=90)
 
 sns.despine(trim=False)
 plt.tight_layout()
-plt.show()
-plt.savefig(path_dict['google_drive_fig_path'] / 'sig_assemblies_ripples.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' /'sig_assemblies_ripples.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' /'sig_assemblies_ripples.pdf')
 
+f, ax1 = plt.subplots(figsize=(1.5, 1.75), dpi=dpi)
+this_order = per_ses_df[['region', 'perc_obj2_ripple']].groupby('region').mean().sort_values(
+    'perc_obj2_ripple', ascending=False).index.values
+sns.barplot(data=per_ses_df, x='region', y='perc_obj2_ripple', ax=ax1, hue='region', errorbar='se',
+            palette=colors, order=this_order)
+ax1.set(ylabel='Ripple modulated (%)', xlabel='', yticks=np.arange(0, 101, 20),
+        title='Obj 2 assemblies', xlim=[-0.5, regions.shape[0] - 0.5])
+ax1.tick_params(axis='x', labelrotation=90)
+
+sns.despine(trim=False)
+plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'sig_assemblies_obj2_ripples.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'sig_assemblies_obj2_ripples.pdf')
+plt.show()

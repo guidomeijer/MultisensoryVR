@@ -59,4 +59,4 @@ ax.tick_params(axis='y', labelrotation=0)
 
 plt.tight_layout()
 plt.show()
-plt.savefig(join(path_dict['google_drive_fig_path'], 'ripple_obj_overlap.pdf'))
+#plt.savefig(join(path_dict['google_drive_fig_path'], 'ripple_obj_overlap.pdf'))

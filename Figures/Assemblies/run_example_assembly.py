@@ -5,6 +5,7 @@ Date: 24/02/2026
 """
 # %%
 import numpy as np
+np.random.seed(42)
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -150,7 +151,7 @@ ax.set(ylabel='Eigenvalue', xlabel='Component',
        ylim=[0, np.ceil(evals[0])], xlim=[0.5, plot_n + 0.5])
 sns.despine(trim=True)
 plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / f'n_assemblies_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'n_assemblies_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
 plt.show()
 
 # %% --- 2. Example assembly activation plot ---
@@ -171,19 +172,18 @@ plot_activations = activations[:, time_slice]
 assembly_colors = sns.color_palette('tab10', n_assemblies)
 
 # Create figure
-f, axs = plt.subplots(2, 3, figsize=(4.5, 3.5), dpi=dpi,
-                      gridspec_kw={'height_ratios': [3, 1], 'width_ratios': [0.03, 1, 0.05], 'wspace': 0.05},
+f, axs = plt.subplots(2, 3, figsize=(3, 2), dpi=dpi,
+                      gridspec_kw={'height_ratios': [3, 1], 'width_ratios': [0.03, 1, 0.03], 'wspace': 0.05},
                       sharex='col')
 (ax_assembly, ax1, cax), (ax_dummy, ax2, _) = axs
 ax_dummy.axis('off')
 axs[1, 2].axis('off')
-f.suptitle(f'{REGION} assemblies for {SUBJECT} on {DATE}')
 
 # Plot heatmap of neural activity
 im = ax1.imshow(plot_z_spikes, aspect='auto', cmap='coolwarm',
                 vmin=-2, vmax=2,  # clip z-scores for better visualization
                 extent=[plot_time[0], plot_time[-1], len(ordered_neurons), 0])
-ax1.set_ylabel('Neurons sorted by assembly membership', labelpad=15)
+ax1.set_ylabel('Neurons', labelpad=15)
 ax1.set_yticks([])  # No y-ticks for individual neurons
 
 # Plot assembly identity bar
@@ -210,46 +210,53 @@ ax1.axvline(x=t_center, color='white', linestyle='--')
 ax2.axvline(x=t_center, color='grey', linestyle='--')
 
 sns.despine(fig=f)
-plt.tight_layout(rect=[0, 0, 1, 0.95])
-plt.savefig(path_dict['google_drive_fig_path'] / f'assembly_activity_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
+plt.subplots_adjust(left=0.15, right=0.85, bottom=0.2, top=0.9)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_activity_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_activity_{SUBJECT}_{DATE}_{REGION}.pdf')
 plt.show()
 
 # %%
 
-plot_assembly = 4
+plot_assembly = 3
 
-f, ax = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+f, ax = plt.subplots(figsize=(1.3, 1.8), dpi=dpi)
 peri_event_trace(activations[plot_assembly, :], binned_time, these_ripples['start_times'],
                  np.ones(these_ripples.shape[0]), t_before=1, t_after=1, ax=ax,
                  color_palette=[assembly_colors[plot_assembly]])
-ax.set(xticks=[-1, 0, 1], xlabel='Time from ripple start (s)', ylabel='Assembly activation', yticks=[0, 1, 2, 3, 4])
+ax.set(xticks=[-1, 0, 1], xlabel='Time from ripple start (s)', ylabel='Assembly activation', yticks=[0, 1, 2, 3, 4],
+       title='Ripples', ylim=[0, 4])
 
 sns.despine(trim=True)
-plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / f'assembly_example_ripple_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
+plt.subplots_adjust(left=0.22, right=0.98, top=0.85, bottom=0.21)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_example_ripple_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_example_ripple_{SUBJECT}_{DATE}_{REGION}.pdf')
+plt.show()
 
+#%%
 # Do some smoothing
 activations_smooth = gaussian_filter1d(activations, sigma=SMOOTHING, axis=1)
 
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.75*2, 1.75), dpi=dpi, sharey=True)
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.2*2, 1.8), dpi=dpi, sharey=True)
 
 peri_event_trace(activations_smooth[plot_assembly, :], binned_time,
                  all_obj_df.loc[all_obj_df['object'] == 1, 'times'],
                  all_obj_df.loc[all_obj_df['object'] == 1, 'goal'].values + 1,
                  t_before=2, t_after=1, ax=ax1,
                  color_palette=[colors['no-goal'], colors['goal']])
-ax1.set(xticks=np.arange(-2, 1.5), ylabel='Assembly activation', xlabel='', yticks=[-0.6, -0.1], ylim=[-0.6, -0.1],
-        title='Object 1')
+ax1.set(xticks=np.arange(-2, 1.5), xlabel='', yticks=[-0.6, -0.1], ylim=[-0.6, -0.1],
+        title='Rewarded object 1')
+ax1.set_ylabel('Assembly activation', labelpad=-10)
 
 peri_event_trace(activations_smooth[plot_assembly, :], binned_time,
                  all_obj_df.loc[all_obj_df['object'] == 2, 'times'],
                  all_obj_df.loc[all_obj_df['object'] == 2, 'goal'].values + 1,
                  t_before=2, t_after=1, ax=ax2,
                  color_palette=[colors['no-goal'], colors['goal']])
-ax2.set(xticks=np.arange(-2, 1.5), xlabel='', title='Object 2')
+ax2.set(xticks=np.arange(-2, 1.5), xlabel='', title='Rewarded object 2')
 
-f.text(0.5, 0.04, 'Time from ripple start (s)', ha='center')
+f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
 sns.despine(trim=True)
 plt.subplots_adjust(left=0.15, right=0.98, top=0.85, bottom=0.21)
-plt.savefig(path_dict['google_drive_fig_path'] / f'assembly_example_hitmis_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_example_hitmis_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_example_hitmis_{SUBJECT}_{DATE}_{REGION}.pdf')
 plt.show()
