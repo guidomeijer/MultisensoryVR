@@ -15,6 +15,7 @@ colors, dpi = figure_style()
 
 # Settings
 T_BEFORE = [1, 0]
+T_BEFORE_LICKS = [0.5, 0]
 LAST_SES = 5
 MIN_TRIALS = 30
 
@@ -70,7 +71,7 @@ for i, subject in enumerate(subjects):
         
     # Take average over sessions
     speed_obj1[i], speed_obj2[i] = np.mean(speed_obj1_ses), np.mean(speed_obj2_ses)
-    licks_obj1[i], licks_obj2[i] = np.mean(np.abs(lick_obj1_ses)), np.mean(np.abs(lick_obj2_ses))
+    licks_obj1[i], licks_obj2[i] = np.mean(lick_obj1_ses), np.mean(lick_obj2_ses)
           
 # Invert mice that speed up
 speed_obj1[2:4] = np.abs(speed_obj1[2:4])
@@ -83,35 +84,38 @@ _, p_obj1_obj2 = stats.ttest_rel(speed_obj1, speed_obj2)
     
 # %% Plot
 
-df_results = pd.DataFrame(data={
-    'speed': np.concatenate([speed_obj1, speed_obj2]),
-    'licks': np.concatenate([licks_obj1, licks_obj2]),
-    'object': np.concatenate([np.ones(subjects.shape[0]), np.ones(subjects.shape[0]) + 1])})
-
 f, ax1 = plt.subplots(figsize=(1.3, 1.75), dpi=dpi)
 
-sns.barplot(data=df_results, x='object', y='speed', ax=ax1, errorbar=None, color='grey', width=0.6)
-#sns.boxplot(data=df_results, x='object', y='speed', ax=ax1, color='grey')
+ax1.plot([-0.5, 1.5], [0, 0], ls='--', color='grey')
+ax1.hlines(np.mean(speed_obj1), -0.2, 0.2, color='tab:red', lw=1.5)
+ax1.hlines(np.mean(speed_obj2), 0.8, 1.2, color='tab:red', lw=1.5)
 ax1.plot([np.zeros_like(speed_obj1), np.ones_like(speed_obj2)], [speed_obj1, speed_obj2], color='k')
 ax1.plot([0, 1], [30, 30], color='k')
 ax1.text(0.5, 30, '**', fontsize=12, ha='center', va='center')
 #ax1.text(0, 10, '**', fontsize=12, ha='center', va='center')
 #ax1.text(1, 26, '**', fontsize=12, ha='center', va='center')
-ax1.set(xticks=[0, 1], xticklabels=['First', 'Second'], xlabel='Object',
+ax1.set(xticks=[0, 1], xticklabels=[1, 2], xlabel='Rewarded object',
         ylabel='Anticipatory speed change (%)',
         yticks=np.arange(0, 31, 10), ylim=[-5, 30], xlim=[-0.5, 1.5])
 
 sns.despine(trim=False)   
 plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / 'speed_over_animals.pdf')
-plt.savefig(path_dict['google_drive_fig_path'] / 'speed_over_animals.jpg', dpi=600)
-
+plt.savefig(path_dict['paper_fig_path'] / 'Behavior' / 'speed_over_animals.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'Behavior' / 'speed_over_animals.jpg', dpi=600)
+plt.show()
 
 # %%
 f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
-sns.swarmplot(data=df_results, x='object', y='licks', ax=ax1)
+ax1.hlines(np.mean(licks_obj1), -0.2, 0.2, color='tab:red', lw=1.5)
+ax1.hlines(np.mean(licks_obj2), 0.8, 1.2, color='tab:red', lw=1.5)
+ax1.plot([np.zeros_like(licks_obj1), np.ones_like(licks_obj2)], [licks_obj1, licks_obj2], color='k')
+
+ax1.set(xticks=[0, 1], xticklabels=[1, 2], xlabel='Rewarded object',
+        ylabel='Change in anticipatory licks (#)',
+        yticks=np.arange(-30, 11, 10), ylim=[-30, 10], xlim=[-0.5, 1.5])
 
 sns.despine(trim=True)   
 plt.tight_layout()
-plt.savefig(path_dict['fig_path'] / 'licks_over_animals.pdf')
-   
+plt.savefig(path_dict['paper_fig_path'] / 'Behavior' / 'licks_over_animals.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'Behavior' / 'licks_over_animals.jpg', dpi=600)
+plt.show()

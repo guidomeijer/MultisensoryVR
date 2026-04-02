@@ -168,33 +168,53 @@ for neuron_id in clusters['cluster_id']:
 # %% Plot
 colors, dpi = figure_style()
 
-f, axs = plt.subplots(2, 2, figsize=(1.75 * 2, 1.75 * 2), dpi=dpi)
-axs = np.concatenate(axs)
+f, ax1 = plt.subplots(figsize=(1.85, 1.75), dpi=dpi)
+ax1.plot(rel_pos_list[PLOT_TRIAL], speed_pred[PLOT_TRIAL], color='k')
+new_ax = ax1.twinx()
+new_ax.plot(rel_pos_list[PLOT_TRIAL], acc_pred[PLOT_TRIAL], color='tab:orange')
+ax1.set(ylabel='Speed (cm/s)', yticks=[0, 100, 200, 300, 400], yticklabels=[0, 10, 20, 30, 40],
+        xlabel='Position (cm)', xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150], title='Speed predictors')
+new_ax.set_ylabel('Acceleration (cm/s$\mathregular{^2}$)', rotation=270, color='tab:orange', labelpad=11)
+new_ax.tick_params(axis='y', colors='tab:orange')
+new_ax.set(yticks=[-0.4, 0, 0.4], yticklabels=[-0.4, 0, 0.4])
+new_ax.spines['right'].set_color('tab:orange')
+ax1.spines['right'].set_color('tab:orange')
 
-axs[0].plot(rel_pos_list[PLOT_TRIAL], speed_pred[PLOT_TRIAL])
-axs[0].set(ylabel='Speed (cm/s)', yticks=[0, 100, 200, 300, 400], yticklabels=[0, 10, 20, 30, 40],
-           xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150])
+sns.despine(trim=True, right=False)
+plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'Decoding' / 'GLM_decoding_speed_example.pdf')
 
+f, ax1 = plt.subplots(figsize=(1.5, 1.75), dpi=dpi)
 for i in range(10):
-    axs[1].plot(rel_pos_list[PLOT_TRIAL], spatial_basis[f'spatial_basis_{i}'][trial_id == PLOT_TRIAL])
-axs[1].set(ylabel='Spatial weight', title='Position predictors',
-           xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
-           yticks=[0, 1], yticklabels=[0, 1])
-
-
-axs[2].plot(rel_pos_list[PLOT_TRIAL],
-            binned_spikes[f'neuron{PLOT_NEURON}'][PLOT_TRIAL] / time_per_bin_list[PLOT_TRIAL],
-            label='Original')
-axs[2].plot(rel_pos_list[PLOT_TRIAL], spike_predict[f'neuron{PLOT_NEURON}'][trial_id == PLOT_TRIAL],
-            label='Prediction')
-axs[2].set(xlabel='Position (cm)', ylabel='Firing rate (spks/s)', xticks=[0, 500, 1000, 1500],
-           xticklabels=[0, 50, 100, 150])
-axs[2].legend(bbox_to_anchor=(0.5, 0.9), prop={'size': 6})
-
-axs[3].plot(rel_pos_list[PLOT_TRIAL], spike_resid[f'neuron{PLOT_NEURON}'][trial_id == PLOT_TRIAL])
-axs[3].set(xlabel='Position (cm)', ylabel='Residual firing rate (spks/s)', xticks=[0, 500, 1000, 1500],
-           xticklabels=[0, 50, 100, 150])
+    ax1.plot(rel_pos_list[PLOT_TRIAL], spatial_basis[f'spatial_basis_{i}'][trial_id == PLOT_TRIAL])
+ax1.set(ylabel='Spatial weight', title='Position predictors', xlabel='Position',
+       xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
+       yticks=[0, 1], yticklabels=[0, 1])
 
 sns.despine(trim=True)
 plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / 'GLM_decoding_example.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'Decoding' / 'GLM_decoding_spatial_example.pdf')
+
+f, ax1 = plt.subplots(figsize=(1.6, 1.75), dpi=dpi)
+ax1.plot(rel_pos_list[PLOT_TRIAL],
+        binned_spikes[f'neuron{PLOT_NEURON}'][PLOT_TRIAL] / time_per_bin_list[PLOT_TRIAL],
+        label='Original')
+ax1.plot(rel_pos_list[PLOT_TRIAL], spike_predict[f'neuron{PLOT_NEURON}'][trial_id == PLOT_TRIAL],
+        label='Prediction')
+ax1.set(xlabel='Position (cm)', ylabel='Firing rate (spks/s)', xticks=[0, 500, 1000, 1500],
+       xticklabels=[0, 50, 100, 150],  title='Single neuron example')
+ax1.legend(bbox_to_anchor=(0.5, 0.9), prop={'size': 6})
+
+sns.despine(trim=True)
+plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'Decoding' / 'GLM_decoding_prediction_example.pdf')
+
+f, ax1 = plt.subplots(figsize=(1.5, 1.75), dpi=dpi)
+ax1.plot(rel_pos_list[PLOT_TRIAL], spike_resid[f'neuron{PLOT_NEURON}'][trial_id == PLOT_TRIAL])
+ax1.set(xlabel='Position (cm)', ylabel='Residual firing rate (spks/s)', xticks=[0, 500, 1000, 1500],
+       xticklabels=[0, 50, 100, 150], title='Single neuron example')
+
+sns.despine(trim=True)
+plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'Decoding' / 'GLM_decoding_residual_example.pdf')
+plt.show()

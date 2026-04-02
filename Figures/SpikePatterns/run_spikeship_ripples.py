@@ -27,7 +27,7 @@ MIN_RIPPLES = 20
 N_CPUS = 20
 MIN_SPIKES_PER_BIN = 5
 SMOOTHING_SIGMA = 1
-CA1_COMPR = 5
+CA1_COMPR = 8
 RIPPLE_DELAY = 0.75
 
 # Create time array
@@ -115,9 +115,12 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         if region == 'CA1':
             compression_factor = CA1_COMPR
             this_delay = 0
-        else:
+        elif region == 'VIS':
             compression_factor = 1
             this_delay = RIPPLE_DELAY
+        else:
+            compression_factor = 1
+            this_delay = 0
 
         # Get region neurons
         region_neurons = clusters['cluster_id'][clusters['region'] == region]
@@ -126,7 +129,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         if np.unique(region_clusters).shape[0] < MIN_NEURONS:
             continue
 
-        # Loop over objects
+        # Loop over rewarded objects
         for obj in [1, 2]:
 
             # Run SpikeShip on goal entries
@@ -144,7 +147,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
             between_block = goal_diss[:, :goal_times.shape[0], goal_times.shape[0]:]
             goal_contrast = np.mean(between_block, axis=(1, 2)) - (mean_no_diag(within_a) + mean_no_diag(within_b)) / 2
             goal_contrast = gaussian_filter(goal_contrast, SMOOTHING_SIGMA)
-            goal_contrast_bl = goal_contrast - np.mean(goal_contrast[t_centers < 0])
+            goal_contrast_bl = goal_contrast - np.mean(goal_contrast[t_centers < -0.5])
 
             # Add to dataframe
             spikeship_df = pd.concat((spikeship_df, pd.DataFrame(data={
@@ -174,6 +177,29 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
                 'contrast': no_goal_contrast, 'contrast_bl': no_goal_contrast_bl, 'goal': 0, 'time': t_centers,
                 'object': obj, 'region': region, 'subject': subject, 'date': date, 'probe': probe
                 })))
+
+        # Process non-rewarded object 3
+        obj3_times = all_obj_df.loc[all_obj_df['object'] == 3, 'times'].values
+        goal_results = Parallel(n_jobs=N_CPUS)(
+            delayed(run_spikeship)(bin_center, region_spikes, region_clusters, obj3_times,
+                                   ripple_times + this_delay, min_spikes=MIN_SPIKES_PER_BIN,
+                                   compression=compression_factor)
+            for bin_center in t_centers)
+        obj3_diss = np.array([clean_spikeship_nans(i) for i in goal_results])
+
+        # Calculate contrast metric
+        within_a = obj3_diss[:, :obj3_times.shape[0], :obj3_times.shape[0]]
+        within_b = obj3_diss[:, obj3_times.shape[0]:, obj3_times.shape[0]:]
+        between_block = obj3_diss[:, :obj3_times.shape[0], obj3_times.shape[0]:]
+        obj3_contrast = np.mean(between_block, axis=(1, 2)) - (mean_no_diag(within_a) + mean_no_diag(within_b)) / 2
+        obj3_contrast = gaussian_filter(obj3_contrast, SMOOTHING_SIGMA)
+        obj3_contrast_bl = obj3_contrast - np.mean(obj3_contrast[t_centers < -0.5])
+
+        # Add to dataframe
+        spikeship_df = pd.concat((spikeship_df, pd.DataFrame(data={
+            'contrast': obj3_contrast, 'contrast_bl': obj3_contrast_bl, 'goal': 0, 'time': t_centers,
+            'object': 3, 'region': region, 'subject': subject, 'date': date, 'probe': probe
+        })))
 
 # Save to disk
 spikeship_df.to_csv(path_dict['google_drive_data_path'] / f'spikeship_ripples_{RIPPLE_DELAY}s_{CA1_COMPR}x.csv',

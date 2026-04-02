@@ -18,14 +18,6 @@ colors, dpi = figure_style()
 # Load in data
 path_dict = paths()
 granger_df = pd.read_csv(join(path_dict['save_path'], 'granger_causality_context_50mmbins.csv'))
-granger_df = granger_df[granger_df['region1'] != 'iCA1']
-granger_df = granger_df[granger_df['region2'] != 'iCA1']
-
-# Drop iCA1
-granger_df = granger_df[granger_df['region1'] != 'iCA1']
-granger_df = granger_df[granger_df['region2'] != 'iCA1']
-granger_df.loc[granger_df['region1'] == 'dCA1', 'region1'] = 'CA1'
-granger_df.loc[granger_df['region2'] == 'dCA1', 'region2'] = 'CA1'
 
 session_avg = granger_df.groupby(['region1', 'region2', 'object', 'date'])['f_stat'].mean().reset_index()
 mean_causality = session_avg.groupby(['region1', 'region2', 'object'])['f_stat'].mean().reset_index()
@@ -50,36 +42,33 @@ for (region1, region2, obj), group in grouped:
         })
 
 # Create DataFrame
-combined_pval_df = pd.DataFrame(combined_pval_list)
-mean_causality['p_value'] = combined_pval_df['combined_p_value']
+mean_causality['p_value'] = pd.DataFrame(combined_pval_list)['combined_p_value']
+
+# Calculate metrics
+metrics_df = pd.DataFrame()
+for obj in ['object1', 'object2']:
+    for region in mean_causality['region1'].unique():
+
+        # Calculate in/out strenght and asymmetry
+        this_df = mean_causality[mean_causality['object'] == obj]
+        out_strength = np.mean(this_df.loc[this_df['region1'] == region, 'f_stat'])
+        in_strength = np.mean(this_df.loc[this_df['region2'] == region, 'f_stat'])
+        causal_asymmetry_ratio = (out_strength - in_strength) / (out_strength + in_strength)
+
+        # Add to df
+        metrics_df = pd.concat((metrics_df, pd.DataFrame(index=[metrics_df.shape[0]], data={
+            'out_strength': out_strength, 'in_strength': in_strength, 'causal_asymmetry_ratio': causal_asymmetry_ratio,
+            'region': region, 'object': obj})))
 
 # %%
-f, axs = plt.subplots(1, 3, figsize=(2.5*3, 2.5), dpi=dpi)
-for i, obj in enumerate(objects):
-    matrix = mean_causality[mean_causality['object'] == obj].pivot(
-        index='region1', columns='region2', values='f_stat'
-    )
-    sns.heatmap(matrix, annot=False, cmap='viridis', vmin=1, vmax=None, square=True, ax=axs[i])
-    axs[i].set(title=f'{obj}', xlabel='Target region', ylabel='Source region')
-
-plt.tight_layout()
-plt.show()
-
-# %%
-
-for obj in ['object1', 'object2', 'object3']:
-    plt.figure(figsize=(3, 3), dpi=300)
-
-    # Filter your DataFrame
-    df = mean_causality[mean_causality['object'] == obj].copy()
-    df = df[df['p_value'] < 0.05]
-    #df = df[df['f_stat'] > 1.5]
+for obj in ['object1', 'object2']:
+    plt.figure(figsize=(2, 2), dpi=300)
 
     # Build a directed graph
     G = nx.DiGraph()
 
-    # Add weighted edges
-    for _, row in df.iterrows():
+    # Add weighted edges for significant causality
+    for _, row in mean_causality[(mean_causality['object'] == obj) & (mean_causality['p_value'] < 0.05)].iterrows():
         G.add_edge(row['region1'], row['region2'], weight=row['f_stat'])
 
     # Add all expected nodes explicitly to ensure isolated ones are included
@@ -90,7 +79,7 @@ for obj in ['object1', 'object2', 'object3']:
     pos = nx.circular_layout(dict(zip(node_order, range(len(node_order)))))
 
     # Draw nodes
-    nx.draw_networkx_nodes(G, pos, node_size=1000, node_color='lightblue')
+    nx.draw_networkx_nodes(G, pos, node_size=400, node_color='lightblue')
 
     # Draw labels
     nx.draw_networkx_labels(G, pos, font_size=7)
@@ -98,15 +87,15 @@ for obj in ['object1', 'object2', 'object3']:
     # Draw edges with weights (causality strength)
     edges = G.edges(data=True)
     weights = [d['weight'] for (_, _, d) in edges]
-    scaled_weights = [0.75 + 1.5 * ((w - min(weights)) / (max(weights) - min(weights))) for w in weights]
+    scaled_weights = [0.5 + 1 * ((w - min(weights)) / (max(weights) - min(weights))) for w in weights]
 
     nx.draw_networkx_edges(
         G, pos, edgelist=edges,
         width=scaled_weights,
-        min_source_margin=18,
-        min_target_margin=18,
+        min_source_margin=12,
+        min_target_margin=12,
         arrows=True,
-        arrowsize=12,
+        arrowsize=10,
         arrowstyle='-|>',
         connectionstyle='arc3,rad=0.175'  # helps with bidirectionality
     )
@@ -121,5 +110,40 @@ for obj in ['object1', 'object2', 'object3']:
     plt.axis('off')
     plt.tight_layout()
     plt.show()
-    plt.savefig(join(path_dict['google_drive_fig_path'], f'granger_causality_{obj}.jpg'), dpi=600)
-    plt.savefig(join(path_dict['google_drive_fig_path'], f'granger_causality_{obj}.pdf'))
+    plt.savefig(path_dict['paper_fig_path'] / 'InterAreaCommunication' / f'granger_causality_{obj}.jpg', dpi=600)
+    plt.savefig(path_dict['paper_fig_path'] / 'InterAreaCommunication' / f'granger_causality_{obj}.pdf')
+
+# %%
+
+f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+
+ax1.plot([1.1, 1.3], [1.1, 1.3], color='grey', ls='--', zorder=0)
+for i, region in enumerate(metrics_df['region'].unique()):
+    ax1.scatter(metrics_df.loc[(metrics_df['object'] == 'object1') & (metrics_df['region'] == region), 'out_strength'].values[0],
+                metrics_df.loc[(metrics_df['object'] == 'object2') & (metrics_df['region'] == region), 'out_strength'].values[0],
+                marker='s', color=colors[region], label=region, s=15, zorder=1)
+#ax1.legend(bbox_to_anchor=(0.7, 0.65), prop={'size': 6})
+ax1.set(xlabel='Out-Strength rew. object 1', ylabel='Out-Strength rew. object 2',
+        xticks=[1.1, 1.2, 1.3], yticks=[1.1, 1.2, 1.3])
+
+sns.despine(trim=True)
+plt.tight_layout()
+plt.show()
+plt.savefig(path_dict['paper_fig_path'] / 'InterAreaCommunication' / 'granger_causality_out_strength.pdf')
+
+# %%
+f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+
+ax1.plot([1.1, 1.3], [1.1, 1.3], color='grey', ls='--', zorder=0)
+for i, region in enumerate(metrics_df['region'].unique()):
+    ax1.scatter(metrics_df.loc[(metrics_df['object'] == 'object1') & (metrics_df['region'] == region), 'in_strength'].values[0],
+                metrics_df.loc[(metrics_df['object'] == 'object2') & (metrics_df['region'] == region), 'in_strength'].values[0],
+                marker='s', color=colors[region], label=region, s=15, zorder=1)
+#ax1.legend(bbox_to_anchor=(0.7, 0.65), prop={'size': 6})
+ax1.set(xlabel='In-Strength rew. object 1', ylabel='In-Strength rew. object 2',
+        xticks=[1.1, 1.2, 1.3], yticks=[1.1, 1.2, 1.3])
+
+sns.despine(trim=True)
+plt.tight_layout()
+plt.show()
+plt.savefig(path_dict['paper_fig_path'] / 'InterAreaCommunication' / 'granger_causality_in_strength.pdf')

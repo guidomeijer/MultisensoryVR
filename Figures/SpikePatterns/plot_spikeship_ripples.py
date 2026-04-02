@@ -90,4 +90,32 @@ f.text(0.02, 0.5, 'Spike pattern similarity to ripples', va='center', rotation='
 sns.despine(trim=True)
 plt.subplots_adjust(left=0.07, right=0.98, top=0.9, bottom=0.15, wspace=0.3, hspace=0)
 plt.savefig(path_dict['paper_fig_path'] / 'SpikePatterns' / 'spikeship_ripples.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'SpikePatterns' / 'spikeship_ripples.pdf')
+plt.show()
+
+# %%
+
+f, axs = plt.subplots(1, 6, figsize=(6, 1.5), dpi=dpi, sharey=False)
+plot_df = spikeship_df[(spikeship_df['object'] == 3) & (spikeship_df['time'] > -1) & (spikeship_df['time'] < 2)]
+for i, region in enumerate(plot_df['region'].unique()):
+    reg_data = plot_df[plot_df['region'] == region]
+    axs[i].plot([-1, 2], [0, 0], lw=0.5, ls='--', color='grey')
+    sns.lineplot(data=reg_data, x='time', y='contrast_bl', errorbar='se', err_kws={'lw': 0}, ax=axs[i])
+    axs[i].plot([-1.1, -1.1], [0, 0.001], color='k', clip_on=False)
+    if i == 0:
+        axs[i].text(-1.3, 0.0005, 0.001, ha='center', va='center', rotation=90)
+
+    ymin, ymax = axs[i].get_ylim()
+    mag = max(abs(ymin), abs(ymax))
+    axs[i].set_ylim(-mag, mag)
+    axs[i].plot([0, 0], [-1, 1], lw=0.5, ls='--', color='grey')
+    axs[i].axis('off')
+    axs[i].set(title=region)
+
+#f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
+f.text(0.02, 0.5, 'Spike pattern similarity to ripples', va='center', rotation='vertical')
+sns.despine(trim=True)
+plt.subplots_adjust(left=0.07, right=0.98, top=0.85, bottom=0.15, wspace=0.3, hspace=0)
+plt.savefig(path_dict['paper_fig_path'] / 'SpikePatterns' / 'spikeship_ripples_obj3.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'SpikePatterns' / 'spikeship_ripples_obj3.pdf')
 plt.show()

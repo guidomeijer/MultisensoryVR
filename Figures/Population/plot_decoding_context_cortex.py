@@ -15,12 +15,15 @@ import matplotlib.pyplot as plt
 from msvr_functions import paths, load_subjects, figure_style, add_significance
 colors, dpi = figure_style()
 
+# Settings
+WIN_NEAR = [900-150, 900]
+WIN_FAR = [1350-150, 1350]
+
 # Load in data
 path_dict = paths()
 subjects = load_subjects()
 context_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_GLM_position_subsampled_cortex.csv'))
 context_df['region'] = context_df['region'].astype(str)
-
 
 def run_ttest_chance(df):
     """
@@ -63,7 +66,10 @@ this_df = context_df[np.isin(context_df['subject'].values,
                      subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
 results_df = this_df.groupby('position').apply(run_ttest_chance).reset_index()
 
-# Plot
+# Add rectangles
+ax1.axvspan(WIN_NEAR[0], WIN_NEAR[1], color='grey', alpha=0.2, lw=0)
+ax2.axvspan(WIN_FAR[0], WIN_FAR[1], color='grey', alpha=0.2, lw=0)
+
 sns.lineplot(this_df, x='position', y='accuracy', hue='region', errorbar='se',
              ax=ax2, err_kws={'lw': 0}, legend='brief', zorder=1,
              hue_order=['Cortex', 'CA1'], palette=[colors['PERI'], colors['CA1']])

@@ -272,7 +272,7 @@ peri_event_trace(activations_smooth[plot_assembly, :], binned_time,
                  all_obj_df.loc[all_obj_df['object'] == 1, 'goal'].values + 1,
                  t_before=2, t_after=1, ax=ax1,
                  color_palette=[colors['no-goal'], colors['goal']])
-ax1.text(-0.5, -0.12, 'n.s.', fontsize=7, ha='center', va='center')
+#ax1.text(-0.5, -0.12, 'n.s.', fontsize=7, ha='center', va='center')
 ax1.set(xticks=np.arange(-2, 1.5), xlabel='', yticks=[-0.6, -0.1], ylim=[-0.6, -0.1],
         title='Rewarded object 1')
 ax1.set_ylabel('Assembly activation', labelpad=-10)
