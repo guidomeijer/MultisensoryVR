@@ -104,7 +104,7 @@ for i in range(len(residuals_dict['residuals'])):
                 lda_dist[j] = np.abs(np.mean(lda_proj[this_y == 1]) - np.mean(lda_proj[this_y == 2]))
             else:
                 lda_dist[j] = np.nan # Or 0, depending on preference
-        asd
+
         # Do the same for the shuffles
         shuf_dist = Parallel(n_jobs=N_CPUS)(delayed(shuffle_iteration)(
                                         X_train, y_train, X_bins, clf_lda) for k in range(N_SHUFFLE))

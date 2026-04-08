@@ -73,4 +73,5 @@ f.text(0.06, 0.5, 'Context seperability (LDA distance)', ha='center', va='center
 plt.subplots_adjust(left=0.11, bottom=0.12, right=0.98, top=0.9, wspace=0.1, hspace=0.3)
 sns.despine(trim=True)
 
+plt.show()
 plt.savefig(join(path_dict['google_drive_fig_path'], 'lda_context_GLM_position_far.pdf'))

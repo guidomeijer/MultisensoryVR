@@ -20,6 +20,7 @@ import json, shutil, datetime
 from glob import glob
 from os.path import join, realpath, dirname, isfile, split, isdir
 from pathlib import Path
+from sklearn.metrics import accuracy_score
 from iblatlas.atlas import BrainRegions
 from iblutil.numerical import ismember
 ba = BrainRegions()
@@ -1215,6 +1216,69 @@ def calculate_peths(
     }
 
     return peths, binned_spikes
+
+
+def classify(population_activity, trial_labels, classifier, cross_validation=None,
+             return_prob=False):
+    """
+    Classify trial identity (e.g. stim left/right) from neural population activity.
+
+    Parameters
+    ----------
+    population_activity : 2D array (trials x neurons)
+        population activity of all neurons in the population for each trial.
+    trial_labels : 1D or 2D array
+        identities of the trials, can be any number of groups, accepts integers and strings
+    classifier : scikit-learn object
+        which decoder to use, for example Gaussian with Multinomial likelihood:
+                    from sklearn.naive_bayes import MultinomialNB
+                    classifier = MultinomialNB()
+    cross_validation : None or scikit-learn object
+        which cross-validation method to use, for example 5-fold:
+                    from sklearn.model_selection import KFold
+                    cross_validation = KFold(n_splits=5)
+    return_training : bool
+        if set to True the classifier will also return the performance on the training set
+
+    Returns
+    -------
+    accuracy : float
+        accuracy of the classifier
+    """
+
+    # Check input
+    if population_activity.shape[0] != trial_labels.shape[0]:
+        raise ValueError('trial_labels is not the same length as the first dimension of '
+                         'population_activity')
+
+    if cross_validation is None:
+        # Fit the model on all the data
+        classifier.fit(population_activity, trial_labels)
+        pred = classifier.predict(population_activity)
+        if return_prob:
+            prob = classifier.predict_proba(population_activity)
+            prob = prob[:, 1]
+    else:
+        pred = np.empty(trial_labels.shape[0])
+        if return_prob:
+            prob = np.empty(trial_labels.shape[0])
+
+        for train_index, test_index in cross_validation.split(population_activity):
+            # Fit the model to the training data
+            classifier.fit(population_activity[train_index], trial_labels[train_index])
+
+            # Predict the held-out test data
+            pred[test_index] = classifier.predict(population_activity[test_index])
+            if return_prob:
+                proba = classifier.predict_proba(population_activity[test_index])
+                prob[test_index] = proba[:, 1]
+
+    # Calculate accuracy
+    accuracy = accuracy_score(trial_labels, pred)
+    if return_prob:
+        return accuracy, pred, prob
+    else:
+        return accuracy, pred
 
 
 def peri_multiple_events_time_histogram(

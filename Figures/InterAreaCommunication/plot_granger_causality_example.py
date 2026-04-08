@@ -10,9 +10,9 @@ from os.path import join
 import pandas as pd
 from itertools import combinations
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import make_pipeline
-from sklearn.model_selection import LeaveOneOut, cross_val_predict
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.model_selection import KFold, cross_val_predict
+from scipy.special import logit
 import matplotlib.pyplot as plt
 import seaborn as sns
 from joblib import Parallel, delayed
@@ -24,10 +24,9 @@ colors, dpi = figure_style()
 T_BEFORE = 2  # s
 T_AFTER = 1
 BIN_SIZE = 0.05
-SMOOTHING = 0.1
 MIN_NEURONS = 10
-MIN_TRIALS = 30
-N_CORES = 6
+MIN_TRIALS = 20
+N_CORES = 20
 MAX_LAG = 0.5  # s
 SUBJECT = '459601'
 SESSION = '20240411'
@@ -38,11 +37,12 @@ subjects = load_subjects()
 rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 rec = rec.drop_duplicates(['subject', 'date'])
 neurons_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
-clf = make_pipeline(StandardScaler(), RandomForestClassifier(random_state=42, n_jobs=1))
 
+clf = RandomForestClassifier(random_state=42, n_jobs=1, n_estimators=500, max_depth=5)
+cv = KFold(n_splits=10, shuffle=True, random_state=42)
 
 # Functions for parallelization
-def decode_context(X, y, clf):
+def decode_context(X, y, clf, cv, n_cores):
     """
     Decodes object identity per timebin using efficient leave-one-out cross-validation.
 
@@ -55,7 +55,6 @@ def decode_context(X, y, clf):
         np.array: Decoding probabilities of shape (n_trials, n_timebins)
     """
     decoding_probs = np.empty((X.shape[0], X.shape[2]))
-    loo = LeaveOneOut()
 
     # Get unique classes to correctly index probabilities
     classes = np.unique(y)
@@ -64,7 +63,12 @@ def decode_context(X, y, clf):
         X_t = X[:, :, tb]  # shape: (n_trials, n_neurons)
 
         # Get probabilities for all classes using cross-validation
-        all_probs = cross_val_predict(clf, X_t, y, cv=loo, method='predict_proba', n_jobs=N_CORES)
+        all_probs = cross_val_predict(
+             clf, X_t, y,
+             cv=cv,
+             method='predict_proba',
+             n_jobs=n_cores)
+        all_probs = np.clip(all_probs, 1e-5, 1 - 1e-5)  # clip 0 and 1 for logit transform
 
         # Select the probability corresponding to the *true* label for each trial
         true_class_indices = np.searchsorted(classes, y)
@@ -145,12 +149,12 @@ for r, (region, probe) in enumerate(zip(regions, region_probes)):
     tscale, goal_spikes = calculate_peths(
         spikes[probe]['times'], spikes[probe]['clusters'], region_neurons,
         all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 1), 'times'].values,
-        T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING
+        T_BEFORE, T_AFTER, BIN_SIZE, smoothing=0
     )
     _, no_goal_spikes = calculate_peths(
         spikes[probe]['times'], spikes[probe]['clusters'], region_neurons,
         all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 0), 'times'].values,
-        T_BEFORE, T_AFTER, BIN_SIZE, SMOOTHING
+        T_BEFORE, T_AFTER, BIN_SIZE, smoothing=0
     )
 
     # Decode context per timebin and get decoding probabilities
@@ -158,7 +162,8 @@ for r, (region, probe) in enumerate(zip(regions, region_probes)):
     y = np.concatenate([np.zeros(goal_spikes.shape[0]), np.ones(no_goal_spikes.shape[0])]).astype(int)
 
     # Get trial by trial decoding probabilities and subtract the mean to leave the residuals
-    prob[region] = decode_context(X, y, clf)
+    prob[region] = decode_context(X, y, clf, cv, N_CORES)
+    prob[region] = logit(prob[region])  # do logit transformation of probabilities
     residuals[region] = prob[region] - np.mean(prob[region], axis=0)
 
 # Do Granger causality for all region pairs

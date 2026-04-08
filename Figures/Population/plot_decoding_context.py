@@ -5,7 +5,6 @@ Created on Wed Mar 12 13:27:02 2025
 By Guido Meijer
 """
 
-
 import numpy as np
 import pandas as pd
 from os.path import join
@@ -13,13 +12,14 @@ import seaborn as sns
 from scipy import stats
 import matplotlib.pyplot as plt
 from msvr_functions import paths, load_subjects, figure_style, add_significance
+
 colors, dpi = figure_style()
 
 # Settings
 MIN_NEURONS = 5
 MIN_TRIALS = 2
-WIN_NEAR = [900-150, 900]
-WIN_FAR = [1350-150, 1350]
+WIN_NEAR = [900 - 150, 900]
+WIN_FAR = [1350 - 150, 1350]
 REGIONS = ['CA1', 'LEC', 'PERI', 'TEa', 'AUD', 'VIS']
 
 # Load in data
@@ -34,14 +34,15 @@ context_df = context_df[context_df['n_trials'] >= MIN_TRIALS]
 
 # Get average per region in window
 context_win_near_df = context_df[(context_df['position'] >= WIN_NEAR[0]) & (context_df['position'] <= WIN_NEAR[1])
-                                & np.isin(context_df['subject'].values,
-                                       subjects.loc[subjects['Far'] == 0, 'SubjectID'].values.astype(int))]
+                                 & np.isin(context_df['subject'].values,
+                                           subjects.loc[subjects['Far'] == 0, 'SubjectID'].values.astype(int))]
 
 context_win_far_df = context_df[(context_df['position'] >= WIN_FAR[0]) & (context_df['position'] <= WIN_FAR[1])
                                 & np.isin(context_df['subject'].values,
-                                       subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
+                                          subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
 context_win_df = pd.concat((context_win_near_df, context_win_far_df))
 context_win_df = context_win_df.groupby(['region', 'subject', 'date']).agg({'accuracy': 'mean'}).reset_index()
+
 
 def run_ttest(accuracy_series):
     """
@@ -50,7 +51,7 @@ def run_ttest(accuracy_series):
     """
     if len(accuracy_series) < 2:
         return pd.Series([np.nan, np.nan], index=['statistic', 'pvalue'])
-    
+
     # Run the one-sample t-test against the population mean (popmean) of 0.5
     _, pvalue = stats.ttest_1samp(accuracy_series, popmean=0.5)
     return pd.Series([pvalue], index=['pvalue'])
@@ -63,11 +64,10 @@ def run_wilcoxon(accuracy_series):
     """
     if len(accuracy_series) < 2:
         return pd.Series([np.nan, np.nan], index=['statistic', 'pvalue'])
-    
+
     # Run the one-sample t-test against the population mean (popmean) of 0.5
     _, pvalue = stats.wilcoxon(accuracy_series - 0.5)
     return pd.Series([pvalue], index=['pvalue'])
-
 
 
 # %%
@@ -75,14 +75,13 @@ def run_wilcoxon(accuracy_series):
 f, axs = plt.subplots(2, 3, figsize=(7, 1.75 * 2), dpi=dpi, sharey=True)
 axs = axs.flatten()
 for i, region in enumerate(REGIONS):
-    
     # Do statistics
     this_df = context_df[(context_df['region'] == region)
                          & np.isin(context_df['subject'].values,
                                    subjects.loc[subjects['Far'] == 0, 'SubjectID'].values.astype(int))]
     results_df = this_df.groupby('position')['accuracy'].apply(run_ttest).reset_index()
     p_values = results_df['accuracy'].values
-    
+
     # Plot
     sns.lineplot(this_df, x='position', y='accuracy', color=colors[region], errorbar='se',
                  ax=axs[i], err_kws={'lw': 0}, legend=None, zorder=1)
@@ -93,45 +92,41 @@ for i, region in enumerate(REGIONS):
                 fontweight='bold')
     add_significance(results_df['position'].values, p_values, axs[i], y_pos=0.875, alpha=0.05)
     axs[i].set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
-               yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90], 
+               yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90],
                ylim=[0.3, 0.9], xlabel='', ylabel='')
 
-    
 f.text(0.5, 0.04, 'Position (cm)', ha='center')
 f.text(0.06, 0.5, 'Context decoding accuracy (%)', ha='center', va='center', rotation='vertical')
 plt.subplots_adjust(left=0.11, bottom=0.12, right=0.98, top=0.9, wspace=0, hspace=0.2)
 sns.despine(trim=True)
 
-# Hide top row x-axis 
+# Hide top row x-axis
 for i in range(3):
     axs[i].spines['bottom'].set_visible(False)
-    axs[i].xaxis.set_ticks_position('none') 
+    axs[i].xaxis.set_ticks_position('none')
     axs[i].tick_params(labelbottom=False)
-    
-    
-# Hide right column y-axis 
+
+# Hide right column y-axis
 for i in [1, 2, 4, 5]:
     axs[i].spines['left'].set_visible(False)
-    axs[i].yaxis.set_ticks_position('none') 
+    axs[i].yaxis.set_ticks_position('none')
     axs[i].tick_params(labelleft=False)
 
 plt.savefig(join(path_dict['google_drive_fig_path'], 'decode_context_GLM_position_near.pdf'))
 plt.savefig(join(path_dict['google_drive_fig_path'], 'decode_context_GLM_position_near.jpg'), dpi=600)
-
 
 # %%
 
 f, axs = plt.subplots(2, 3, figsize=(7, 1.75 * 2), dpi=dpi, sharey=True)
 axs = np.concatenate(axs)
 for i, region in enumerate(REGIONS):
-    
     # Do statistics
     this_df = context_df[(context_df['region'] == region)
                          & np.isin(context_df['subject'].values,
                                    subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
     results_df = this_df.groupby('position')['accuracy'].apply(run_ttest).reset_index()
     p_values = results_df['accuracy'].values
-    
+
     # Plot
     sns.lineplot(this_df, x='position', y='accuracy', color=colors[region], errorbar='se',
                  ax=axs[i], err_kws={'lw': 0}, legend=None, zorder=1)
@@ -142,24 +137,23 @@ for i, region in enumerate(REGIONS):
                 fontweight='bold')
     add_significance(results_df['position'].values, p_values, axs[i], y_pos=0.875, alpha=0.05)
     axs[i].set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
-               yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90], 
+               yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90],
                ylim=[0.3, 0.9], xlabel='', ylabel='')
 f.text(0.5, 0.04, 'Position (cm)', ha='center')
 f.text(0.06, 0.5, 'Context decoding accuracy (%)', ha='center', va='center', rotation='vertical')
 plt.subplots_adjust(left=0.11, bottom=0.12, right=0.98, top=0.9, wspace=0, hspace=0.2)
 sns.despine(trim=True)
 
-# Hide top row x-axis 
+# Hide top row x-axis
 for i in range(3):
     axs[i].spines['bottom'].set_visible(False)
-    axs[i].xaxis.set_ticks_position('none') 
+    axs[i].xaxis.set_ticks_position('none')
     axs[i].tick_params(labelbottom=False)
-    
-    
-# Hide right column y-axis 
+
+# Hide right column y-axis
 for i in [1, 2, 4, 5]:
     axs[i].spines['left'].set_visible(False)
-    axs[i].yaxis.set_ticks_position('none') 
+    axs[i].yaxis.set_ticks_position('none')
     axs[i].tick_params(labelleft=False)
 
 plt.savefig(join(path_dict['paper_fig_path'], 'decode_context_GLM_position_far.pdf'))
@@ -168,10 +162,10 @@ plt.show()
 
 # %%
 
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.3*2, 1.75), dpi=dpi, sharey=True)
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.3 * 2, 1.75), dpi=dpi, sharey=True)
 
 plot_df = context_win_df[np.isin(context_win_df['subject'].values,
-                         subjects.loc[subjects['Far'] == 0, 'SubjectID'].values.astype(int))]
+                                 subjects.loc[subjects['Far'] == 0, 'SubjectID'].values.astype(int))]
 stats_df = plot_df.groupby('region')['accuracy'].apply(run_ttest).reset_index()
 stats_df['region'] = pd.Categorical(stats_df['region'], categories=REGIONS, ordered=True)
 stats_df = stats_df.sort_values('region')
@@ -188,7 +182,7 @@ ax1.set(ylabel='Context decoding accuracy (%)', ylim=[0.3, 0.9], xlabel='', ytic
 ax1.tick_params(axis='x', labelrotation=90)
 
 plot_df = context_win_df[np.isin(context_win_df['subject'].values,
-                         subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
+                                 subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
 stats_df = plot_df.groupby('region')['accuracy'].apply(run_ttest).reset_index()
 stats_df['region'] = pd.Categorical(stats_df['region'], categories=REGIONS, ordered=True)
 stats_df = stats_df.sort_values('region')
@@ -207,7 +201,6 @@ sns.despine()
 plt.tight_layout()
 plt.savefig(path_dict['paper_fig_path'] / 'Decoding' / 'context_regions_far_near.pdf')
 plt.show()
-
 
 # %%
 f, ax1 = plt.subplots(figsize=(1.5, 1.75), dpi=dpi)
