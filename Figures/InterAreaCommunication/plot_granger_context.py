@@ -69,8 +69,10 @@ for obj in ['object1', 'object2', 'object3']:
     G = nx.DiGraph()
 
     # Add weighted edges for significant causality
-    for _, row in mean_causality[(mean_causality['object'] == obj) & (mean_causality['f_stat'] > 20)].iterrows():
-        G.add_edge(row['region1'], row['region2'], weight=row['f_stat'])
+    plot_df = mean_causality[(mean_causality['object'] == obj)
+                             & (mean_causality['var_explained_log_ratio'] > 0.003)]
+    for _, row in plot_df.iterrows():
+        G.add_edge(row['region1'], row['region2'], weight=row['var_explained_log_ratio'])
 
     # Add all expected nodes explicitly to ensure isolated ones are included
     node_order = ['VIS', 'AUD', 'TEa', 'PERI', 'LEC', 'CA1']

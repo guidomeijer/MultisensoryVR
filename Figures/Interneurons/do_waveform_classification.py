@@ -62,7 +62,7 @@ for i, region in enumerate(regions):
 f.suptitle('Spike width (ms)')
 sns.despine(trim=True)
 plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / 'WaveformClassification' / 'spike_width.jpg',
+plt.savefig(path_dict['paper_fig_path'] / 'Interneurons' / 'spike_width.jpg',
             dpi=600)
 
 # %% Plot firing rate comparision
@@ -95,7 +95,7 @@ for i, region in enumerate(regions):
 f.suptitle('Firing rate')
 sns.despine(trim=True)
 plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / 'WaveformClassification' / 'firing_rate.jpg',
+plt.savefig(path_dict['paper_fig_path'] / 'Interneurons' / 'firing_rate.jpg',
             dpi=600)
 
 
@@ -111,7 +111,7 @@ for i, region in enumerate(regions):
 f.suptitle('Peak-to-trough ratio')
 sns.despine(trim=True)
 plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / 'WaveformClassification' / 'peak_trough_ratio.jpg',
+plt.savefig(path_dict['paper_fig_path'] / 'Interneurons' / 'peak_trough_ratio.jpg',
             dpi=600)
 
 # %%
@@ -126,7 +126,7 @@ for i, region in enumerate(regions):
 f.suptitle('Recovery slope')
 sns.despine(trim=True)
 plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / 'WaveformClassification' / 'rec_slope.jpg',
+plt.savefig(path_dict['paper_fig_path'] / 'Interneurons' / 'rec_slope.jpg',
             dpi=600)
 
 # %%
@@ -141,7 +141,7 @@ for i, region in enumerate(regions):
 f.suptitle('Repolarization slope')
 sns.despine(trim=True)
 plt.tight_layout()
-plt.savefig(path_dict['google_drive_fig_path'] / 'WaveformClassification' / 'rep_slope.jpg',
+plt.savefig(path_dict['paper_fig_path'] / 'Interneurons' / 'rep_slope.jpg',
             dpi=600)
 
 # %%
@@ -159,7 +159,7 @@ f.text(0.5, 0.04, 'Spike width (ms)', ha='center')
 f.text(0.04, 0.5, 'Peak-to-trough ratio', va='center', rotation='vertical')
 sns.despine(trim=True)
 plt.subplots_adjust(left=0.1, bottom=0.125, right=0.99, top=0.925)
-plt.savefig(path_dict['google_drive_fig_path'] / 'WaveformClassification' / 'width_vs_peaktroughratio.jpg',
+plt.savefig(path_dict['paper_fig_path'] / 'Interneurons' / 'width_vs_peaktroughratio.jpg',
             dpi=600)
 
 # %%
@@ -176,6 +176,6 @@ f.text(0.5, 0.04, 'Spike width (ms)', ha='center')
 f.text(0.04, 0.5, 'Recovery slope', va='center', rotation='vertical')
 sns.despine(trim=True)
 plt.subplots_adjust(left=0.1, bottom=0.125, right=0.99, top=0.925)
-plt.savefig(path_dict['google_drive_fig_path'] / 'WaveformClassification' / 'width_vs_recslope.jpg',
+plt.savefig(path_dict['paper_fig_path'] / 'Interneurons' / 'width_vs_recslope.jpg',
             dpi=600)
 plt.show()
