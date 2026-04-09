@@ -47,7 +47,7 @@ mean_causality['p_value'] = pd.DataFrame(combined_pval_list)['combined_p_value']
 """
 # Calculate metrics
 metrics_df = pd.DataFrame()
-for obj in ['object1', 'object2']:
+for obj in ['object1', 'object2', 'object3']:
     for region in mean_causality['region1'].unique():
 
         # Calculate in/out strenght and asymmetry
@@ -62,14 +62,14 @@ for obj in ['object1', 'object2']:
             'region': region, 'object': obj})))
 
 # %%
-for obj in ['object1', 'object2']:
+for obj in ['object1', 'object2', 'object3']:
     plt.figure(figsize=(2, 2), dpi=300)
 
     # Build a directed graph
     G = nx.DiGraph()
 
     # Add weighted edges for significant causality
-    for _, row in mean_causality[(mean_causality['object'] == obj) & (mean_causality['f_stat'] > 1.5)].iterrows():
+    for _, row in mean_causality[(mean_causality['object'] == obj) & (mean_causality['f_stat'] > 20)].iterrows():
         G.add_edge(row['region1'], row['region2'], weight=row['f_stat'])
 
     # Add all expected nodes explicitly to ensure isolated ones are included
@@ -118,14 +118,13 @@ for obj in ['object1', 'object2']:
 
 f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
 
-ax1.plot([1.1, 1.3], [1.1, 1.3], color='grey', ls='--', zorder=0)
+ax1.plot([1, 90], [1, 90], color='grey', ls='--', zorder=0)
 for i, region in enumerate(metrics_df['region'].unique()):
     ax1.scatter(metrics_df.loc[(metrics_df['object'] == 'object1') & (metrics_df['region'] == region), 'out_strength'].values[0],
                 metrics_df.loc[(metrics_df['object'] == 'object2') & (metrics_df['region'] == region), 'out_strength'].values[0],
                 marker='s', color=colors[region], label=region, s=15, zorder=1)
 #ax1.legend(bbox_to_anchor=(0.7, 0.65), prop={'size': 6})
-ax1.set(xlabel='Out-Strength rew. object 1', ylabel='Out-Strength rew. object 2',
-        xticks=[1.1, 1.2, 1.3], yticks=[1.1, 1.2, 1.3])
+ax1.set(xlabel='Out-Strength rew. object 1', ylabel='Out-Strength rew. object 2')
 
 sns.despine(trim=True)
 plt.tight_layout()

@@ -25,7 +25,7 @@ REGIONS = ['CA1', 'LEC', 'PERI', 'TEa', 'AUD', 'VIS']
 # Load in data
 path_dict = paths()
 subjects = load_subjects()
-context_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_GLM_position.csv'))
+context_df = pd.read_csv(join(path_dict['save_path'], 'decode_context_GLM_position_subsampled.csv'))
 context_df['region'] = context_df['region'].astype(str)
 
 # Apply thresholds
@@ -156,8 +156,8 @@ for i in [1, 2, 4, 5]:
     axs[i].yaxis.set_ticks_position('none')
     axs[i].tick_params(labelleft=False)
 
-plt.savefig(join(path_dict['paper_fig_path'], 'decode_context_GLM_position_far.pdf'))
-plt.savefig(join(path_dict['paper_fig_path'], 'decode_context_GLM_position_far.jpg'), dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Decoding' / 'decode_context_GLM_position_far.pdf')
+plt.savefig(path_dict['paper_fig_path'], 'decode_context_GLM_position_far.jpg', dpi=600)
 plt.show()
 
 # %%
