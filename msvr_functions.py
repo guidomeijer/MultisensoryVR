@@ -783,9 +783,9 @@ def bin_signal(x, y, bin_centers, bin_size, statistic='mean'):
         else:
             segment = y_sorted[start:end]
             if statistic == 'mean':
-                bin_values[i] = np.mean(segment)
+                bin_values[i] = np.nanmean(segment)
             elif statistic == 'sum':
-                bin_values[i] = np.sum(segment)
+                bin_values[i] = np.nansum(segment)
 
     return bin_values
 

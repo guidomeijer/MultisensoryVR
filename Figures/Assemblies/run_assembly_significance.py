@@ -21,7 +21,7 @@ from msvr_functions import paths, load_objects, figure_style, peri_event_trace, 
 # Settings
 SIG_TIME = 2
 MIN_RIPPLES = 10
-PLOT = True
+PLOT = False
 N_JOBS = -10
 SMOOTHING = 1
 RIPPLE_WIN = [-1, 1]
@@ -195,7 +195,6 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                                                      t_before=1, t_after=1, ax=axs[pp], return_df=True)
                         axs[pp].set(xticks=[-1, 0, 1], xlabel='', ylabel='',
                                     title=f'p={np.round(p_ripples[pp], 2)}, amp={np.round(amp_ripples[pp], 2)}')
-                        print(ripple_df)
 
                     sns.despine(trim=True)
                     plt.tight_layout()
