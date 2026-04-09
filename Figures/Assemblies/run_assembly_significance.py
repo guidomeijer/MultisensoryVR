@@ -11,6 +11,7 @@ import seaborn as sns
 from scipy.ndimage import gaussian_filter1d
 from joblib import Parallel, delayed
 import matplotlib
+
 matplotlib.use('Agg')
 from zetapy import zetatstest, zetatstest2
 from scipy.ndimage import gaussian_filter1d
@@ -30,10 +31,11 @@ BIN_SIZE = 0.05
 path_dict = paths()
 colors, dpi = figure_style()
 
+
 def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ripple_win, bin_size):
     print(f'Processing {i} ({subject} {date} {probe})')
     assembly_df_session = pd.DataFrame()
-    
+
     try:
         # Load in data for this session
         session_path = path_dict['local_data_path'] / 'Subjects' / f'{subject}' / f'{date}'
@@ -47,7 +49,8 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
         sound2 = trials.loc[trials['soundId'] == 2, 'soundOnsetTime'].values
 
         # Get paths to data of this session
-        amp_paths = list((path_dict['google_drive_data_path'] / 'Assemblies').glob(f'{subject}_{date}_{probe}*.amplitudes.npy'))
+        amp_paths = list(
+            (path_dict['google_drive_data_path'] / 'Assemblies').glob(f'{subject}_{date}_{probe}*.amplitudes.npy'))
 
         # Loop over regions and get spike pattern amplitudes
         amplitudes, times = dict(), dict()
@@ -62,7 +65,7 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
 
         # Loop over regions and get significance
         for j, this_region in enumerate(list(amplitudes.keys())):
-            
+
             # Get traces
             activation_rate = amplitudes[this_region]
             time_ax = times[this_region]
@@ -108,7 +111,8 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                 plt.tight_layout()
 
                 plt.savefig(
-                    path_dict['google_drive_fig_path'] / 'Assemblies' / f'{this_region}_{subject}_{date}_{probe}_reward.jpg',
+                    path_dict[
+                        'google_drive_fig_path'] / 'Assemblies' / f'{this_region}_{subject}_{date}_{probe}_reward.jpg',
                     dpi=600)
                 plt.close(f)
 
@@ -131,13 +135,15 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                 sns.despine(trim=True)
                 plt.tight_layout()
                 plt.savefig(
-                    path_dict['google_drive_fig_path'] / 'Assemblies' / f'{this_region}_{subject}_{date}_{probe}_sound.jpg',
+                    path_dict[
+                        'google_drive_fig_path'] / 'Assemblies' / f'{this_region}_{subject}_{date}_{probe}_sound.jpg',
                     dpi=600)
                 plt.close(f)
-            
+
             # Find which spike patterns are active during ripples
             these_ripples_sess = ripples[(ripples['subject'] == subject) & (ripples['date'] == date)]
-            p_ripples, amp_ripples = np.full(activation_rate.shape[0], np.nan), np.full(activation_rate.shape[0], np.nan)
+            p_ripples, amp_ripples = np.full(activation_rate.shape[0], np.nan), np.full(activation_rate.shape[0],
+                                                                                        np.nan)
             if these_ripples_sess.shape[0] >= MIN_RIPPLES:
 
                 # Drop last ripple if too close to the end of the recording
@@ -157,12 +163,12 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                     p_ripples[asm], ZETA = zetatstest(time_ax, activation_rate[asm, :],
                                                       these_ripples_sess['start_times'].values - (SIG_TIME / 2),
                                                       dblUseMaxDur=SIG_TIME)
-                    
+
                     # Get mean assembly activation traces at ripples
                     mean_activation[asm, :] = event_aligned_trace(activation_rate[asm, :], time_ax,
                                                                   these_ripples_sess['start_times'].values,
                                                                   t_before=np.abs(ripple_win[0]), t_after=ripple_win[1],
-                                                                  baseline=[-1.5, -1], fs=1/bin_size)
+                                                                  baseline=[-1.5, -1], fs=1 / bin_size)
 
                     # Detect postivive or negative peak
                     is_pos = np.abs(np.max(mean_activation[asm, :])) > np.abs(np.min(mean_activation[asm, :]))
@@ -170,9 +176,11 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                         amp_ripples[asm] = np.max(mean_activation[asm, :])
                     else:
                         amp_ripples[asm] = np.min(mean_activation[asm, :])
-                np.save(path_dict['google_drive_data_path'] / 'RippleAssemblies' / f'{subject}_{date}_{probe}_{this_region}_mean_activation.npy',
+                np.save(path_dict[
+                            'google_drive_data_path'] / 'RippleAssemblies' / f'{subject}_{date}_{probe}_{this_region}_mean_activation.npy',
                         mean_activation)
-                np.save(path_dict['google_drive_data_path'] / 'RippleAssemblies' / f'{subject}_{date}_{probe}_{this_region}_time.npy',
+                np.save(path_dict[
+                            'google_drive_data_path'] / 'RippleAssemblies' / f'{subject}_{date}_{probe}_{this_region}_time.npy',
                         rel_ripple_time)
 
                 if PLOT:
@@ -195,18 +203,18 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                                 / f'{this_region}_{subject}_{date}_{probe}_ripples.jpg', dpi=600)
                     plt.close(f)
 
-
-
             # Add to df
             assembly_df_session = pd.concat((assembly_df_session, pd.DataFrame(data={
-                'p_obj1': p_obj1, 'p_obj2': p_obj2, 'p_sound_id': p_sound, 'p_ripples': p_ripples, 'amp_ripples': amp_ripples,
+                'p_obj1': p_obj1, 'p_obj2': p_obj2, 'p_sound_id': p_sound, 'p_ripples': p_ripples,
+                'amp_ripples': amp_ripples,
                 'assembly': np.arange(1, activation_rate.shape[0] + 1),
                 'region': this_region, 'subject': subject, 'date': date, 'probe': probe,
             })))
     except Exception as e:
         print(f"Failed to process {subject} {date} {probe}: {e}")
-        
+
     return assembly_df_session
+
 
 # %% MAIN
 
@@ -220,7 +228,7 @@ if __name__ == '__main__':
         delayed(process_session)(i, subject, date, probe, path_dict, ripples, colors, dpi, RIPPLE_WIN, BIN_SIZE)
         for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec['probe']))
     )
-    
+
     assembly_df = pd.concat(results, ignore_index=True)
 
     # Save to disk

@@ -24,7 +24,8 @@ BIN_SIZE = 0.05
 SMOOTHING = 0
 MIN_NEURONS = 10
 MIN_TRIALS = 30
-N_CORES = 20
+N_CORES = 12
+N_SHUFFLES = 1000
 MAX_LAG = 0.5  # s
 max_lag_bins = int(MAX_LAG / BIN_SIZE)
 
@@ -79,84 +80,29 @@ def decode_stationary_context(this_x, this_y, this_clf, n_splits=10):
     return decoding_probs
 
 
-def get_pooled_matrices(target_trials, source_trials, lags):
+def get_ar_matrices(target_trials, source_trials, lags):
     """
-    Builds pooled autoregression matrices (Y, X_restricted, X_full) across trials.
-
-    Args:
-        target_trials (np.array): Shape (n_trials, n_timebins)
-        source_trials (np.array): Shape (n_trials, n_timebins)
-        lags (int): Number of autoregressive lags
-
-    Returns:
-        Y_pooled, X_res_pooled, X_full_pooled: Pooled matrices for OLS.
+    Builds autoregression matrices (Y, X_res, X_source_lags) trial-by-trial.
     """
     n_trials, n_timebins = target_trials.shape
     if n_timebins <= (lags * 2 + 1):
-        return None, None, None # Indicate invalid data
+        return None, None, None
 
-    y_target_pooled = []
-    X_res_pooled = []
-    X_full_pooled = []
+    y_target_list = []
+    X_res_list = []
+    X_source_lags_list = []
 
-    # Build design matrices per trial to prevent cross-trial bleeding
     for trial in range(n_trials):
         target = target_trials[trial, :]
         source = source_trials[trial, :]
-
-        # Target vector for this trial
-        y_target = target[lags:]
-
-        # Lagged matrices
         y_lags = np.column_stack([target[lags - 1 - i: n_timebins - 1 - i] for i in range(lags)])
         x_lags = np.column_stack([source[lags - 1 - i: n_timebins - 1 - i] for i in range(lags)])
-
-        # Restricted model: target ~ constant + target_lags
-        X_res = np.column_stack([np.ones(n_timebins - lags), y_lags])
-        # Full model: target ~ constant + target_lags + source_lags
-        X_full = np.column_stack([X_res, x_lags])
-
-        y_target_pooled.append(y_target)
-        X_res_pooled.append(X_res)
-        X_full_pooled.append(X_full)
-
-    # Vertically stack all trials into massive pooled arrays
-    Y_pooled = np.concatenate(y_target_pooled, axis=0)
-    X_res_pooled = np.vstack(X_res_pooled)
-    X_full_pooled = np.vstack(X_full_pooled)
-    
-    return Y_pooled, X_res_pooled, X_full_pooled
-
-
-def get_session_pooled_matrices_for_pair(region1, region2, this_obj, residuals_obj_data, max_lag_bins):
-    """
-    Helper function to get pooled matrices for a single region pair and object within a session.
-    """
-    obj_str = f'object{this_obj}'
-    
-    results = []
-    
-    # Source -> Target (r1 -> r2)
-    Y_r2, X_res_r2, X_full_r2 = get_pooled_matrices(
-        residuals_obj_data[region2], residuals_obj_data[region1], max_lag_bins
-    )
-    if Y_r2 is not None:
-        results.append({
-            'key': (region1, region2, obj_str),
-            'Y': Y_r2, 'X_res': X_res_r2, 'X_full': X_full_r2
-        })
-
-    # Target -> Source (r2 -> r1)
-    Y_r1, X_res_r1, X_full_r1 = get_pooled_matrices(
-        residuals_obj_data[region1], residuals_obj_data[region2], max_lag_bins
-    )
-    if Y_r1 is not None:
-        results.append({
-            'key': (region2, region1, obj_str),
-            'Y': Y_r1, 'X_res': X_res_r1, 'X_full': X_full_r1
-        })
         
-    return results
+        y_target_list.append(target[lags:])
+        X_res_list.append(np.column_stack([np.ones(n_timebins - lags), y_lags]))
+        X_source_lags_list.append(x_lags)
+        
+    return y_target_list, X_res_list, X_source_lags_list
 
 
 def process_single_region(region, probe, spikes, clusters, all_obj_df, clf):
@@ -204,7 +150,7 @@ def process_single_region(region, probe, spikes, clusters, all_obj_df, clf):
 
 def process_single_recording(subject, date, path_dict, clf, max_lag_bins, MIN_NEURONS, MIN_TRIALS):
     """
-    Processes a single recording to extract pooled autoregression matrices.
+    Processes a single recording to extract trial-wise AR matrices.
     """
     print(f'\nProcessing {subject} {date}...')
 
@@ -241,25 +187,28 @@ def process_single_recording(subject, date, path_dict, clf, max_lag_bins, MIN_NE
             if results[f'object{this_obj}'] is not None:
                 residuals[f'object{this_obj}'][region] = results[f'object{this_obj}']
 
-    # Loop over region pairs to get pooled matrices for this session
-    session_pair_jobs = []
+    # Loop over region pairs to get AR data for this session
+    session_ar_data = []
     for region1, region2 in combinations(residuals['object1'].keys(), 2):
         for this_obj in [1, 2, 3]:
-            session_pair_jobs.append({
-                'r1': region1, 'r2': region2,
-                'obj': this_obj,
-                'residuals_obj_data': residuals[f'object{this_obj}']
-            })
-
-    session_pooled_results_for_this_recording = []
-    for job in session_pair_jobs:
-        session_pooled_results_for_this_recording.extend(
-            get_session_pooled_matrices_for_pair(
-                job['r1'], job['r2'], job['obj'], job['residuals_obj_data'], max_lag_bins
-            )
-        )
+            obj_str = f'object{this_obj}'
+            res_data = residuals[obj_str]
+            # r1 -> r2
+            y_r2, x_res_r2, x_src_r2 = get_ar_matrices(res_data[region2], res_data[region1], max_lag_bins)
+            if y_r2 is not None:
+                session_ar_data.append({
+                    'key': (region1, region2, obj_str),
+                    'Y': y_r2, 'X_res': x_res_r2, 'X_src': x_src_r2
+                })
+            # r2 -> r1
+            y_r1, x_res_r1, x_src_r1 = get_ar_matrices(res_data[region1], res_data[region2], max_lag_bins)
+            if y_r1 is not None:
+                session_ar_data.append({
+                    'key': (region2, region1, obj_str),
+                    'Y': y_r1, 'X_res': x_res_r1, 'X_src': x_src_r1
+                })
     
-    return session_pooled_results_for_this_recording
+    return session_ar_data
 
 
 # %% Parallelize over recordings
@@ -282,159 +231,92 @@ all_recording_pooled_results = Parallel(n_jobs=N_CORES)(
     delayed(process_single_recording)(**job_args) for job_args in recording_jobs_args
 )
 
-# Global storage for pooled matrices across all sessions
-global_pooled_data = {} # Key: (region1, region2, object_str), Value: {'Y': [], 'X_res': [], 'X_full': []}
+# Global storage for AR data across all sessions
+global_pooled_data = {} # Key: (region1, region2, object_str), Value: [session_dict1, session_dict2, ...]
 
 # Aggregate results from all recordings into the global storage
-for recording_results_list in all_recording_pooled_results:
-    for res in recording_results_list:
+for recording_ar_data in all_recording_pooled_results:
+    for res in recording_ar_data:
         key = res['key']
         if key not in global_pooled_data:
-            global_pooled_data[key] = {'Y': [], 'X_res': [], 'X_full': []}
-        global_pooled_data[key]['Y'].append(res['Y'])
-        global_pooled_data[key]['X_res'].append(res['X_res'])
-        global_pooled_data[key]['X_full'].append(res['X_full'])
+            global_pooled_data[key] = []
+        global_pooled_data[key].append(res)
 
+
+def calculate_f_stat(Y, X_res, X_full, lags): # Modified to return f_stat and var_explained_log_ratio
+    f_stat = np.nan
+    var_explained_log_ratio = np.nan
+    try:
+        _, rss_res, _, _ = np.linalg.lstsq(X_res, Y, rcond=None)
+        _, rss_full, _, _ = np.linalg.lstsq(X_full, Y, rcond=None)
+        
+        if len(rss_res) > 0 and len(rss_full) > 0:
+            rss_res_val = rss_res[0]
+            rss_full_val = rss_full[0]
+
+            # F-statistic calculation
+            df_num = lags
+            df_denom = len(Y) - X_full.shape[1]
+            
+            if df_denom > 0 and rss_full_val > 0: # Ensure valid denominator for F-stat
+                if rss_res_val >= rss_full_val: # RSS_res should be >= RSS_full
+                    f_stat = ((rss_res_val - rss_full_val) / df_num) / (rss_full_val / df_denom)
+                    f_stat = max(0, f_stat)
+                else: # This can happen due to numerical precision, treat as no improvement
+                    f_stat = 0.0
+            
+            # Variance explained as log-ratio of RSS (log-ratio of residual variances)
+            if rss_res_val > 0 and rss_full_val > 0:
+                var_explained_log_ratio = np.log(rss_res_val / rss_full_val)
+            
+    except np.linalg.LinAlgError:
+        pass
+    except Exception as e:
+        print(f"Error in calculate_f_stat: {e}")
+        pass
+        
+    return f_stat, var_explained_log_ratio
 
 # %% Calculate global Granger F-statistics after pooling all data
-print("\nCalculating global Granger F-statistics...")
+print(f"\nCalculating global Granger F-statistics and null distributions (N={N_SHUFFLES})...")
 final_granger_results = []
 
-for (r1, r2, obj_str), data_lists in global_pooled_data.items():
+for (r1, r2, obj_str), sessions in global_pooled_data.items():
     # Concatenate all pooled matrices for this specific (r1, r2, obj_str) across all sessions
-    Y_global = np.concatenate(data_lists['Y'], axis=0)
-    X_res_global = np.vstack(data_lists['X_res'])
-    X_full_global = np.vstack(data_lists['X_full'])
+    Y_all = np.concatenate([np.concatenate(s['Y']) for s in sessions])
+    X_res_all = np.vstack([np.vstack(s['X_res']) for s in sessions])
+    X_src_all = np.vstack([np.vstack(s['X_src']) for s in sessions])
+    X_full_all = np.column_stack([X_res_all, X_src_all])
 
-    f_stat, p_value = np.nan, np.nan
-    try:
-        # Solve OLS on the globally pooled data
-        _, rss_res, _, _ = np.linalg.lstsq(X_res_global, Y_global, rcond=None)
-        _, rss_full, _, _ = np.linalg.lstsq(X_full_global, Y_global, rcond=None)
-
-        if len(rss_res) > 0 and len(rss_full) > 0:
-            # Pooled Degrees of Freedom
-            n_total_observations = len(Y_global)
-            df_num = max_lag_bins
-            df_denom = n_total_observations - (1 + 2 * max_lag_bins)
-
-            if df_denom > 0: # Ensure denominator is positive for F-stat calculation
-                f_stat = ((rss_res[0] - rss_full[0]) / df_num) / (rss_full[0] / df_denom)
-                f_stat = max(0, f_stat) # F-stat should not be negative
-                p_value = 1 - stats.f.cdf(f_stat, df_num, df_denom)
-
-    except np.linalg.LinAlgError:
-        pass # f_stat and p_value remain nan
+    real_f, real_var_explained = calculate_f_stat(Y_all, X_res_all, X_full_all, max_lag_bins)
+    
+    # Calculate null distribution by shuffling source trials within sessions
+    null_f = []
+    null_var_explained = []
+    for _ in range(N_SHUFFLES):
+        X_src_shuff_list = []
+        for s in sessions:
+            idx = np.random.permutation(len(s['X_src']))
+            X_src_shuff_list.append(np.vstack([s['X_src'][i] for i in idx]))
+        X_src_shuff = np.vstack(X_src_shuff_list)
+        X_full_shuff = np.column_stack([X_res_all, X_src_shuff])
+        shuff_f, shuff_var_explained = calculate_f_stat(Y_all, X_res_all, X_full_shuff, max_lag_bins)
+        null_f.append(shuff_f)
+        null_var_explained.append(shuff_var_explained)
+    
+    null_f = np.array(null_f)
+    null_var_explained = np.array(null_var_explained)
+    p_val_shuff = np.mean(null_f >= real_f) if not np.isnan(real_f) else np.nan
 
     final_granger_results.append({
         'region_pair': f'{r1} → {r2}',
         'region1': r1, 'region2': r2,
         'object': obj_str,
-        'p_value': p_value, 'f_stat': f_stat
-    })
-
-granger_df = pd.DataFrame(final_granger_results)
-granger_df.to_csv(join(path_dict['save_path'], 'granger_causality_context_global_pooled.csv'), index=False)
-for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
-    print(f'\n{subject} {date} ({i} of {rec.shape[0]})')
-
-    # Load in data
-    session_path = join(path_dict['local_data_path'], 'subjects', f'{subject}', f'{date}')
-    spikes, clusters, channels = load_multiple_probes(session_path)
-    trials = pd.read_csv(join(path_dict['local_data_path'], 'subjects', subject, date, 'trials.csv'))
-    all_obj_df = load_objects(subject, date)
-    
-    if trials.shape[0] < MIN_TRIALS:
-        continue
-    
-    # %% Loop over regions
-    
-    # Get list of all regions and which probe they were recorded on
-    regions, region_probes = [], []
-    for p, probe in enumerate(spikes.keys()):
-        regions.append(np.unique(clusters[probe]['region']))
-        region_probes.append([probe] * np.unique(clusters[probe]['region']).shape[0])
-    regions = np.concatenate(regions)
-    region_probes = np.concatenate(region_probes)
-    
-    # Parallelize decoding across regions
-    print(f'Decoding {len(regions)} regions in parallel...')
-    decoded_outputs = Parallel(n_jobs=N_CORES)(
-        delayed(process_single_region)(reg, prob, spikes, clusters, all_obj_df, clf) 
-        for reg, prob in zip(regions, region_probes) if reg != 'root'
-    )
-
-    # Reconstruct residuals dictionary
-    residuals = {f'object{i}': {} for i in [1, 2, 3]}
-    for region, results in decoded_outputs:
-        if results is None: continue
-        for this_obj in [1, 2, 3]:
-            if results[f'object{this_obj}'] is not None:
-                residuals[f'object{this_obj}'][region] = results[f'object{this_obj}']
-
-    # Loop over region pairs
-    session_pair_jobs = []
-    for region1, region2 in combinations(residuals['object1'].keys(), 2):
-        for this_obj in [1, 2, 3]:
-            session_pair_jobs.append({
-                'r1': region1, 'r2': region2,
-                'obj': this_obj,
-                'residuals_obj_data': residuals[f'object{this_obj}']
-            })
-
-    print(f"Collecting pooled matrices for {len(session_pair_jobs)} pairs in session {subject} {date}...")
-    session_pooled_results = Parallel(n_jobs=N_CORES)(
-        delayed(get_session_pooled_matrices_for_pair)(
-            job['r1'], job['r2'], job['obj'], job['residuals_obj_data'], max_lag_bins
-        ) for job in session_pair_jobs
-    )
-
-    # Aggregate results from this session into the global storage
-    for session_results_list in session_pooled_results:
-        for res in session_results_list:
-            key = res['key']
-            if key not in global_pooled_data:
-                global_pooled_data[key] = {'Y': [], 'X_res': [], 'X_full': []}
-            global_pooled_data[key]['Y'].append(res['Y'])
-            global_pooled_data[key]['X_res'].append(res['X_res'])
-            global_pooled_data[key]['X_full'].append(res['X_full'])
-
-
-# %% Calculate global Granger F-statistics after pooling all data
-print("\nCalculating global Granger F-statistics...")
-final_granger_results = []
-
-for (r1, r2, obj_str), data_lists in global_pooled_data.items():
-    # Concatenate all pooled matrices for this specific (r1, r2, obj_str) across all sessions
-    Y_global = np.concatenate(data_lists['Y'], axis=0)
-    X_res_global = np.vstack(data_lists['X_res'])
-    X_full_global = np.vstack(data_lists['X_full'])
-
-    f_stat, p_value = np.nan, np.nan
-    try:
-        # Solve OLS on the globally pooled data
-        _, rss_res, _, _ = np.linalg.lstsq(X_res_global, Y_global, rcond=None)
-        _, rss_full, _, _ = np.linalg.lstsq(X_full_global, Y_global, rcond=None)
-
-        if len(rss_res) > 0 and len(rss_full) > 0:
-            # Pooled Degrees of Freedom
-            n_total_observations = len(Y_global)
-            df_num = max_lag_bins
-            df_denom = n_total_observations - (1 + 2 * max_lag_bins)
-
-            if df_denom > 0: # Ensure denominator is positive for F-stat calculation
-                f_stat = ((rss_res[0] - rss_full[0]) / df_num) / (rss_full[0] / df_denom)
-                f_stat = max(0, f_stat) # F-stat should not be negative
-                p_value = 1 - stats.f.cdf(f_stat, df_num, df_denom)
-
-    except np.linalg.LinAlgError:
-        pass # f_stat and p_value remain nan
-
-    final_granger_results.append({
-        'region_pair': f'{r1} → {r2}',
-        'region1': r1, 'region2': r2,
-        'object': obj_str,
-        'p_value': p_value, 'f_stat': f_stat
+        'f_stat': real_f, # Real F-statistic
+        'p_value_shuffled': p_val_shuff, # P-value from shuffled F-statistics
+        'f_stat_null_95': np.nanpercentile(null_f, 95) if len(null_f) > 0 else np.nan, # 95th percentile of null F-stats
+        'var_explained_log_ratio': real_var_explained, # Real variance explained (log-ratio)
+        'var_explained_log_ratio_null_95': np.nanpercentile(null_var_explained, 95) if len(null_var_explained) > 0 else np.nan # 95th percentile of null variance explained
     })
 
 granger_df = pd.DataFrame(final_granger_results)
