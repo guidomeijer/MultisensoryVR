@@ -52,7 +52,8 @@ for i, amp_path in enumerate(amp_paths):
     amplitudes = np.load(amp_path)
     time_ax = np.load(amp_path.parent / (amp_path.stem.split('.')[0] + '.times.npy'))
     all_obj_df = load_objects(subject, date)
-    all_obj_df = all_obj_df[(all_obj_df['object'] == 1) | (all_obj_df['object'] == 2)]
+    all_obj_df = all_obj_df[all_obj_df['object'] == 1]
+    #all_obj_df = all_obj_df[(all_obj_df['object'] == 1) | (all_obj_df['object'] == 2)]
 
     # Get ripples for this session
     ripples_ses = ripples[(ripples['subject'] == subject) & (ripples['date'] == date)]
