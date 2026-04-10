@@ -366,8 +366,8 @@ def figure_style(font_size=7):
         'control': matplotlib.colors.to_rgb('gray'),
         'sound1': matplotlib.colors.to_rgb('goldenrod'),
         'sound2': matplotlib.colors.to_rgb('darkorchid'),
-        'INT': matplotlib.colors.to_rgb('firebrick'),
-        'PYR': matplotlib.colors.to_rgb('mediumseagreen'),
+        'INT': matplotlib.colors.to_rgb('hotpink'),
+        'PYR': matplotlib.colors.to_rgb('royalblue'),
         'PERI 36': sns.color_palette('Set3')[5],
         'PERI 35': sns.color_palette('Set3')[3],
         'PERI': sns.color_palette('Set3')[5],
@@ -1199,6 +1199,8 @@ def calculate_peths(
     # Convert to firing rate if requested
     if return_fr:
         binned_spikes /= bin_size
+    else:
+        binned_spikes = binned_spikes.astype(int)
 
     # Calculate final means and stds across trials
     peth_means = np.mean(binned_spikes, axis=0)
