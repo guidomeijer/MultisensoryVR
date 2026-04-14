@@ -23,7 +23,7 @@ PROBE = 'probe01'
 REGION = 'CA1'
 BIN_SIZE = 0.05
 SIG_TIME = 2
-MP_THRESHOLD_SCALE = 1.2  # Scale factor for Marchenko-Pastur threshold (higher -> fewer assemblies)
+MP_THRESHOLD_SCALE = 1  # Scale factor for Marchenko-Pastur threshold (higher -> fewer assemblies)
 MEMBER_THRESHOLD_Z = 1  # z-score for assembly membership
 SMOOTHING = 1
 
@@ -247,6 +247,9 @@ plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_example_ripp
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_example_ripple_{SUBJECT}_{DATE}_{REGION}.pdf')
 plt.show()
 
+# %%
+plot_assembly = 3
+
 # Do some smoothing
 activations_smooth = gaussian_filter1d(activations, sigma=SMOOTHING, axis=1)
 
@@ -266,29 +269,29 @@ print(f'ZETA test object 2; p = {np.round(p_obj2, 3)}')
 
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.1*2, 1.75), dpi=dpi, sharey=True)
 
-ax1.plot([0, 0], [-0.6, -0.1], lw=0.5, ls='--', color='grey')
+ax1.plot([0, 0], [-0.3, 0.5], lw=0.5, ls='--', color='grey')
 peri_event_trace(activations_smooth[plot_assembly, :], binned_time,
                  all_obj_df.loc[all_obj_df['object'] == 1, 'times'],
                  all_obj_df.loc[all_obj_df['object'] == 1, 'goal'].values + 1,
                  t_before=2, t_after=1, ax=ax1,
                  color_palette=[colors['no-goal'], colors['goal']])
 #ax1.text(-0.5, -0.12, 'n.s.', fontsize=7, ha='center', va='center')
-ax1.set(xticks=np.arange(-2, 1.5), xlabel='', yticks=[-0.6, -0.1], ylim=[-0.6, -0.1],
+ax1.set(xticks=np.arange(-2, 1.5), xlabel='', yticks=[-0.3, 0.5], ylim=[-0.3, 0.5],
         title='Rewarded object 1')
 ax1.set_ylabel('Assembly activation', labelpad=-10)
 
-ax2.plot([0, 0], [-0.6, -0.1], lw=0.5, ls='--', color='grey', zorder=0)
+ax2.plot([0, 0], [-0.3, 0.5], lw=0.5, ls='--', color='grey', zorder=0)
 peri_event_trace(activations_smooth[plot_assembly, :], binned_time,
                  all_obj_df.loc[all_obj_df['object'] == 2, 'times'],
                  all_obj_df.loc[all_obj_df['object'] == 2, 'goal'].values + 1,
                  t_before=2, t_after=1, ax=ax2,
                  color_palette=[colors['no-goal'], colors['goal']])
-ax2.text(-0.5, -0.12, '*', fontsize=12, ha='center', va='center')
+ax2.text(-0.5, 0.43, '**', fontsize=11, ha='center', va='center')
 ax2.set(xticks=np.arange(-2, 1.5), xlabel='', title='Rewarded object 2')
 
 f.text(0.5, 0.04, 'Time from object entry (s)', ha='center')
 sns.despine(trim=True)
-plt.subplots_adjust(left=0.15, right=0.98, top=0.85, bottom=0.21)
+plt.subplots_adjust(left=0.2, right=0.98, top=0.85, bottom=0.21)
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_example_hitmis_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_example_hitmis_{SUBJECT}_{DATE}_{REGION}.pdf')
 plt.show()

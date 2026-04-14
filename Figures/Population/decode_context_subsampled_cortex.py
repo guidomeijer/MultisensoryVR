@@ -29,6 +29,7 @@ DECODER = 'randomforest'        # regression, svm, randomforest, lda
 PREV_TRIAL = False               # Whether to decode the context of the previous trial
 SHUFFLE = True                  # Whether to shuffle trial labels
 
+
 # Initialize
 path_dict = paths(sync=False)
 rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)

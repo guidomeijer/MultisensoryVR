@@ -792,21 +792,22 @@ def bin_signal(x, y, bin_centers, bin_size, statistic='mean'):
 
 def add_significance(x, p_values, ax, y_pos='auto', alpha=0.05, color='k'):
     """
-    Adds significance markers to a plot based on p-values.
-    This function identifies regions of significance in the provided p-values
-    and adds horizontal lines above the plot to indicate these regions.
-    Parameters:
-        x (array-like): The x-coordinates corresponding to the p-values.
-        p_values (array-like): The p-values to evaluate for significance.
-        ax (matplotlib.axes.Axes): The matplotlib Axes object to which the significance
-            markers will be added.
-        alpha (float, optional): The significance threshold. Default is 0.05.
-    Notes:
-        - The function assumes that `p_values` is a 1D array-like object.
-        - Horizontal lines are drawn above the plot to indicate regions where
-          p-values are below the significance threshold (`alpha`).
-        - The y-coordinate for the lines is determined based on the current
-          y-axis limits of the provided Axes object.
+    Add significance bars to a plot based on p-values.
+
+    Parameters
+    ----------
+    x : array-like
+        The x-coordinates corresponding to the p-values.
+    p_values : array-like
+        The p-values to evaluate for significance.
+    ax : matplotlib.axes.Axes
+        The axes object to plot the significance bars on.
+    y_pos : float or 'auto', optional
+        The y-position of the significance bars. If 'auto', uses the top of the y-axis.
+    alpha : float, optional
+        The significance threshold. Default is 0.05.
+    color : str, optional
+        The color of the significance bars. Default is 'k' (black).
     """
 
     p_sig = p_values < alpha
