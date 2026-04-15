@@ -23,7 +23,7 @@ MIN_NEURONS = 10
 N_NEURONS_SUB = 25              # Number of neurons to subselect
 N_ITER = 50                     # Number of iterations for subsampling
 N_CPUS = 18
-MERGE_CORTEX = True
+MERGE_CORTEX = False
 
 # Create time array
 t_centers = np.arange(-T_BEFORE + (BIN_SIZE/2), T_AFTER - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
