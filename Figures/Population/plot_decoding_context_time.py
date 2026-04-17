@@ -49,12 +49,13 @@ plt.show()
 
 f, ax1 = plt.subplots(1, 1, figsize=(2.5, 1.75), dpi=dpi, sharey=True)
 
-ax1.plot([0, 0], [0.4, 0.7], color='grey', ls='--')
+#ax1.plot([0, 0], [0.3, 0.8], color='grey', ls='--')
 sns.lineplot(regions_df[regions_df['object'] == 1], x='time', y='accuracy', hue='region', errorbar='se',
              ax=ax1, err_kws={'lw': 0}, legend='brief', zorder=2, palette=colors)
-ax1.set(yticks=[0.4, 0.5, 0.6, 0.7], yticklabels=[40, 50, 60, 70], xticks=[-2, -1, 0, 1, 2],
-        ylabel='Context decoding accuracy (%)', xlim=[-0.2, 1], xlabel='Time from object entry (s)')
-ax1.legend(bbox_to_anchor=(1.1, 0.4))
+ax1.set(yticks=[0.4, 0.5, 0.6, 0.7, 0.8], yticklabels=[40, 50, 60, 70, 80], ylim=[0.35, 0.8],
+        xticks=[-0.2, 0, 0.2, 0.4, 0.6], ylabel='Context decoding accuracy (%)', xlim=[-0.2, 0.6],
+        xlabel='Time from object entry (s)')
+ax1.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
 sns.despine(trim=True)
 plt.tight_layout()
 plt.show()

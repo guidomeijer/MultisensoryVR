@@ -18,7 +18,7 @@ path_dict = paths()
 REGIONS = ['CA1', 'LEC', 'PERI', 'TEa', 'AUD', 'VIS']
 
 # Load in data
-lda_df = pd.read_csv(path_dict['google_drive_data_path'] / 'lda_alignment_pre_object.csv')
+lda_df = pd.read_csv(path_dict['google_drive_data_path'] / 'lda_alignment_0.6_-0.15.csv')
 lda_df = lda_df[(lda_df['time_ax'] >= -1) & (lda_df['time_ax'] <= 1)]
 
 # %% Plot

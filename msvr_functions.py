@@ -332,7 +332,7 @@ def figure_style(font_size=7):
             font="Arial",
             rc={"font.size": font_size,
                 "figure.titlesize": font_size,
-                "figure.labelweight": font_size,
+                "figure.labelweight": 'normal',
                 "axes.titlesize": font_size,
                 "axes.labelsize": font_size,
                 "axes.linewidth": 0.5,
@@ -355,7 +355,7 @@ def figure_style(font_size=7):
                 })
     matplotlib.rcParams['pdf.fonttype'] = 42
     matplotlib.rcParams['ps.fonttype'] = 42
-    matplotlib.rcParams['backend'] = 'QtAgg'
+    #matplotlib.rcParams['backend'] = 'QtAgg'
 
     colors = {
         'obj1': sns.color_palette('Set2')[2],
