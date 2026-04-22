@@ -16,16 +16,18 @@ matplotlib.use('Agg')
 from zetapy import zetatstest, zetatstest2
 from scipy.ndimage import gaussian_filter1d
 import matplotlib.pyplot as plt
-from msvr_functions import paths, load_objects, figure_style, peri_event_trace, event_aligned_trace
+from msvr_functions import paths, load_objects, figure_style, peri_event_trace, event_aligned_trace, bin_signal
 
 # Settings
 SIG_TIME = 2
 MIN_RIPPLES = 10
-PLOT = False
-N_JOBS = -10
+PLOT = True
+N_JOBS = -4
 SMOOTHING = 1
 RIPPLE_WIN = [-1, 1]
 BIN_SIZE = 0.05
+OBJ_WIN_CENTER = {'obj1': 0.75, 'obj2': 0}
+OBJ_WIN_SIZE = 0.3
 
 # Initialize
 path_dict = paths()
@@ -33,7 +35,7 @@ colors, dpi = figure_style()
 
 
 def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ripple_win, bin_size):
-    print(f'Processing {i} ({subject} {date} {probe})')
+    print(f'Processing {subject} {date} {probe}')
     assembly_df_session = pd.DataFrame()
 
     try:
@@ -45,6 +47,8 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
         obj1_nogoal = all_obj_df.loc[(all_obj_df['object'] == 1) & (all_obj_df['goal'] == 0), 'times'].values
         obj2_goal = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 1), 'times'].values
         obj2_nogoal = all_obj_df.loc[(all_obj_df['object'] == 2) & (all_obj_df['goal'] == 0), 'times'].values
+        rewarded_entries = {'obj1': obj1_goal, 'obj2': obj2_goal}
+        unrewarded_entries = {'obj1': obj1_nogoal, 'obj2': obj2_nogoal}
         sound1 = trials.loc[trials['soundId'] == 1, 'soundOnsetTime'].values
         sound2 = trials.loc[trials['soundId'] == 2, 'soundOnsetTime'].values
 
@@ -76,16 +80,25 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                 activation_rate = gaussian_filter1d(activation_rate, SMOOTHING, axis=1)
 
             # Find patterns that encode reward prediction
-            p_obj1, p_obj2 = np.empty(n_assemblies), np.empty(n_assemblies)
-            z_obj1, z_obj2 = np.empty(n_assemblies), np.empty(n_assemblies)
-            for asm in range(activation_rate.shape[0]):
-                # Run zetatest
-                p_obj1[asm], ZETA = zetatstest2(time_ax, activation_rate[asm, :], obj1_goal - SIG_TIME,
-                                                time_ax, activation_rate[asm, :], obj1_nogoal - SIG_TIME,
-                                                dblUseMaxDur=SIG_TIME)
-                p_obj2[asm], ZETA = zetatstest2(time_ax, activation_rate[asm, :], obj2_goal - SIG_TIME,
-                                                time_ax, activation_rate[asm, :], obj2_nogoal - SIG_TIME,
-                                                dblUseMaxDur=SIG_TIME)
+            p_obj = {'obj1': np.empty(n_assemblies), 'obj2': np.empty(n_assemblies)}
+            diff_obj = {'obj1': np.empty(n_assemblies), 'obj2': np.empty(n_assemblies)}
+            for obj in [1, 2]:
+                for asm in range(n_assemblies):
+
+                    # Run zetatest
+                    p_obj[f'obj{obj}'][asm], _ = zetatstest2(
+                        time_ax, activation_rate[asm, :], rewarded_entries[f'obj{obj}'] - SIG_TIME,
+                        time_ax, activation_rate[asm, :], unrewarded_entries[f'obj{obj}'] - SIG_TIME,
+                        dblUseMaxDur=SIG_TIME)
+
+                    # Get rewarded-unrewarded difference
+                    rewarded_act = bin_signal(
+                        time_ax, activation_rate[asm, :], rewarded_entries[f'obj{obj}'] + OBJ_WIN_CENTER[f'obj{obj}'],
+                        bin_size=OBJ_WIN_SIZE)
+                    unrewarded_act = bin_signal(
+                        time_ax, activation_rate[asm, :], unrewarded_entries[f'obj{obj}'] + OBJ_WIN_CENTER[f'obj{obj}'],
+                        bin_size=OBJ_WIN_SIZE)
+                    diff_obj[f'obj{obj}'][asm] = np.mean(rewarded_act) - np.mean(unrewarded_act)
 
             if PLOT & (n_assemblies > 1):
                 f, axs = plt.subplots(2, n_assemblies, figsize=(2 * n_assemblies, 5),
@@ -97,7 +110,7 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                                      t_before=2, t_after=1, ax=axs[0, pp],
                                      color_palette=[colors['no-goal'], colors['goal']])
                     axs[0, pp].set(xticks=np.arange(-3, 1.5), ylabel='Assembly activation',
-                                   title=f'p={np.round(p_obj1[pp], 2)}, z={np.round(z_obj1[pp], 1)}')
+                                   title=f'p={np.round(p_obj["obj1"][pp], 2)}, diff={np.round(diff_obj["obj1"][pp], 1)}')
                 for pp in range(activation_rate.shape[0]):
                     peri_event_trace(activation_rate[pp, :], time_ax,
                                      all_obj_df.loc[all_obj_df['object'] == 2, 'times'],
@@ -106,7 +119,7 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                                      color_palette=[colors['no-goal'], colors['goal']])
                     axs[1, pp].set(xticks=np.arange(-2, 1.5), ylabel='Assembly activation',
                                    xlabel='Time from object entry (s)',
-                                   title=f'p={np.round(p_obj2[pp], 2)}, z={np.round(z_obj2[pp], 1)}')
+                                   title=f'p={np.round(p_obj["obj2"][pp], 2)}, diff={np.round(diff_obj["obj2"][pp], 1)}')
                 sns.despine(trim=True)
                 plt.tight_layout()
 
@@ -140,23 +153,15 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                     dpi=600)
                 plt.close(f)
 
-            # Find which spike patterns are active during ripples
+            # Find which assemblies are active during ripples
             these_ripples_sess = ripples[(ripples['subject'] == subject) & (ripples['date'] == date)]
-            p_ripples, amp_ripples = np.full(activation_rate.shape[0], np.nan), np.full(activation_rate.shape[0],
-                                                                                        np.nan)
+            p_ripples, amp_ripples = np.full(activation_rate.shape[0], np.nan), np.full(activation_rate.shape[0], np.nan)
             if these_ripples_sess.shape[0] >= MIN_RIPPLES:
 
                 # Drop last ripple if too close to the end of the recording
                 if time_ax[-1] - these_ripples_sess['start_times'].values[-1] < SIG_TIME:
                     these_ripples_sess = these_ripples_sess[:-1]
 
-                # Get relative time axis
-                n_samples = int(np.round(np.abs(ripple_win[0]) * (1 / bin_size))) + int(
-                    np.round(ripple_win[1] * (1 / bin_size))) + 1
-                rel_ripple_time = np.linspace(-np.abs(ripple_win[0]), ripple_win[1], n_samples)
-
-                # Loop over assemblies
-                mean_activation = np.full((n_assemblies, n_samples), np.nan)
                 for asm in range(n_assemblies):
 
                     # Do ZETA
@@ -165,23 +170,17 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                                                       dblUseMaxDur=SIG_TIME)
 
                     # Get mean assembly activation traces at ripples
-                    mean_activation[asm, :] = event_aligned_trace(activation_rate[asm, :], time_ax,
-                                                                  these_ripples_sess['start_times'].values,
-                                                                  t_before=np.abs(ripple_win[0]), t_after=ripple_win[1],
-                                                                  baseline=[-1.5, -1], fs=1 / bin_size)
+                    ripple_activation = event_aligned_trace(activation_rate[asm, :], time_ax,
+                                                            these_ripples_sess['start_times'].values,
+                                                            t_before=np.abs(ripple_win[0]), t_after=ripple_win[1],
+                                                            baseline=[-1.5, -1], fs=1 / bin_size)
 
                     # Detect postivive or negative peak
-                    is_pos = np.abs(np.max(mean_activation[asm, :])) > np.abs(np.min(mean_activation[asm, :]))
+                    is_pos = np.abs(np.max(ripple_activation)) > np.abs(np.min(ripple_activation))
                     if is_pos:
-                        amp_ripples[asm] = np.max(mean_activation[asm, :])
+                        amp_ripples[asm] = np.max(ripple_activation)
                     else:
-                        amp_ripples[asm] = np.min(mean_activation[asm, :])
-                np.save(path_dict[
-                            'google_drive_data_path'] / 'RippleAssemblies' / f'{subject}_{date}_{probe}_{this_region}_mean_activation.npy',
-                        mean_activation)
-                np.save(path_dict[
-                            'google_drive_data_path'] / 'RippleAssemblies' / f'{subject}_{date}_{probe}_{this_region}_time.npy',
-                        rel_ripple_time)
+                        amp_ripples[asm] = np.min(ripple_activation)
 
                 if PLOT:
                     # Plot
@@ -190,9 +189,9 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                     if len(axs) == 1:
                         axs = [axs]
                     for pp in range(activation_rate.shape[0]):
-                        ripple_df = peri_event_trace(activation_rate[pp, :], time_ax, these_ripples_sess['start_times'],
-                                                     np.ones(these_ripples_sess.shape[0]),
-                                                     t_before=1, t_after=1, ax=axs[pp], return_df=True)
+                        peri_event_trace(activation_rate[pp, :], time_ax, these_ripples_sess['start_times'],
+                                         np.ones(these_ripples_sess.shape[0]),
+                                         t_before=1, t_after=1, ax=axs[pp])
                         axs[pp].set(xticks=[-1, 0, 1], xlabel='', ylabel='',
                                     title=f'p={np.round(p_ripples[pp], 2)}, amp={np.round(amp_ripples[pp], 2)}')
 
@@ -204,8 +203,9 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
 
             # Add to df
             assembly_df_session = pd.concat((assembly_df_session, pd.DataFrame(data={
-                'p_obj1': p_obj1, 'p_obj2': p_obj2, 'p_sound_id': p_sound, 'p_ripples': p_ripples,
-                'amp_ripples': amp_ripples,
+                'p_obj1': p_obj['obj1'], 'p_obj2': p_obj['obj2'],
+                'diff_obj1': diff_obj['obj1'], 'diff_obj2': diff_obj['obj2'],
+                'p_sound_id': p_sound, 'p_ripples': p_ripples, 'amp_ripples': amp_ripples,
                 'assembly': np.arange(1, activation_rate.shape[0] + 1),
                 'region': this_region, 'subject': subject, 'date': date, 'probe': probe,
             })))

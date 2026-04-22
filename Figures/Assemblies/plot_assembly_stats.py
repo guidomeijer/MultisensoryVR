@@ -85,4 +85,13 @@ for i, region in enumerate(regions):
     axs[i].set(title=f'{region}')
 plt.show()
 
+# %%
 
+plot_df = assembly_df[assembly_df['obj2_sig']]
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.75 * 2, 1.75), dpi=dpi)
+
+ax1.scatter(plot_df['diff_obj1'], plot_df['amp_ripples'])
+
+ax2.scatter(plot_df['diff_obj2'], plot_df['amp_ripples'])
+
+plt.show()

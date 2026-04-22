@@ -12,7 +12,7 @@ from sklearn.utils import shuffle
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from scipy.ndimage import gaussian_filter1d
 from joblib import Parallel, delayed
-from msvr_functions import paths, load_objects, figure_style, bin_signal, peri_event_trace
+from msvr_functions import paths, load_objects, figure_style, bin_signal
 
 # Settings
 MIN_RIPPLES = 10
@@ -23,6 +23,7 @@ RIPPLE_WIN_CENTERS = np.arange(-1.5, 1.1, 0.05)
 RIPPLE_WIN = 0.15
 N_SHUFFLES = 100
 N_CPUS = 18
+METRIC = 'cosim'   # dotprod or cosim
 
 # Initialize
 path_dict = paths()
@@ -39,10 +40,10 @@ assembly_sig['subject'] = assembly_sig['subject'].astype(str)
 assembly_sig['date'] = assembly_sig['date'].astype(str)
 
 # Get paths to data of this session
-amp_paths = list((path_dict['google_drive_data_path'] / 'Assemblies').glob(f'*.amplitudes.npy'))
+amp_paths = list((path_dict['google_drive_data_path'] / 'Assemblies').glob(f'*amplitudes.npy'))
 
 # Functions
-def calc_lda_alignment(obj_amp, y_goal, amplitudes, ripples_ses, time_ax, do_shuffle=False):
+def calc_lda_alignment(obj_amp, y_goal, amplitudes, ripples_ses, time_ax, use_metric, do_shuffle=False):
     n_assemblies = amplitudes.shape[0]
 
     # Fit LDA to object entry
@@ -65,21 +66,33 @@ def calc_lda_alignment(obj_amp, y_goal, amplitudes, ripples_ses, time_ax, do_shu
             ripple_amp[:, asmbl] = bin_signal(time_ax, amplitudes[asmbl, :], ripples_ses['start_times'] + win_center,
                                               bin_size=RIPPLE_WIN)
 
-        # Vectorized dot product for all ripples simultaneously
-        alignment = np.dot(ripple_amp, lda_axis) / lda_norm
+        if use_metric == 'dotprod':
+
+            # Vectorized dot product for all ripples simultaneously
+            alignment = np.dot(ripple_amp, lda_axis) / lda_norm
+
+        elif use_metric == 'cosim':
+            # Calculate the norm of the ripple activity for each trial at this time bin
+            ripple_norm = np.linalg.norm(ripple_amp, axis=1)
+
+            # Prevent division by zero if there are bins with absolutely no activity
+            ripple_norm[ripple_norm == 0] = 1e-10
+
+            # Calculate Cosine Similarity: (x dot w) / (||x|| * ||w||)
+            alignment = np.dot(ripple_amp, lda_axis) / (ripple_norm * lda_norm)
+
 
         # Calculate the mean across ripples for this time bin
         lda_align[k] = np.mean(alignment)
 
     return lda_align
 
-def process_session(amp_path, ripples, assembly_sig, path_dict):
+def process_session(amp_path, ripples, use_metric):
     session_lda_df = pd.DataFrame()
     
     # Load in data for this region
     subject = amp_path.stem.split('.')[0].split('_')[0]
     date = amp_path.stem.split('.')[0].split('_')[1]
-    probe = amp_path.stem.split('.')[0].split('_')[2]
     region = amp_path.stem.split('.')[0].split('_')[3]
     print(f'Processing {amp_path.stem}')
     amplitudes = np.load(amp_path)
@@ -91,11 +104,6 @@ def process_session(amp_path, ripples, assembly_sig, path_dict):
     if ripples_ses.shape[0] < MIN_RIPPLES:
         return None
     ripples_ses = ripples_ses[ripples_ses['start_times'] < time_ax[-1] - RIPPLE_WIN_CENTERS[-1]]
-
-    # Select signficant assemblies
-    #these_assemblies = assembly_sig[(assembly_sig['region'] == region) & (assembly_sig['subject'] == subject)
-    #                                & (assembly_sig['date'] == date) & (assembly_sig['probe'] == probe)]
-    #amplitudes = amplitudes[these_assemblies.loc[these_assemblies['p_ripples'] < 0.05, 'assembly'].values - 1]
 
     n_assemblies = amplitudes.shape[0]
     if n_assemblies == 0:
@@ -130,11 +138,11 @@ def process_session(amp_path, ripples, assembly_sig, path_dict):
                                  np.zeros(all_obj_df[(all_obj_df['object'] == obj) & (all_obj_df['goal'] == 0)].shape[0])))
 
         # Get LDA alignment
-        lda_align = calc_lda_alignment(obj_amp, y_goal, amplitudes, ripples_ses, time_ax, do_shuffle=False)
+        lda_align = calc_lda_alignment(obj_amp, y_goal, amplitudes, ripples_ses, time_ax, use_metric, do_shuffle=False)
 
         # Get LDA alignment for shuffled trial labels (Serial loop within the parallel session)
         lda_align_shuf = np.vstack([
-            calc_lda_alignment(obj_amp, y_goal, amplitudes, ripples_ses, time_ax, do_shuffle=True)
+            calc_lda_alignment(obj_amp, y_goal, amplitudes, ripples_ses, time_ax, use_metric, do_shuffle=True)
             for _ in range(N_SHUFFLES)])
 
         # Do baseline subtraction
@@ -155,11 +163,11 @@ def process_session(amp_path, ripples, assembly_sig, path_dict):
 
 # Parallel processing over sessions
 results = Parallel(n_jobs=N_CPUS)(
-    delayed(process_session)(amp_path, ripples, assembly_sig, path_dict)
+    delayed(process_session)(amp_path, ripples, METRIC)
     for i, amp_path in enumerate(amp_paths))
 
 # Concatenate results from all sessions
 results = [res for res in results if res is not None]
-if len(results) > 0:
-    lda_df = pd.concat(results, ignore_index=True)
-    lda_df.to_csv(path_dict['google_drive_data_path'] / f'lda_alignment_{OBJ_WIN_START[0]}_{OBJ_WIN_START[1]}.csv', index=False)
+lda_df = pd.concat(results, ignore_index=True)
+lda_df.to_csv(path_dict['google_drive_data_path'] / f'lda_alignment_{METRIC}_{OBJ_WIN_START[0]}_{OBJ_WIN_START[1]}.csv',
+              index=False)

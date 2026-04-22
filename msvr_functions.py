@@ -733,13 +733,33 @@ def bandpass_filter(data, lowcut, highcut, fs, order=5):
 
 def bin_signal(x, y, bin_centers, bin_size, statistic='mean'):
     """
-    Args:
-        x (array): Continuous trajectory (e.g., animal position).
-                   Used for 'mean'/'sum' to locate y values.
-        y (array):
-            - If statistic='count': Discrete event locations (same units as x).
-            - If statistic='mean'/'sum': Signal values at positions x.
+    Bins a signal or counts events within overlapping or non-overlapping windows.
+
+    Parameters
+    ----------
+    x : array-like or None
+        The independent variable (e.g., time or position) for the signal y.
+        Ignored if statistic='count'.
+    y : array-like
+        The dependent variable (signal values) or event locations (if statistic='count').
+    bin_centers : array-like
+        The center coordinates for each bin.
+    bin_size : float
+        The total width of each bin.
+    statistic : {'mean', 'sum', 'count'}, optional
+        The statistic to compute within each bin:
+        - 'mean': Average of y values where x falls in the bin.
+        - 'sum': Sum of y values where x falls in the bin.
+        - 'count': Number of events in y that fall within the bin (x is ignored).
+        Default is 'mean'.
+
+    Returns
+    -------
+    bin_values : numpy.ndarray
+        The computed statistic for each bin. Returns NaN for empty bins if
+        statistic='mean', or 0.0 otherwise.
     """
+
     bin_centers = np.asarray(bin_centers)
     half_width = bin_size / 2.0
     left_edges = bin_centers - half_width
