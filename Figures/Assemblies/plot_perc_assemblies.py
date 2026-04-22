@@ -36,6 +36,12 @@ assembly_df['log_p_obj2'] = -np.log10(assembly_df['p_obj2'])
 assembly_df['log_p_sound'] = -np.log10(assembly_df['p_sound_id'])
 assembly_df['log_p_ripples'] = -np.log10(assembly_df['p_ripples'])
 
+# Add columns for positive and negative modulation
+assembly_df['sig_pos_obj1'] = (assembly_df['sig_obj1']) & (assembly_df['diff_obj1'] > 0.1)
+assembly_df['sig_neg_obj1'] = (assembly_df['sig_obj1']) & (assembly_df['diff_obj1'] < 0.1)
+assembly_df['sig_pos_obj2'] = (assembly_df['sig_obj2']) & (assembly_df['diff_obj2'] > 0.1)
+assembly_df['sig_neg_obj2'] = (assembly_df['sig_obj2']) & (assembly_df['diff_obj2'] < 0.1)
+
 # Add columns for stacked plot
 assembly_df['sig_ripples_only'] = (assembly_df['sig_ripples']) & (~assembly_df['sig_obj2'])
 assembly_df['sig_obj2_only'] = (~assembly_df['sig_ripples']) & (assembly_df['sig_obj2'])
@@ -54,11 +60,19 @@ per_ses_df = assembly_df.groupby(['ses_id', 'region']).agg(
     n_both=('valid_both', 'sum'),
     sig_ripples_only=('sig_ripples_only', 'sum'),
     sig_obj2_only=('sig_obj2_only', 'sum'),
-    sig_both=('sig_both', 'sum')
+    sig_both=('sig_both', 'sum'),
+    sig_pos_obj1=('sig_pos_obj1', 'sum'),
+    sig_neg_obj1=('sig_neg_obj1', 'sum'),
+    sig_pos_obj2=('sig_pos_obj2', 'sum'),
+    sig_neg_obj2=('sig_neg_obj2', 'sum')
 ).reset_index()
 
 per_ses_df['perc_sig_obj1'] = (per_ses_df['sig_obj1'] / per_ses_df['n_obj1']) * 100
 per_ses_df['perc_sig_obj2'] = (per_ses_df['sig_obj2'] / per_ses_df['n_obj2']) * 100
+per_ses_df['perc_pos_obj1'] = (per_ses_df['sig_pos_obj1'] / per_ses_df['n_obj1']) * 100
+per_ses_df['perc_neg_obj1'] = (per_ses_df['sig_neg_obj1'] / per_ses_df['n_obj1']) * 100
+per_ses_df['perc_pos_obj2'] = (per_ses_df['sig_pos_obj2'] / per_ses_df['n_obj2']) * 100
+per_ses_df['perc_neg_obj2'] = (per_ses_df['sig_neg_obj2'] / per_ses_df['n_obj2']) * 100
 per_ses_df['perc_sig_sound'] = (per_ses_df['sig_sound'] / per_ses_df['n_sound']) * 100
 per_ses_df['perc_sig_ripples'] = (per_ses_df['sig_ripples'] / per_ses_df['n_ripples']) * 100
 per_ses_df['perc_sig_ripples_only'] = (per_ses_df['sig_ripples_only'] / per_ses_df['n_both']) * 100
@@ -141,4 +155,35 @@ sns.despine(trim=False)
 plt.tight_layout()
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'sig_assemblies_obj2_ripples.jpg', dpi=600)
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'sig_assemblies_obj2_ripples.pdf')
+plt.show()
+
+# %% Plot positive and negative modulation
+
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.5 * 2, 1.75), dpi=dpi, sharey=True)
+
+this_order = per_ses_df[['region', 'perc_sig_obj1']].groupby('region').mean().sort_values(
+    'perc_sig_obj1', ascending=False).index.values
+
+obj1_mod_df = per_ses_df.melt(id_vars=['region', 'ses_id'], value_vars=['perc_pos_obj1', 'perc_neg_obj1'],
+                              var_name='modulation', value_name='perc')
+obj1_mod_df['modulation'] = obj1_mod_df['modulation'].replace({'perc_pos_obj1': 'Pos.', 'perc_neg_obj1': 'Neg.'})
+sns.barplot(data=obj1_mod_df, x='region', y='perc', hue='modulation', ax=ax1, errorbar='se', 
+            order=this_order, palette='Set2')
+ax1.set(ylabel='Significant assemblies (%)', xlabel='', title='Obj 1 modulation', ylim=[0, 25])
+ax1.tick_params(axis='x', labelrotation=90)
+ax1.legend(frameon=False, prop={'size': 6})
+
+obj2_mod_df = per_ses_df.melt(id_vars=['region', 'ses_id'], value_vars=['perc_pos_obj2', 'perc_neg_obj2'],
+                              var_name='modulation', value_name='perc')
+obj2_mod_df['modulation'] = obj2_mod_df['modulation'].replace({'perc_pos_obj2': 'Pos.', 'perc_neg_obj2': 'Neg.'})
+sns.barplot(data=obj2_mod_df, x='region', y='perc', hue='modulation', ax=ax2, errorbar='se', 
+            order=this_order, palette='Set2')
+ax2.set(ylabel='', xlabel='', title='Obj 2 modulation', ylim=[0, 25])
+ax2.tick_params(axis='x', labelrotation=90)
+ax2.get_legend().remove()
+
+sns.despine(trim=False)
+plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'sig_assemblies_pos_neg.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'sig_assemblies_pos_neg.pdf')
 plt.show()
