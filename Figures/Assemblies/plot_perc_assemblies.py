@@ -159,31 +159,31 @@ plt.show()
 
 # %% Plot positive and negative modulation
 
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.5 * 2, 1.75), dpi=dpi, sharey=True)
+f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
 
-this_order = per_ses_df[['region', 'perc_sig_obj1']].groupby('region').mean().sort_values(
-    'perc_sig_obj1', ascending=False).index.values
-
-obj1_mod_df = per_ses_df.melt(id_vars=['region', 'ses_id'], value_vars=['perc_pos_obj1', 'perc_neg_obj1'],
-                              var_name='modulation', value_name='perc')
-obj1_mod_df['modulation'] = obj1_mod_df['modulation'].replace({'perc_pos_obj1': 'Pos.', 'perc_neg_obj1': 'Neg.'})
-sns.barplot(data=obj1_mod_df, x='region', y='perc', hue='modulation', ax=ax1, errorbar='se', 
-            order=this_order, palette='Set2')
-ax1.set(ylabel='Significant assemblies (%)', xlabel='', title='Obj 1 modulation', ylim=[0, 25])
-ax1.tick_params(axis='x', labelrotation=90)
-ax1.legend(frameon=False, prop={'size': 6})
+this_order = ['CA1', 'PERI', 'TEa', 'AUD', 'VIS', 'LEC']
 
 obj2_mod_df = per_ses_df.melt(id_vars=['region', 'ses_id'], value_vars=['perc_pos_obj2', 'perc_neg_obj2'],
                               var_name='modulation', value_name='perc')
 obj2_mod_df['modulation'] = obj2_mod_df['modulation'].replace({'perc_pos_obj2': 'Pos.', 'perc_neg_obj2': 'Neg.'})
-sns.barplot(data=obj2_mod_df, x='region', y='perc', hue='modulation', ax=ax2, errorbar='se', 
-            order=this_order, palette='Set2')
-ax2.set(ylabel='', xlabel='', title='Obj 2 modulation', ylim=[0, 25])
-ax2.tick_params(axis='x', labelrotation=90)
-ax2.get_legend().remove()
+sns.barplot(data=obj2_mod_df, x='region', y='perc', hue='modulation', ax=ax1, errorbar='se',
+            order=this_order, hue_order=['Pos.', 'Neg.'], palette=[colors['goal'], colors['no-goal']])
+for i, region in enumerate(this_order):
+    t, p = stats.ttest_rel(obj2_mod_df.loc[(obj2_mod_df['region'] == region) & (obj2_mod_df['modulation'] == 'Neg.'), 'perc'],
+                           obj2_mod_df.loc[(obj2_mod_df['region'] == region) & (obj2_mod_df['modulation'] == 'Pos.'), 'perc'])
+    if p < 0.001:
+        ax1.text(i, 15, '***', fontsize=12, ha='center', va='center')
+    elif p < 0.01:
+        ax1.text(i, 15, '**', fontsize=12, ha='center', va='center')
+    elif p < 0.05:
+        ax1.text(i, 15, '**', fontsize=12, ha='center', va='center')
+ax1.set(xlabel='', ylabel='Significant assemblies (%)', ylim=[0, 15], yticks=[0, 5, 10, 15], yticklabels=[0, 5, 10, 15])
+ax1.tick_params(axis='x', labelrotation=90)
+ax1.legend(title='', loc='upper left', bbox_to_anchor=(0.58, 1.1))
 
 sns.despine(trim=False)
 plt.tight_layout()
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'sig_assemblies_pos_neg.jpg', dpi=600)
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'sig_assemblies_pos_neg.pdf')
 plt.show()
+

@@ -38,10 +38,10 @@ for r, region in enumerate(REGIONS):
                  errorbar='se', ax=axs[r], err_kws={'lw': 0}, zorder=0, color='grey')
     sns.lineplot(data=lda_df[(lda_df['region'] == region) & (lda_df['object'] == 2)], x='time_ax', y='lda_align_bl',
                  errorbar='se', ax=axs[r], err_kws={'lw': 0}, zorder=1, color=colors[region])
-    add_significance(np.unique(lda_df['time_ax']), p_values, ax=axs[r], color=colors[region], y_pos=0.3)
-    axs[r].set(ylabel='', xlabel='', xlim=[-1, 1], ylim=[-0.9, 0.3], yticks=[-0.9, -0.6, -0.3, 0, 0.3],
-               yticklabels=[-0.9, -0.6, -0.3, 0, 0.3], title=region)
-axs[0].set(ylabel='Alignment to LDA axis\n(dot-product)')
+    add_significance(np.unique(lda_df['time_ax']), p_values, ax=axs[r], color=colors[region], y_pos=0.1)
+    axs[r].set(ylabel='', xlabel='', xlim=[-1, 1], ylim=[-0.3, 0.1], yticks=[-0.3, -0.2, -0.1, 0, 0.1],
+               yticklabels=[-0.3, -0.2, -0.1, 0, 0.1], title=region)
+axs[0].set(ylabel='Alignment to LDA axis\n(cosine similarity)')
 f.supxlabel('Time from ripple onset (s)', y=0.05, fontsize=7)
 
 sns.despine(trim=True)
@@ -65,10 +65,10 @@ for r, region in enumerate(REGIONS):
                  errorbar='se', ax=axs[r], err_kws={'lw': 0}, zorder=0, color='grey')
     sns.lineplot(data=lda_df[(lda_df['region'] == region) & (lda_df['object'] == 2)], x='time_ax', y='lda_align',
                  errorbar='se', ax=axs[r], err_kws={'lw': 0}, zorder=1, color=colors[region])
-    add_significance(np.unique(lda_df['time_ax']), p_values, ax=axs[r], color=colors[region], y_pos=0.6)
-    axs[r].set(ylabel='', xlabel='', xlim=[-1, 1], ylim=[-0.6, 0.6], yticks=[-0.6, -0.3, 0, 0.3, 0.6],
-               yticklabels=[-0.6, -0.3, 0, 0.3, 0.6], title=region)
-axs[0].set(ylabel='Alignment to LDA axis\n(dot-product)')
+    add_significance(np.unique(lda_df['time_ax']), p_values, ax=axs[r], color=colors[region], y_pos=0.1)
+    axs[r].set(ylabel='', xlabel='', xlim=[-1, 1], ylim=[-0.3, 0.1], yticks=[-0.3, -0.2, -0.1, 0, 0.1],
+               yticklabels=[-0.3, -0.2, -0.1, 0, 0.1], title=region)
+axs[0].set(ylabel='Alignment to LDA axis\n(cosine similarity)')
 f.supxlabel('Time from ripple onset (s)', y=0.05, fontsize=7)
 
 sns.despine(trim=True)
@@ -93,10 +93,10 @@ for r, region in enumerate(REGIONS):
                  errorbar='se', ax=axs[r], err_kws={'lw': 0}, zorder=0, color='grey')
     sns.lineplot(data=lda_df[(lda_df['region'] == region) & (lda_df['object'] == 1)], x='time_ax', y='lda_align_bl',
                  errorbar='se', ax=axs[r], err_kws={'lw': 0}, zorder=1, color=colors[region])
-    add_significance(np.unique(lda_df['time_ax']), p_values, ax=axs[r], color=colors[region], y_pos=0.3)
-    axs[r].set(ylabel='', xlabel='', xlim=[-1, 1], ylim=[-0.9, 0.3], yticks=[-0.9, -0.6, -0.3, 0, 0.3],
-               yticklabels=[-0.9, -0.6, -0.3, 0, 0.3], title=region)
-axs[0].set(ylabel='Alignment to LDA axis\n(dot-product)')
+    add_significance(np.unique(lda_df['time_ax']), p_values, ax=axs[r], color=colors[region], y_pos=0.1)
+    axs[r].set(ylabel='', xlabel='', xlim=[-1, 1], ylim=[-0.3, 0.1], yticks=[-0.3, -0.2, -0.1, 0, 0.1],
+               yticklabels=[-0.3, -0.2, -0.1, 0, 0.1], title=region)
+axs[0].set(ylabel='Alignment to LDA axis\n(cosine similarity)')
 f.supxlabel('Time from ripple onset (s)', y=0.05, fontsize=7)
 
 sns.despine(trim=True)
@@ -120,10 +120,10 @@ for r, region in enumerate(REGIONS):
                  errorbar='se', ax=axs[r], err_kws={'lw': 0}, zorder=0, color='grey')
     sns.lineplot(data=lda_df[(lda_df['region'] == region) & (lda_df['object'] == 1)], x='time_ax', y='lda_align',
                  errorbar='se', ax=axs[r], err_kws={'lw': 0}, zorder=1, color=colors[region])
-    add_significance(np.unique(lda_df['time_ax']), p_values, ax=axs[r], color=colors[region], y_pos=0.6)
-    axs[r].set(ylabel='', xlabel='', xlim=[-1, 1], ylim=[-0.6, 0.6], yticks=[-0.6, -0.3, 0, 0.3, 0.6],
-               yticklabels=[-0.6, -0.3, 0, 0.3, 0.6], title=region)
-axs[0].set(ylabel='Alignment to LDA axis\n(dot-product)')
+    add_significance(np.unique(lda_df['time_ax']), p_values, ax=axs[r], color=colors[region], y_pos=0.1)
+    axs[r].set(ylabel='', xlabel='', xlim=[-1, 1], ylim=[-0.3, 0.1], yticks=[-0.3, -0.2, -0.1, 0, 0.1],
+               yticklabels=[-0.3, -0.2, -0.1, 0, 0.1], title=region)
+axs[0].set(ylabel='Alignment to LDA axis\n(cosine similarity)')
 f.supxlabel('Time from ripple onset (s)', y=0.05, fontsize=7)
 
 sns.despine(trim=True)
