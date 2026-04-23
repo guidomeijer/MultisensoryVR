@@ -22,7 +22,7 @@ OBJ_WIN_START = [0.6, -0.15]
 RIPPLE_WIN_CENTERS = np.arange(-1.5, 1.1, 0.05)
 RIPPLE_WIN = 0.15
 N_SHUFFLES = 100
-N_CPUS = 18
+N_CPUS = 20
 METRIC = 'cosim'   # dotprod or cosim
 
 # Initialize
