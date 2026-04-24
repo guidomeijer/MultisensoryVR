@@ -37,10 +37,10 @@ assembly_df['log_p_sound'] = -np.log10(assembly_df['p_sound_id'])
 assembly_df['log_p_ripples'] = -np.log10(assembly_df['p_ripples'])
 
 # Add columns for positive and negative modulation
-assembly_df['sig_pos_obj1'] = (assembly_df['sig_obj1']) & (assembly_df['diff_obj1'] > 0.1)
-assembly_df['sig_neg_obj1'] = (assembly_df['sig_obj1']) & (assembly_df['diff_obj1'] < 0.1)
-assembly_df['sig_pos_obj2'] = (assembly_df['sig_obj2']) & (assembly_df['diff_obj2'] > 0.1)
-assembly_df['sig_neg_obj2'] = (assembly_df['sig_obj2']) & (assembly_df['diff_obj2'] < 0.1)
+assembly_df['sig_pos_obj1'] = (assembly_df['sig_obj1']) & (assembly_df['diff_obj1'] > 0.2)
+assembly_df['sig_neg_obj1'] = (assembly_df['sig_obj1']) & (assembly_df['diff_obj1'] < 0.2)
+assembly_df['sig_pos_obj2'] = (assembly_df['sig_obj2']) & (assembly_df['diff_obj2'] > 0.2)
+assembly_df['sig_neg_obj2'] = (assembly_df['sig_obj2']) & (assembly_df['diff_obj2'] < 0.2)
 
 # Add columns for stacked plot
 assembly_df['sig_ripples_only'] = (assembly_df['sig_ripples']) & (~assembly_df['sig_obj2'])
