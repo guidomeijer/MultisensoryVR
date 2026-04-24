@@ -173,8 +173,8 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                     # Get mean assembly activation traces at ripples
                     ripple_activation = event_aligned_trace(activation_rate[asm, :], time_ax,
                                                             these_ripples_sess['start_times'].values,
-                                                            t_before=np.abs(ripple_win[0]), t_after=ripple_win[1],
-                                                            baseline=[-1.5, -1], fs=1 / bin_size)
+                                                            t_before=np.abs(ripple_win[0]) + 0.5, t_after=ripple_win[1],
+                                                            baseline=[-1.5, -1], fs=1/bin_size)
 
                     # Detect postivive or negative peak
                     is_pos = np.abs(np.max(ripple_activation)) > np.abs(np.min(ripple_activation))

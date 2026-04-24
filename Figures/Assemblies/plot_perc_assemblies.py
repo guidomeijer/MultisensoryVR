@@ -172,12 +172,13 @@ for i, region in enumerate(this_order):
     t, p = stats.ttest_rel(obj2_mod_df.loc[(obj2_mod_df['region'] == region) & (obj2_mod_df['modulation'] == 'Neg.'), 'perc'],
                            obj2_mod_df.loc[(obj2_mod_df['region'] == region) & (obj2_mod_df['modulation'] == 'Pos.'), 'perc'])
     if p < 0.001:
-        ax1.text(i, 15, '***', fontsize=12, ha='center', va='center')
+        ax1.text(i, 18, '***', fontsize=10, ha='center', va='center')
     elif p < 0.01:
-        ax1.text(i, 15, '**', fontsize=12, ha='center', va='center')
+        ax1.text(i, 18, '**', fontsize=10, ha='center', va='center')
     elif p < 0.05:
-        ax1.text(i, 15, '**', fontsize=12, ha='center', va='center')
-ax1.set(xlabel='', ylabel='Significant assemblies (%)', ylim=[0, 15], yticks=[0, 5, 10, 15], yticklabels=[0, 5, 10, 15])
+        ax1.text(i, 18, '**', fontsize=10, ha='center', va='center')
+ax1.set(xlabel='', ylabel='Significant assemblies (%)', ylim=[0, 20], yticks=[0, 5, 10, 15, 20],
+        yticklabels=[0, 5, 10, 15, 20])
 ax1.tick_params(axis='x', labelrotation=90)
 ax1.legend(title='', loc='upper left', bbox_to_anchor=(0.58, 1.1))
 

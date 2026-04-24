@@ -26,6 +26,8 @@ assembly_df['obj1_sig'] = assembly_df['p_obj1'] < 0.05
 assembly_df['obj2_sig'] = assembly_df['p_obj2'] < 0.05
 assembly_df['ripple_strong'] = ((assembly_df['p_ripples'] < 0.05)
                                 & (assembly_df['amp_ripples'] > 0))
+assembly_df['ripple_strong_neg'] = ((assembly_df['p_ripples'] < 0.05)
+                                    & (assembly_df['amp_ripples'] < -0.5))
 assembly_df['diff'] = 'no_diff'
 assembly_df.loc[assembly_df['dprime_obj2'] > 0, 'diff'] = 'Pos.'
 assembly_df.loc[assembly_df['dprime_obj2'] < 0, 'diff'] = 'Neg.'
@@ -92,9 +94,20 @@ plt.show()
 
 plot_df = assembly_df[assembly_df['ripple_sig'] & (assembly_df['region'] == 'CA1')]
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.75 * 2, 1.75), dpi=dpi)
-
+r1, p1 = stats.pearsonr(plot_df['dprime_obj1'], plot_df['amp_ripples'])
+sns.regplot(x='dprime_obj1', y='amp_ripples', data=plot_df, ax=ax1,
+            scatter=False, color='black', ci=None)
 ax1.scatter(plot_df['dprime_obj1'], plot_df['amp_ripples'])
+ax1.set(title=f'Object 1; r={r1:.2f}, p={p1:.3f}', xlabel='Rewarded-unrewarded difference',
+        ylabel='Ripple amplitude')
 
+r2, p2 = stats.pearsonr(plot_df['dprime_obj2'], plot_df['amp_ripples'])
+sns.regplot(x='dprime_obj2', y='amp_ripples', data=plot_df, ax=ax2,
+            scatter=False, color='black', ci=None)
 ax2.scatter(plot_df['dprime_obj2'], plot_df['amp_ripples'])
+ax2.set(title=f'Object 2; r={r2:.2f}, p={p2:.3f}', xlabel='Rewarded-unrewarded difference',
+        ylabel='Ripple amplitude')
 
+sns.despine(trim=True)
+plt.tight_layout()
 plt.show()
