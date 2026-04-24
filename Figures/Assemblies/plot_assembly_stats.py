@@ -27,8 +27,8 @@ assembly_df['obj2_sig'] = assembly_df['p_obj2'] < 0.05
 assembly_df['ripple_strong'] = ((assembly_df['p_ripples'] < 0.05)
                                 & (assembly_df['amp_ripples'] > 0))
 assembly_df['diff'] = 'no_diff'
-assembly_df.loc[assembly_df['diff_obj2'] > 0.1, 'diff'] = 'Pos.'
-assembly_df.loc[assembly_df['diff_obj2'] < 0.1, 'diff'] = 'Neg.'
+assembly_df.loc[assembly_df['dprime_obj2'] > 0, 'diff'] = 'Pos.'
+assembly_df.loc[assembly_df['dprime_obj2'] < 0, 'diff'] = 'Neg.'
 
 p_val_df = pd.DataFrame(index=regions, columns=['obj1', 'obj2'])
 
@@ -81,9 +81,11 @@ plt.show()
 f, axs = plt.subplots(1, len(regions), figsize=(8, 1.75), dpi=dpi, sharey=True)
 for i, region in enumerate(regions):
     region_df = assembly_df[(assembly_df['region'] == region) & (assembly_df['diff'] != 'no_diff')]
+    _, p = stats.ttest_ind(region_df.loc[region_df['diff'] == 'Pos.', 'amp_ripples'],
+                           region_df.loc[region_df['diff'] == 'Neg.', 'amp_ripples'])
     sns.barplot(data=region_df, x='region', y='amp_ripples', hue='diff', ax=axs[i], errorbar='se',
                 hue_order=['Pos.', 'Neg.'], palette=[colors['goal'], colors['no-goal']])
-    axs[i].set(title=f'{region}')
+    axs[i].set(title=f'{region}, p={p:.3f}')
 plt.show()
 
 # %%
@@ -91,8 +93,8 @@ plt.show()
 plot_df = assembly_df[assembly_df['ripple_sig'] & (assembly_df['region'] == 'CA1')]
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.75 * 2, 1.75), dpi=dpi)
 
-ax1.scatter(plot_df['diff_obj1'], plot_df['amp_ripples'])
+ax1.scatter(plot_df['dprime_obj1'], plot_df['amp_ripples'])
 
-ax2.scatter(plot_df['diff_obj2'], plot_df['amp_ripples'])
+ax2.scatter(plot_df['dprime_obj2'], plot_df['amp_ripples'])
 
 plt.show()
