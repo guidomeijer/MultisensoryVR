@@ -92,22 +92,25 @@ plt.show()
 
 # %%
 
-plot_df = assembly_df[assembly_df['ripple_sig'] & (assembly_df['region'] == 'CA1')]
+#plot_df = assembly_df[assembly_df['ripple_sig'] & (assembly_df['region'] == 'PERI')]
+plot_df = assembly_df[assembly_df['region'] == 'CA1']
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.75 * 2, 1.75), dpi=dpi)
 r1, p1 = stats.pearsonr(plot_df['dprime_obj1'], plot_df['amp_ripples'])
 sns.regplot(x='dprime_obj1', y='amp_ripples', data=plot_df, ax=ax1,
-            scatter=False, color='black', ci=None)
-ax1.scatter(plot_df['dprime_obj1'], plot_df['amp_ripples'])
+            scatter=False, color='tab:red', ci=None)
+ax1.scatter(plot_df['dprime_obj1'], plot_df['amp_ripples'], color='k', s=5)
 ax1.set(title=f'Object 1; r={r1:.2f}, p={p1:.3f}', xlabel='Rewarded-unrewarded difference',
-        ylabel='Ripple amplitude')
+        ylabel='Ripple amplitude', xticks=[-2, -1, 0, 1, 2], yticks=[-1, 0, 1, 2, 3])
 
 r2, p2 = stats.pearsonr(plot_df['dprime_obj2'], plot_df['amp_ripples'])
 sns.regplot(x='dprime_obj2', y='amp_ripples', data=plot_df, ax=ax2,
-            scatter=False, color='black', ci=None)
-ax2.scatter(plot_df['dprime_obj2'], plot_df['amp_ripples'])
+            scatter=False, color='tab:red', ci=None)
+ax2.scatter(plot_df['dprime_obj2'], plot_df['amp_ripples'], color='k', s=5)
 ax2.set(title=f'Object 2; r={r2:.2f}, p={p2:.3f}', xlabel='Rewarded-unrewarded difference',
-        ylabel='Ripple amplitude')
+        ylabel='Ripple amplitude', xticks=[-2, -1, 0, 1, 2], yticks=[-1, 0, 1, 2, 3])
 
 sns.despine(trim=True)
 plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'dprime_vs_ripple.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / 'dprime_vs_ripple.pdf')
 plt.show()

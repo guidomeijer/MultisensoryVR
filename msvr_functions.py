@@ -1220,7 +1220,7 @@ def calculate_peths(
     # Convert to firing rate if requested
     if return_fr:
         binned_spikes /= bin_size
-    else:
+    elif smoothing == 0:
         binned_spikes = binned_spikes.astype(int)
 
     # Calculate final means and stds across trials

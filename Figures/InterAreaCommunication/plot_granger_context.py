@@ -17,7 +17,7 @@ colors, dpi = figure_style()
 
 # Load in data
 path_dict = paths()
-mean_causality = pd.read_csv(join(path_dict['save_path'], 'granger_causality_context_global_pooled.csv'))
+mean_causality = pd.read_csv(join(path_dict['save_path'], 'granger_causality_context.csv'))
 
 """ 
 session_avg = granger_df.groupby(['region1', 'region2', 'object', 'date'])['f_stat'].mean().reset_index()
@@ -70,9 +70,9 @@ for obj in ['object1', 'object2', 'object3']:
 
     # Add weighted edges for significant causality
     plot_df = mean_causality[(mean_causality['object'] == obj)
-                             & (mean_causality['var_explained_log_ratio'] > 0.003)]
+                             & (mean_causality['p_value'] > 0.05)]
     for _, row in plot_df.iterrows():
-        G.add_edge(row['region1'], row['region2'], weight=row['var_explained_log_ratio'])
+        G.add_edge(row['region1'], row['region2'], weight=row['f_stat'])
 
     # Add all expected nodes explicitly to ensure isolated ones are included
     node_order = ['VIS', 'AUD', 'TEa', 'PERI', 'LEC', 'CA1']

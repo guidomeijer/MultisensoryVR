@@ -37,10 +37,10 @@ assembly_df['log_p_sound'] = -np.log10(assembly_df['p_sound_id'])
 assembly_df['log_p_ripples'] = -np.log10(assembly_df['p_ripples'])
 
 # Add columns for positive and negative modulation
-assembly_df['sig_pos_obj1'] = (assembly_df['sig_obj1']) & (assembly_df['diff_obj1'] > 0.2)
-assembly_df['sig_neg_obj1'] = (assembly_df['sig_obj1']) & (assembly_df['diff_obj1'] < 0.2)
-assembly_df['sig_pos_obj2'] = (assembly_df['sig_obj2']) & (assembly_df['diff_obj2'] > 0.2)
-assembly_df['sig_neg_obj2'] = (assembly_df['sig_obj2']) & (assembly_df['diff_obj2'] < 0.2)
+assembly_df['sig_pos_obj1'] = (assembly_df['sig_obj1']) & (assembly_df['dprime_obj1'] > 0.4)
+assembly_df['sig_neg_obj1'] = (assembly_df['sig_obj1']) & (assembly_df['dprime_obj1'] < 0.4)
+assembly_df['sig_pos_obj2'] = (assembly_df['sig_obj2']) & (assembly_df['dprime_obj2'] > 0.4)
+assembly_df['sig_neg_obj2'] = (assembly_df['sig_obj2']) & (assembly_df['dprime_obj2'] < 0.4)
 
 # Add columns for stacked plot
 assembly_df['sig_ripples_only'] = (assembly_df['sig_ripples']) & (~assembly_df['sig_obj2'])
@@ -167,7 +167,8 @@ obj2_mod_df = per_ses_df.melt(id_vars=['region', 'ses_id'], value_vars=['perc_po
                               var_name='modulation', value_name='perc')
 obj2_mod_df['modulation'] = obj2_mod_df['modulation'].replace({'perc_pos_obj2': 'Pos.', 'perc_neg_obj2': 'Neg.'})
 sns.barplot(data=obj2_mod_df, x='region', y='perc', hue='modulation', ax=ax1, errorbar='se',
-            order=this_order, hue_order=['Pos.', 'Neg.'], palette=[colors['goal'], colors['no-goal']])
+            order=this_order, hue_order=['Pos.', 'Neg.'], palette=[colors['goal'], colors['no-goal']],
+            linewidth=0)
 for i, region in enumerate(this_order):
     t, p = stats.ttest_rel(obj2_mod_df.loc[(obj2_mod_df['region'] == region) & (obj2_mod_df['modulation'] == 'Neg.'), 'perc'],
                            obj2_mod_df.loc[(obj2_mod_df['region'] == region) & (obj2_mod_df['modulation'] == 'Pos.'), 'perc'])
@@ -178,7 +179,7 @@ for i, region in enumerate(this_order):
     elif p < 0.05:
         ax1.text(i, 18, '**', fontsize=10, ha='center', va='center')
 ax1.set(xlabel='', ylabel='Significant assemblies (%)', ylim=[0, 20], yticks=[0, 5, 10, 15, 20],
-        yticklabels=[0, 5, 10, 15, 20])
+        yticklabels=[0, 5, 10, 15, 20], title='Rewarded object 2')
 ax1.tick_params(axis='x', labelrotation=90)
 ax1.legend(title='', loc='upper left', bbox_to_anchor=(0.58, 1.1))
 
