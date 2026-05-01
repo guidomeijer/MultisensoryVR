@@ -9,7 +9,7 @@ from itertools import combinations
 from sklearn.cross_decomposition import PLSCanonical
 from sklearn.model_selection import LeaveOneGroupOut
 from joblib import Parallel, delayed
-from scipy.stats import pearsonr, ranksums
+from scipy.stats import pearsonr
 from msvr_functions import paths, load_multiple_probes, load_subjects, calculate_peths, load_objects
 
 # Settings
@@ -19,6 +19,7 @@ SMOOTHING = 0.05
 MIN_NEURONS = 5  # per region
 N_CPUS = 18
 N_COMPONENTS = 4
+N_SHUFFLES = 500
 
 # Initialize
 path_dict = paths()
@@ -28,17 +29,104 @@ subjects = load_subjects()
 rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv', dtype={'subject': str, 'date': str})
 rec = rec.drop_duplicates(subset=['subject', 'date'])
 
-# %% Fuction for parallization
+# %% Fuctions
+
+def fit_pla(x_region_a, x_region_b, use_n_components, do_shuffle=False):
+    """
+    Calculate the inter-regional coupling strength using PLS-Canonical and leave-one-trial-out cross-validation.
+
+    Parameters
+    ----------
+    x_region_a, x_region_b : 3D array
+        Neural data for two regions with shape (trials, timebins, neurons).
+    use_n_components : int
+        How many components to use for the PLS model
+    do_shuffle : boolean
+        Whether to shuffle trials of region b
+
+    Returns
+    -------
+    trial_coupling_scores : 1D array
+        The average Pearson correlation across latent components for each trial.
+    X_latents, Y_latents : 3D array
+        The latent trajectories for each trial and component.
+        Shape is (trials, timebins, components).
+    """
+
+    n_trials, n_timebins, n_neurons_X = x_region_a.shape
+    _, _, n_neurons_Y = x_region_b.shape
+
+    # Do shuffle if required
+    if do_shuffle:
+        indices = np.arange(x_region_b.shape[0])
+        shuffled_indices = np.random.permutation(x_region_b.shape[0])
+        while np.any(shuffled_indices == indices):
+            shuffled_indices = np.random.permutation(x_region_b.shape[0])
+        x_region_b = x_region_b[shuffled_indices]
+
+    # Initialize empty 3D arrays to store the latent trajectories
+    # Shape will be: (Trials, Time, Components)
+    X_latents = np.zeros((n_trials, n_timebins, use_n_components))
+    Y_latents = np.zeros((n_trials, n_timebins, use_n_components))
+
+    # Setup Leave-One-Trial-Out cross-validation
+    logo = LeaveOneGroupOut()
+
+    # Initialize the calibrated PLS model
+    pls = PLSCanonical(n_components=use_n_components)
+
+    for train_idx, test_idx in logo.split(x_region_a, x_region_b, groups=np.arange(n_trials)):
+        # test_idx is an array of length 1 containing the held-out trial number
+        current_trial = test_idx[0]
+
+        # Slice the 3D data into training and testing
+        X_train_3D = x_region_a[train_idx]
+        Y_train_3D = x_region_b[train_idx]
+        X_test_3D = x_region_a[test_idx]
+        Y_test_3D = x_region_b[test_idx]
+
+        # Flatten the training data to 2D for the PLS model: ((Trials * Time), Neurons)
+        X_train_2D = X_train_3D.reshape(-1, n_neurons_X)
+        Y_train_2D = Y_train_3D.reshape(-1, n_neurons_Y)
+
+        # Flatten the single test trial to 2D: (Time, Neurons)
+        X_test_2D = X_test_3D.reshape(-1, n_neurons_X)
+        Y_test_2D = Y_test_3D.reshape(-1, n_neurons_Y)
+
+        # Fit the model on the training trials
+        pls.fit(X_train_2D, Y_train_2D)
+
+        # Project the single unseen trial into the newly defined subspace
+        X_latent_test, Y_latent_test = pls.transform(X_test_2D, Y_test_2D)
+
+        # X_latent_test and Y_latent_test are shape (n_timebins, n_components).
+        # We can store them directly into the pre-allocated 3D output arrays.
+        X_latents[current_trial] = X_latent_test
+        Y_latents[current_trial] = Y_latent_test
+
+    # Compute single trial coupling strength
+    trial_coupling_scores = np.full(n_trials, np.nan)
+    for trial in range(n_trials):
+
+        component_correlations = np.full(N_COMPONENTS, np.nan)
+        for comp in range(N_COMPONENTS):
+            # Calculate Pearson correlation
+            r_val, _ = pearsonr(X_latents[trial, :, comp], Y_latents[trial, :, comp])
+            component_correlations[comp] = np.abs(r_val)
+
+        # Average the correlations across the 4 dimensions to get one score for the trial
+        trial_coupling_scores[trial] = np.mean(component_correlations)
+
+    return trial_coupling_scores, X_latents, Y_latents
 
 
-# %%
-corr_df = pd.DataFrame()
-
-for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
-    print(f'Recording {i} of {len(rec)}: \n{subject} {date}')
+def process_session(subject, date):
+    """Process a single session and return a DataFrame with PLA results."""
+    print(f'Processing session {subject} {date}...')
+    session_pla_df = pd.DataFrame()
 
     # Load in neural data for all probes
-    session_path = path_dict['local_data_path'] / 'Subjects' / f'{subject}' / f'{date}'
+    session_path = path_dict['local_data_path'] / 'Subjects' / str(subject) / str(date)
     spikes, clusters, channels = load_multiple_probes(session_path)
 
     # Load in object entry times
@@ -85,68 +173,59 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
         # Loop over region pairs
         for pair in region_pairs:
 
-            n_trials, n_timebins, n_neurons_X = spikes_dict[obj][pair[0]].shape
-            _, _, n_neurons_Y = spikes_dict[obj][pair[1]].shape
+            # Calculate coupling scores
+            coupling_scores, _, _ = fit_pla(
+                spikes_dict[obj][pair[0]], spikes_dict[obj][pair[1]], use_n_components=N_COMPONENTS)
+            mean_coupling = np.mean(coupling_scores)
 
-            # Initialize empty 3D arrays to store the latent trajectories
-            # Shape will be: (Trials, Time, Components)
-            X_latents = np.zeros((n_trials, n_timebins, N_COMPONENTS))
-            Y_latents = np.zeros((n_trials, n_timebins, N_COMPONENTS))
+            # Do shuffles
+            coupling_shuffled = np.full((N_SHUFFLES, trials.shape[0]), np.nan)
+            for ii in range(N_SHUFFLES):
+                coupling_shuffled[ii, :], _, _ = fit_pla(
+                    spikes_dict[obj][pair[0]], spikes_dict[obj][pair[1]], use_n_components=N_COMPONENTS, do_shuffle=True)
+            mean_shuffled = np.mean(coupling_shuffled, axis=1)
 
-            # Setup Leave-One-Trial-Out cross-validation
-            logo = LeaveOneGroupOut()
-            groups = np.arange(n_trials)
+            # Calculate p value
+            p_coupling = np.sum(mean_shuffled < mean_coupling) / N_SHUFFLES
 
-            # Initialize the calibrated PLS model
-            pls = PLSCanonical(n_components=N_COMPONENTS)
+            # Get coupling seperatly for rewarded and unrewarded trials
+            if m < 2:
+                # Rewarded trials
+                rew_coupling = np.mean(coupling_scores[all_obj_df.loc[all_obj_df['object'] == m+1, 'goal'] == 1])
+                rew_shuffled = np.mean(coupling_shuffled[:, all_obj_df.loc[all_obj_df['object'] == m+1, 'goal'] == 1],
+                                       axis=1)
+                p_rew = np.sum(rew_shuffled < rew_coupling) / N_SHUFFLES
 
-            for train_idx, test_idx in logo.split(spikes_dict[obj][pair[0]], spikes_dict[obj][pair[1]], groups=groups):
-                # test_idx is an array of length 1 containing the held-out trial number
-                current_trial = test_idx[0]
+                # Unrewarded trials
+                unrew_coupling = np.mean(coupling_scores[all_obj_df.loc[all_obj_df['object'] == m+1, 'goal'] == 0])
+                unrew_shuffled = np.mean(coupling_shuffled[:, all_obj_df.loc[all_obj_df['object'] == m+1, 'goal'] == 0],
+                                       axis=1)
+                p_unrew = np.sum(unrew_shuffled < unrew_coupling) / N_SHUFFLES
+            else:
+                # Object 3 doens't have rewarded / unrewarded trials
+                rew_coupling, p_rew, unrew_coupling, p_unrew = np.nan, np.nan, np.nan, np.nan
 
-                # Slice the 3D data into training and testing
-                X_train_3D = spikes_dict[obj][pair[0]][train_idx]
-                Y_train_3D = spikes_dict[obj][pair[1]][train_idx]
-
-                X_test_3D = spikes_dict[obj][pair[0]][test_idx]
-                Y_test_3D = spikes_dict[obj][pair[1]][test_idx]
-
-                # Flatten the training data to 2D for the PLS model: ((Trials * Time), Neurons)
-                X_train_2D = X_train_3D.reshape(-1, n_neurons_X)
-                Y_train_2D = Y_train_3D.reshape(-1, n_neurons_Y)
-
-                # Flatten the single test trial to 2D: (Time, Neurons)
-                X_test_2D = X_test_3D.reshape(-1, n_neurons_X)
-                Y_test_2D = Y_test_3D.reshape(-1, n_neurons_Y)
-
-                # Fit the model on the training trials
-                pls.fit(X_train_2D, Y_train_2D)
-
-                # Project the single unseen trial into the newly defined subspace
-                X_latent_test, Y_latent_test = pls.transform(X_test_2D, Y_test_2D)
-
-                # X_latent_test and Y_latent_test are shape (n_timebins, n_components).
-                # We can store them directly into the pre-allocated 3D output arrays.
-                X_latents[current_trial] = X_latent_test
-                Y_latents[current_trial] = Y_latent_test
-
-            # Compute single trial coupling strength
-            trial_coupling_scores = np.full(n_trials, np.nan)
-            for trial in range(n_trials):
-
-                component_correlations = np.full(N_COMPONENTS, np.nan)
-                for comp in range(N_COMPONENTS):
-
-                    # Calculate Pearson correlation
-                    r_val, _ = pearsonr(X_latents[trial, :, comp], Y_latents[trial, :, comp])
-                    component_correlations[comp] = np.abs(r_val)
-
-                # Average the correlations across the 4 dimensions to get one score for the trial
-                trial_coupling_scores[trial] = np.mean(component_correlations)
+            # Add to dataframe
+            session_pla_df = pd.concat([session_pla_df, pd.DataFrame(index=[session_pla_df.shape[0]], data={
+                'coupling_r': mean_coupling, 'coupling_p': p_coupling,
+                'rew_coupling_r': rew_coupling, 'rew_coupling_p': p_rew,
+                'unrew_coupling_r': unrew_coupling, 'unrew_coupling_p': p_unrew,
+                'object': obj, 'region_pair': f'{pair[0]}-{pair[1]}', 'region_1': pair[0], 'region_2': pair[1],
+                'subject': subject, 'date': date})])
+    return session_pla_df
 
 
+# %% Execute parallel processing
+if __name__ == '__main__':
+    print(f'Starting parallel processing of {len(rec)} sessions using {N_CPUS} CPUs...')
+    
+    # Run parallel loop over sessions
+    results = Parallel(n_jobs=N_CPUS)(
+        delayed(process_session)(row['subject'], row['date']) 
+        for _, row in rec.iterrows()
+    )
 
-
-
-
-
+    # Concatenate all session DataFrames into one
+    pla_df = pd.concat(results, ignore_index=True)
+    
+    print('Processing complete.')
