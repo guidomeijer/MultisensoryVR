@@ -76,8 +76,8 @@ for i, region in enumerate(plot_df['region'].unique()):
     if i == 0:
         axs[1, i].text(-1.3, 0.0005, 0.001, ha='center', va='center', rotation=90)
         axs[1, i].plot([-1, 0], [-mag, -mag], color='k', clip_on=False)
-        axs[1, i].text(-0.5, -mag - 0.0002, '1s', ha='center', va='center')
-        axs[1, i].text(0.15, -0.0017, 'Object entry', rotation='vertical')
+        axs[1, i].text(-0.5, -mag - 0.00025, '1s', ha='center', va='center')
+        axs[1, i].text(0.15, -0.0022, 'Object entry', rotation='vertical')
 
     add_significance(times, np.array(p_values_goal), axs[1, i], color=colors['goal'],
                      y_pos=mag + (mag*0.03))

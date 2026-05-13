@@ -22,6 +22,7 @@ N_CPUS = -6
 N_COMPONENTS = 4
 N_SHUFFLES = 500
 N_SPLITS = 10
+SUBTRACT_MEAN = False
 
 # Initialize
 path_dict = paths()
@@ -141,7 +142,10 @@ for i, (subject, date) in enumerate(zip(rec['subject'], rec['date'])):
                     continue
 
                 # Subtract the mean over trials from each trial to leave the residuals
-                spikes_dict[obj][region] = spikes_dropped - np.mean(spikes_dropped, axis=0)
+                if SUBTRACT_MEAN:
+                    spikes_dict[obj][region] = spikes_dropped - np.mean(spikes_dropped, axis=0)
+                else:
+                    spikes_dict[obj][region] = spikes_dropped
 
     # Loop over objects
     for m, obj in enumerate(['obj1', 'obj2', 'obj3']):

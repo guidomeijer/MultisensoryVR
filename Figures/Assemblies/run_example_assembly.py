@@ -181,7 +181,7 @@ plot_activations = activations[:, time_slice]
 assembly_colors = sns.color_palette('tab10', n_assemblies)
 
 # Create figure
-f, axs = plt.subplots(2, 3, figsize=(3, 2), dpi=dpi,
+f, axs = plt.subplots(2, 3, figsize=(2, 1.8), dpi=dpi,
                       gridspec_kw={'height_ratios': [3, 1], 'width_ratios': [0.03, 1, 0.03], 'wspace': 0.05},
                       sharex='col')
 (ax_assembly, ax1, cax), (ax_dummy, ax2, _) = axs
@@ -192,7 +192,7 @@ axs[1, 2].axis('off')
 im = ax1.imshow(plot_z_spikes, aspect='auto', cmap='coolwarm',
                 vmin=-2, vmax=2,  # clip z-scores for better visualization
                 extent=[plot_time[0], plot_time[-1], len(ordered_neurons), 0])
-ax1.set_ylabel('Neurons sorted\nby assembly', labelpad=15)
+ax1.set_ylabel('Neurons sorted\nby assembly', labelpad=13)
 ax1.set_yticks([])  # No y-ticks for individual neurons
 
 # Plot assembly identity bar
@@ -205,13 +205,14 @@ for k in range(n_assemblies):
     ax_assembly.add_patch(rect)
 
 # Add colorbar for heatmap
-cbar = f.colorbar(im, cax=cax, label='Z-scored activity', ticks=[-2, 0, 2])
+cbar = f.colorbar(im, cax=cax, ticks=[-2, 0, 2])
+cbar.set_label('Z-scored activity', rotation=270, labelpad=5)
 
 # Plot assembly activations
 for k in range(n_assemblies):
     ax2.plot(plot_time, plot_activations[k, :], lw=1, label=f'Assembly {k+1}', color=assembly_colors[k])
-ax2.set_xlabel('Time from ripple onset (s)')
-ax2.set_ylabel('Assembly\nactivation')
+ax2.set_xlabel('Time from ripple onset (s)', labelpad=2)
+ax2.set_ylabel('Assembly\nactivation', labelpad=3)
 ax2.set(xticks=[t_center-1, t_center-0.5, t_center, t_center+0.5, t_center+1], xticklabels=[-1, -0.5, 0, 0.5, 1])
 
 # Add event marker
@@ -219,7 +220,7 @@ ax1.axvline(x=t_center, color='white', linestyle='--')
 ax2.axvline(x=t_center, color='grey', linestyle='--')
 
 sns.despine(fig=f)
-plt.subplots_adjust(left=0.15, right=0.85, bottom=0.2, top=0.9)
+plt.subplots_adjust(left=0.18, right=0.85, bottom=0.2, top=0.9)
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_activity_{SUBJECT}_{DATE}_{REGION}.jpg', dpi=600)
 plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_activity_{SUBJECT}_{DATE}_{REGION}.pdf')
 plt.show()
@@ -233,7 +234,7 @@ plot_assembly = 0
 #                         dblUseMaxDur=2)
 #print(f'ZETA test ripple; p = {p_ripple}')
 
-f, ax = plt.subplots(figsize=(1.75, 1.8), dpi=dpi)
+f, ax = plt.subplots(figsize=(1.5, 1.8), dpi=dpi)
 peri_event_trace(activations[plot_assembly, :], binned_time, these_ripples['start_times'],
                  np.ones(these_ripples.shape[0]), t_before=1, t_after=1, ax=ax,
                  color_palette=[assembly_colors[plot_assembly]])
@@ -248,7 +249,7 @@ plt.savefig(path_dict['paper_fig_path'] / 'Assemblies' / f'assembly_example_ripp
 plt.show()
 
 # %%
-plot_assembly = 1
+plot_assembly = 3
 
 # Do some smoothing
 activations_smooth = gaussian_filter1d(activations, sigma=SMOOTHING, axis=1)
