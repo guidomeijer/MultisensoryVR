@@ -23,16 +23,16 @@ regions = np.unique(assembly_df['region'])
 # Calculate percentage significant per session
 #assembly_df['ses_id'] = assembly_df['subject'] + assembly_df['date']
 assembly_df['ses_id'] = assembly_df['date']
-assembly_df['sig_obj1'] = assembly_df['p_obj1'] < 0.05
-assembly_df['sig_obj2'] = assembly_df['p_obj2'] < 0.05
+assembly_df['sig_obj1'] = assembly_df['p_expectation_obj1'] < 0.05
+assembly_df['sig_obj2'] = assembly_df['p_expectation_obj2'] < 0.05
 assembly_df['sig_sound'] = assembly_df['p_sound_id'] < 0.05
 assembly_df['sig_ripples'] = assembly_df['p_ripples'] < 0.05
-assembly_df['valid_obj1'] = ~np.isnan(assembly_df['p_obj1'])
-assembly_df['valid_obj2'] = ~np.isnan(assembly_df['p_obj2'])
+assembly_df['valid_obj1'] = ~np.isnan(assembly_df['p_expectation_obj1'])
+assembly_df['valid_obj2'] = ~np.isnan(assembly_df['p_expectation_obj2'])
 assembly_df['valid_sound'] = ~np.isnan(assembly_df['p_sound_id'])
 assembly_df['valid_ripples'] = ~np.isnan(assembly_df['p_ripples'])
-assembly_df['log_p_obj1'] = -np.log10(assembly_df['p_obj1'])
-assembly_df['log_p_obj2'] = -np.log10(assembly_df['p_obj2'])
+assembly_df['log_p_obj1'] = -np.log10(assembly_df['p_expectation_obj1'])
+assembly_df['log_p_obj2'] = -np.log10(assembly_df['p_expectation_obj2'])
 assembly_df['log_p_sound'] = -np.log10(assembly_df['p_sound_id'])
 assembly_df['log_p_ripples'] = -np.log10(assembly_df['p_ripples'])
 

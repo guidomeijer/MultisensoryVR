@@ -31,9 +31,10 @@ stats_df['enhanced_obj1'] = stats_df['z_context_obj1'] > 0
 stats_df['sig_context_obj2'] = stats_df['p_context_obj2'] < 0.05
 stats_df['suppressed_obj2'] = stats_df['z_context_obj2'] < 0
 stats_df['enhanced_obj2'] = stats_df['z_context_obj2'] > 0
-stats_df['sig_context_onset'] = stats_df['p_sound_onset'] < 0.05
 stats_df['sig_context_diff'] = stats_df['p_sound_diff'] < 0.05
-stats_df['sig_reward'] = stats_df['p_reward'] < 0.05
+stats_df['sig_reward'] = (stats_df['p_reward_obj1'] < 0.05) | (stats_df['p_reward_obj2'] < 0.05)
+stats_df['sig_reward_obj1'] = (stats_df['p_reward_obj1'] < 0.05)
+stats_df['sig_reward_obj2'] = (stats_df['p_reward_obj2'] < 0.05)
 stats_df['sig_obj_onset'] = stats_df['p_obj_onset'] < 0.05
 stats_df = stats_df[stats_df['region'] != 'root']
 stats_df['ses_id'] = [f'{stats_df.loc[i, "subject"]}_{stats_df.loc[i, "date"]}' for i in stats_df.index]
@@ -41,16 +42,17 @@ stats_df['ses_id'] = [f'{stats_df.loc[i, "subject"]}_{stats_df.loc[i, "date"]}' 
 # Get chance levels
 context_obj1_chance = (np.sum(stats_df['p_context_obj1_shuf'] < 0.05) / stats_df.shape[0]) * 100
 context_obj2_chance = (np.sum(stats_df['p_context_obj2_shuf'] < 0.05) / stats_df.shape[0]) * 100
-context_onset_chance = (np.sum(stats_df['p_sound_onset_shuf'] < 0.05) / stats_df.shape[0]) * 100
-reward_chance = (np.sum(stats_df['p_reward_onset_shuf'] < 0.05) / stats_df.shape[0]) * 100
+reward_chance = (np.sum(stats_df['p_reward_obj1_shuf'] < 0.05) / stats_df.shape[0]) * 100
 obj_onset_chance = (np.sum(stats_df['p_obj_onset_shuf'] < 0.05) / stats_df.shape[0]) * 100
+sound_chance = (np.sum(stats_df['p_sound_diff_shuf'] < 0.05) / stats_df.shape[0]) * 100
 
 # Summary statistics per session
 per_ses_df = stats_df.groupby(['region', 'ses_id']).sum(numeric_only=True)
 per_ses_df['n_neurons'] = stats_df.groupby(['region', 'ses_id']).size()
 per_ses_df['perc_context_obj1'] = (per_ses_df['sig_context_obj1'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_context_obj2'] = (per_ses_df['sig_context_obj2'] / per_ses_df['n_neurons']) * 100
-per_ses_df['perc_context_onset'] = (per_ses_df['sig_context_onset'] / per_ses_df['n_neurons']) * 100
+per_ses_df['perc_reward_obj1'] = (per_ses_df['sig_reward_obj1'] / per_ses_df['n_neurons']) * 100
+per_ses_df['perc_reward_obj2'] = (per_ses_df['sig_reward_obj2'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_context_diff'] = (per_ses_df['sig_context_diff'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_reward'] = (per_ses_df['sig_reward'] / per_ses_df['n_neurons']) * 100
 per_ses_df['perc_obj_onset'] = (per_ses_df['sig_obj_onset'] / per_ses_df['n_neurons']) * 100
@@ -110,7 +112,7 @@ sns.barplot(data=per_ses_df, x='region', y='perc_context_obj1', ax=ax2, hue='reg
 ax2.plot(use_xlim, [context_obj1_chance, context_obj1_chance], ls='--', color='lightgrey',
          lw=0.75)
 #ax2.set(xlabel='', title='Context first landmark', yticks=[0, 1, 2, 3, 4, 5, 6], ylim=[0, 6], ylabel='')
-ax2.set(xlabel='', title='Rewarded object 1', yticks=[0, 5, 10, 15], ylim=[0, 16], ylabel='', xlim=use_xlim)
+ax2.set(xlabel='', title='Rewarded object 1', yticks=[0, 5, 10, 15], ylim=[0, 17], ylabel='', xlim=use_xlim)
 ax2.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_obj2']].groupby('region').mean().sort_values(
@@ -119,14 +121,14 @@ sns.barplot(data=per_ses_df, x='region', y='perc_context_obj2', ax=ax3, hue='reg
             palette=colors, order=this_order)
 ax3.plot(use_xlim, [context_obj2_chance, context_obj2_chance], ls='--', color='lightgrey',
          lw=0.75)
-ax3.set(xlabel='', title='Rewarded object 2', yticks=[0, 5, 10, 15], ylim=[0, 16], ylabel='', xlim=use_xlim)
+ax3.set(xlabel='', title='Rewarded object 2', yticks=[0, 5, 10, 15], ylim=[0, 17], ylabel='', xlim=use_xlim)
 ax3.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_diff']].groupby('region').mean().sort_values(
     'perc_context_diff', ascending=False).index.values
 sns.barplot(data=per_ses_df, x='region', y='perc_context_diff', ax=ax4, hue='region', errorbar='se',
             palette=colors, order=this_order)
-ax4.plot(use_xlim, [context_onset_chance, context_onset_chance], ls='--', color='lightgrey',
+ax4.plot(use_xlim, [sound_chance, sound_chance], ls='--', color='lightgrey',
          lw=0.75)
 ax4.set(xlabel='', title='Sound identity', yticks=[0, 5, 10], ylim=[0, 10], ylabel='', xlim=use_xlim)
 ax4.tick_params(axis='x', labelrotation=90)
@@ -137,7 +139,7 @@ sns.barplot(data=per_ses_df, x='region', y='perc_reward', ax=ax5, hue='region', 
             palette=colors, order=this_order)
 ax5.plot(use_xlim, [reward_chance, reward_chance], ls='--', color='lightgrey',
          lw=0.75)
-ax5.set(xlabel='', title='Outcome modulation', yticks=[0, 10, 20, 30, 40, 50, 60], ylim=[0, 63], ylabel='',
+ax5.set(xlabel='', title='Outcome modulation', yticks=[0, 10, 20, 30, 40, 50], ylim=[0, 53], ylabel='',
         xlim=use_xlim)
 ax5.tick_params(axis='x', labelrotation=90)
 
@@ -165,4 +167,22 @@ plt.tight_layout(w_pad=0.8)
 
 plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'n_neurons.jpg', dpi=600)
 plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'n_neurons.pdf')
+plt.show()
+
+
+# %% Plot overlap heatmap
+overlap_cols = ['sig_context_obj1', 'sig_context_obj2', 'sig_reward_obj1', 'sig_reward_obj2']
+overlap_df = stats_df[overlap_cols].astype(int)
+
+# Calculate intersection matrix and normalize by total number of neurons
+overlap_matrix = (overlap_df.T @ overlap_df) / stats_df.shape[0] * 100
+
+f, ax1 = plt.subplots(1, 1, figsize=(3.5, 3), dpi=dpi)
+sns.heatmap(overlap_matrix, annot=True, fmt='.1f', cmap='Reds',
+            xticklabels=['Ctx Obj 1', 'Ctx Obj 2', 'Rew Obj 1', 'Rew Obj 2'],
+            yticklabels=['Ctx Obj 1', 'Ctx Obj 2', 'Rew Obj 1', 'Rew Obj 2'])
+ax1.set(title='Neuronal Overlap (% of all neurons)')
+plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'overlap_heatmap.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'overlap_heatmap.pdf')
 plt.show()

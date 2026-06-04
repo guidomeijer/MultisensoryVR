@@ -80,17 +80,22 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                 activation_rate = gaussian_filter1d(activation_rate, SMOOTHING, axis=1)
 
             # Find patterns that encode reward prediction
-            p_obj = {'obj1': np.empty(n_assemblies), 'obj2': np.empty(n_assemblies)}
+            p_expectation = {'obj1': np.empty(n_assemblies), 'obj2': np.empty(n_assemblies)}
+            p_reward = {'obj1': np.empty(n_assemblies), 'obj2': np.empty(n_assemblies)}
             diff_obj = {'obj1': np.empty(n_assemblies), 'obj2': np.empty(n_assemblies)}
             d_prime_obj = {'obj1': np.empty(n_assemblies), 'obj2': np.empty(n_assemblies)}
             for obj in [1, 2]:
                 for asm in range(n_assemblies):
 
-                    # Run zetatest
-                    p_obj[f'obj{obj}'][asm], _ = zetatstest2(
+                    # Run zetatests
+                    p_expectation[f'obj{obj}'][asm], _ = zetatstest2(
                         time_ax, activation_rate[asm, :], rewarded_entries[f'obj{obj}'] - SIG_TIME,
                         time_ax, activation_rate[asm, :], unrewarded_entries[f'obj{obj}'] - SIG_TIME,
-                        dblUseMaxDur=SIG_TIME)
+                        max_duration=SIG_TIME)
+                    p_reward[f'obj{obj}'][asm], _ = zetatstest2(
+                        time_ax, activation_rate[asm, :], rewarded_entries[f'obj{obj}'],
+                        time_ax, activation_rate[asm, :], unrewarded_entries[f'obj{obj}'],
+                        max_duration=SIG_TIME)
 
                     # Get rewarded-unrewarded difference
                     rewarded_act = bin_signal(
@@ -112,7 +117,7 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                                      t_before=2, t_after=1, ax=axs[0, pp],
                                      color_palette=[colors['no-goal'], colors['goal']])
                     axs[0, pp].set(xticks=np.arange(-3, 1.5), ylabel='',
-                                   title=f'p={np.round(p_obj["obj1"][pp], 2)}, d={np.round(d_prime_obj["obj1"][pp], 2)}')
+                                   title=f'p={np.round(p_expectation["obj1"][pp], 2)}, d={np.round(d_prime_obj["obj1"][pp], 2)}')
                 for pp in range(activation_rate.shape[0]):
                     peri_event_trace(activation_rate[pp, :], time_ax,
                                      all_obj_df.loc[all_obj_df['object'] == 2, 'times'],
@@ -120,7 +125,7 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                                      t_before=2, t_after=1, ax=axs[1, pp],
                                      color_palette=[colors['no-goal'], colors['goal']])
                     axs[1, pp].set(xticks=np.arange(-2, 1.5), xlabel='Time from object entry (s)', ylabel='',
-                                   title=f'p={np.round(p_obj["obj2"][pp], 2)}, d={np.round(d_prime_obj["obj2"][pp], 2)}')
+                                   title=f'p={np.round(p_expectation["obj2"][pp], 2)}, d={np.round(d_prime_obj["obj2"][pp], 2)}')
                 sns.despine(trim=True)
                 plt.tight_layout()
 
@@ -135,7 +140,7 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
             for asm in range(n_assemblies):
                 p_sound[asm], _ = zetatstest2(time_ax, activation_rate[asm, :], sound1,
                                               time_ax, activation_rate[asm, :], sound2,
-                                              dblUseMaxDur=SIG_TIME)
+                                              max_duration=SIG_TIME)
 
             if PLOT & (n_assemblies > 1):
                 # Plot
@@ -168,7 +173,7 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
                     # Do ZETA
                     p_ripples[asm], ZETA = zetatstest(time_ax, activation_rate[asm, :],
                                                       these_ripples_sess['start_times'].values - (SIG_TIME / 2),
-                                                      dblUseMaxDur=SIG_TIME)
+                                                      max_duration=SIG_TIME)
 
                     # Get mean assembly activation traces at ripples
                     ripple_activation = event_aligned_trace(activation_rate[asm, :], time_ax,
@@ -204,7 +209,8 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
 
             # Add to df
             assembly_df_session = pd.concat((assembly_df_session, pd.DataFrame(data={
-                'p_obj1': p_obj['obj1'], 'p_obj2': p_obj['obj2'],
+                'p_expectation_obj1': p_expectation['obj1'], 'p_expectation_obj2': p_expectation['obj2'],
+                'p_reward_obj1': p_reward['obj1'], 'p_reward_obj2': p_reward['obj2'],
                 'diff_obj1': diff_obj['obj1'], 'diff_obj2': diff_obj['obj2'],
                 'dprime_obj1': d_prime_obj['obj1'], 'dprime_obj2': d_prime_obj['obj2'],
                 'p_sound_id': p_sound, 'p_ripples': p_ripples, 'amp_ripples': amp_ripples,

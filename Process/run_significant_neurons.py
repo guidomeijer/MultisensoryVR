@@ -15,7 +15,7 @@ from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 # Settings
 ALPHA = 0.05
 OVERWRITE = True
-N_CORES = 18
+N_CORES = -4
 
 # Initialize
 path_dict = paths()
@@ -43,8 +43,8 @@ def run_zetatest2(neuron_id, event_times1, event_times2, t_before, t_after, do_s
         event_times2 = all_shuffled_events[event_times2.shape[0]:]
     try:
         p_value, zeta_dict = zetatest2(these_spikes, event_times1 - t_before, these_spikes,
-                                       event_times2 - t_before, dblUseMaxDur=(t_before + t_after))
-        zeta_score = zeta_dict['dblZETADeviation']
+                                       event_times2 - t_before, max_duration=(t_before + t_after))
+        zeta_score = zeta_dict['zeta_deviation']
     except Exception:
         p_value = np.nan    
         zeta_score = np.nan        
@@ -56,9 +56,8 @@ def run_zetatest(neuron_id, event_times, t_before, t_after, do_jitter=False):
     if do_jitter:
         event_times = np.random.uniform(low=np.min(event_times) - 1, high=np.max(event_times) + 1,
                                         size=event_times.shape[0])
-    p_value, zeta_dict, _ = zetatest(these_spikes, event_times - t_before, dblUseMaxDur=(t_before + t_after),
-                                     boolParallel=False)
-    zeta_score = zeta_dict['dblZETADeviation']
+    p_value, zeta_dict, _ = zetatest(these_spikes, event_times - t_before, max_duration=(t_before + t_after))
+    zeta_score = zeta_dict['zeta_deviation']
     return p_value, zeta_score
 
 
@@ -86,6 +85,8 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         
     # Difference between contexts for the second rewarded object (goal)
     print('Calculating difference between context for object 1')
+
+    # Before object entry (anticipation)
     results = Parallel(n_jobs=N_CORES)(
         delayed(run_zetatest2)(neuron_id, goal1_times, no_goal1_times, t_before=2, t_after=0)
         for i, neuron_id in enumerate(clusters['cluster_id']))
@@ -96,8 +97,22 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         delayed(run_zetatest2)(neuron_id, goal1_times, no_goal1_times, t_before=2, t_after=0, do_shuffle=True)
         for i, neuron_id in enumerate(clusters['cluster_id']))
     goal1_p_shuf = np.array([result[0] for result in results])
+
+    # After object entry (reward)
+    results = Parallel(n_jobs=N_CORES)(
+        delayed(run_zetatest2)(neuron_id, goal1_times, no_goal1_times, t_before=0, t_after=2)
+        for i, neuron_id in enumerate(clusters['cluster_id']))
+    reward1_p = np.array([result[0] for result in results])
+    reward1_z = np.array([result[1] for result in results])
+
+    results = Parallel(n_jobs=N_CORES)(
+        delayed(run_zetatest2)(neuron_id, goal1_times, no_goal1_times, t_before=0, t_after=2, do_shuffle=True)
+        for i, neuron_id in enumerate(clusters['cluster_id']))
+    reward1_p_shuf = np.array([result[0] for result in results])
             
     print('Calculating difference between context for object 2')
+
+    # Before object entry (anticipation)
     results = Parallel(n_jobs=N_CORES)(
         delayed(run_zetatest2)(neuron_id, goal2_times, no_goal2_times, t_before=2, t_after=0)
         for i, neuron_id in enumerate(clusters['cluster_id']))
@@ -108,19 +123,19 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         delayed(run_zetatest2)(neuron_id, goal2_times, no_goal2_times, t_before=2, t_after=0, do_shuffle=True)
         for i, neuron_id in enumerate(clusters['cluster_id']))
     goal2_p_shuf = np.array([result[0] for result in results])
-        
-    print('Calculating difference between reward vs no reward')
+
+    # After object entry (reward)
     results = Parallel(n_jobs=N_CORES)(
-        delayed(run_zetatest2)(neuron_id, reward_times, no_reward_times, t_before=0, t_after=2)
+        delayed(run_zetatest2)(neuron_id, goal2_times, no_goal2_times, t_before=0, t_after=2)
         for i, neuron_id in enumerate(clusters['cluster_id']))
-    reward_p = np.array([result[0] for result in results])
-    reward_z = np.array([result[1] for result in results])
+    reward2_p = np.array([result[0] for result in results])
+    reward2_z = np.array([result[1] for result in results])
 
     results = Parallel(n_jobs=N_CORES)(
-        delayed(run_zetatest2)(neuron_id, reward_times, no_reward_times, t_before=0, t_after=2, do_shuffle=True)
+        delayed(run_zetatest2)(neuron_id, goal2_times, no_goal2_times, t_before=0, t_after=2, do_shuffle=True)
         for i, neuron_id in enumerate(clusters['cluster_id']))
-    reward_p_shuf = np.array([result[0] for result in results])
-    
+    reward2_p_shuf = np.array([result[0] for result in results])
+
     # Get neurons which significantly respond to any object appearance 
     print('Calculating significant object responses')
     results = Parallel(n_jobs=N_CORES)(
@@ -144,30 +159,17 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         delayed(run_zetatest2)(neuron_id, sound1_onsets, sound2_onsets, t_before=0, t_after=2, do_shuffle=True)
         for i, neuron_id in enumerate(clusters['cluster_id']))
     sound_diff_p_shuf = np.array([result[0] for result in results])
-    
-    # Get neurons which significantly respond to sound onset
-    print('Calculating significant sound onset responses')
-    results = Parallel(n_jobs=N_CORES)(
-        delayed(run_zetatest)(neuron_id, trials['soundOnsetTime'].values, t_before=0, t_after=2)
-        for i, neuron_id in enumerate(clusters['cluster_id']))
-    sound_onset_p = np.array([result[0] for result in results])
-    sound_onset_z = np.array([result[1] for result in results])
-    
-    results = Parallel(n_jobs=N_CORES)(
-        delayed(run_zetatest)(neuron_id, trials['soundOnsetTime'].values, t_before=0, t_after=2, do_jitter=True)
-        for i, neuron_id in enumerate(clusters['cluster_id']))
-    sound_onset_p_shuf = np.array([result[0] for result in results])
-        
+
     # Add to dataframe
     stats_df = pd.concat((stats_df, pd.DataFrame(data={
         'subject': subject, 'date': date, 'probe': probe, 'neuron_id': clusters['cluster_id'],
         'region': clusters['region'], 'allen_acronym': clusters['acronym'],
         'x': clusters['x'], 'y': clusters['y'], 'z': clusters['z'],
         'p_context_obj1': goal1_p, 'p_context_obj1_shuf': goal1_p_shuf, 'z_context_obj1': goal1_z,
+        'p_reward_obj1': reward1_p, 'p_reward_obj1_shuf': reward1_p_shuf, 'z_reward_obj1': reward1_z,
         'p_context_obj2': goal2_p, 'p_context_obj2_shuf': goal2_p_shuf, 'z_context_obj2': goal2_z,
+        'p_reward_obj2': reward2_p, 'p_reward_obj2_shuf': reward2_p_shuf, 'z_reward_obj2': reward2_z,
         'p_obj_onset': obj_p, 'p_obj_onset_shuf': obj_p_shuf, 'z_obj_onset': obj_z,
-        'p_reward': reward_p, 'p_reward_onset_shuf': reward_p_shuf, 'z_reward': reward_z,
-        'p_sound_onset': sound_onset_p,  'p_sound_onset_shuf': sound_onset_p_shuf,  'z_sound_onset': sound_onset_z,
         'p_sound_diff': sound_diff_p,  'p_sound_diff_shuf': sound_diff_p_shuf
         })))
     
