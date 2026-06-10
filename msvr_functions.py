@@ -400,9 +400,8 @@ def load_subjects():
     path_dict = paths(sync=False)
     subjects = pd.read_csv(join(path_dict['repo_path'], 'subjects.csv'),
                            delimiter=';|,',
-                           engine='python')
-    subjects['SubjectID'] = subjects['SubjectID'].astype(str)
-    subjects['DateFinalTask'] = subjects['DateFinalTask'].astype(str)
+                           engine='python',
+                           dtype={'SubjectID': str, 'DateFinalTask': str})
     subjects['DateFinalTask'] = [datetime.datetime.strptime(i, '%Y%m%d').date() for i
                                  in subjects['DateFinalTask']]
     return subjects
@@ -428,6 +427,10 @@ def load_neural_data(session_path, probe, histology=True, only_good=True, min_fr
     min_fr : float, optional
         Only return neurons with a firing rate of minimally this value in spikes/s over the entire
         recording
+    split_hpc : bool, optional
+        Whether to split CA1 into dorsal and intermediate
+    split_peri : bool, optional
+        Whether to split PERI into area 35 and 36
 
     Returns
     -------

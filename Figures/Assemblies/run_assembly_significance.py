@@ -226,10 +226,8 @@ def process_session(i, subject, date, probe, path_dict, ripples, colors, dpi, ri
 # %% MAIN
 
 if __name__ == '__main__':
-    rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)
-    ripples = pd.read_csv(path_dict['save_path'] / 'ripples.csv')
-    ripples['subject'] = ripples['subject'].astype(str)
-    ripples['date'] = ripples['date'].astype(str)
+    rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv', dtype={'subject': str, 'date': str})
+    ripples = pd.read_csv(path_dict['save_path'] / 'ripples.csv', dtype={'subject': str, 'date': str})
 
     results = Parallel(n_jobs=N_JOBS)(
         delayed(process_session)(i, subject, date, probe, path_dict, ripples, colors, dpi, RIPPLE_WIN, BIN_SIZE)

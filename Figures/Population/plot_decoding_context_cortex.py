@@ -24,10 +24,10 @@ WIN_FAR = [1350-150, 1350]
 # Load in data
 path_dict = paths()
 subjects = load_subjects()
-context_df = pd.read_csv(join(path_dict['save_path'], f'decode_context_cortex_25neurons_{CLASSIFIER}.csv'))
-shuffle_df = pd.read_csv(join(path_dict['save_path'], f'decode_context_cortex_25neurons_{CLASSIFIER}_shuffle.csv'))
-context_df['region'] = context_df['region'].astype(str)
-shuffle_df['region'] = shuffle_df['region'].astype(str)
+context_df = pd.read_csv(join(path_dict['save_path'], f'decode_context_cortex_25neurons_{CLASSIFIER}.csv'),
+                         dtype={'subject': str, 'region': str})
+shuffle_df = pd.read_csv(join(path_dict['save_path'], f'decode_context_cortex_25neurons_{CLASSIFIER}_shuffle.csv'),
+                         dtype={'subject': str, 'region': str})
 
 def run_stats(df):
     """

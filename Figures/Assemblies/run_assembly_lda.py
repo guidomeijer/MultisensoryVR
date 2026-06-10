@@ -18,7 +18,7 @@ from msvr_functions import paths, load_objects, figure_style, bin_signal
 MIN_RIPPLES = 10
 SMOOTHING = 0.5
 OBJ_WIN = 0.3
-OBJ_WIN_START = [0.6, -0.15]
+OBJ_WIN_START = [0.8, 0.8]
 RIPPLE_WIN_CENTERS = np.arange(-1.5, 1.1, 0.05)
 RIPPLE_WIN = 0.15
 N_SHUFFLES = 100
