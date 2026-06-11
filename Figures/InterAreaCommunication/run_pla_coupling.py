@@ -61,10 +61,9 @@ def fit_pla(x_region_a, x_region_b, use_n_components, do_shuffle=False, n_splits
         X_test_2D = X_test_3D.reshape(-1, n_neurons_X)
         Y_test_2D = Y_test_3D.reshape(-1, n_neurons_Y)
 
-        # 3. Apply PCA to keep components explaining 90% of the variance
-        # This prevents PLS from fitting to single-neuron noise
-        pca_X = PCA(n_components=0.90)
-        pca_Y = PCA(n_components=0.90)
+        # 3. Apply PCA this prevents PLS from fitting to single-neuron noise
+        pca_X = PCA(n_components=10)
+        pca_Y = PCA(n_components=10)
 
         X_train_pca = pca_X.fit_transform(X_train_2D)
         Y_train_pca = pca_Y.fit_transform(Y_train_2D)
