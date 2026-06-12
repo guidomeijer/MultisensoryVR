@@ -39,23 +39,23 @@ def run_stats(df):
     ca1_shuf = df.loc[df['region'] == 'CA1', 'accuracy_shuf']
 
     # Paired t-test: actual vs shuffled
-    p_cortex = stats.ttest_ind(cortex_acc, cortex_shuf)[1] if len(cortex_acc) > 1 else np.nan
-    p_ca1 = stats.ttest_ind(ca1_acc, ca1_shuf)[1] if len(ca1_acc) > 1 else np.nan
+    p_cortex = stats.ttest_rel(cortex_acc, cortex_shuf)[1] if len(cortex_acc) > 1 else np.nan
+    p_ca1 = stats.ttest_rel(ca1_acc, ca1_shuf)[1] if len(ca1_acc) > 1 else np.nan
 
     return pd.Series([p_cortex, p_ca1], index=['p_cortex', 'p_ca1'])
 
 
 # %%
 
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.75 * 2, 1.75), dpi=dpi, sharey=True)
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(3.5, 1.75), dpi=dpi, sharey=True)
 
 # Do statistics
 this_df = context_df[np.isin(context_df['subject'].values,
-                     subjects.loc[subjects['Far'] == 0, 'SubjectID'].values.astype(int))]
+                     subjects.loc[subjects['Far'] == 0, 'SubjectID'].astype(str).values)]
 this_shuffle_df = shuffle_df[np.isin(shuffle_df['subject'].values,
-                        subjects.loc[subjects['Far'] == 0, 'SubjectID'].values.astype(int))]
+                        subjects.loc[subjects['Far'] == 0, 'SubjectID'].astype(str).values)]
 merged_df = pd.merge(this_df, this_shuffle_df, on=['subject', 'region', 'position'], suffixes=('', '_shuf'))
-results_df = merged_df.groupby('position').apply(run_stats).reset_index()
+results_df = merged_df.groupby('position').apply(run_stats, include_groups=False).reset_index()
 
 # Plot
 sns.lineplot(this_shuffle_df, x='position', y='accuracy', errorbar=('ci', 95), linewidth=0,
@@ -75,19 +75,18 @@ ax1.set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
 
 # Do statistics
 this_df = context_df[np.isin(context_df['subject'].values,
-                     subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
+                     subjects.loc[subjects['Far'] == 1, 'SubjectID'].astype(str).values)]
 this_shuffle_df = shuffle_df[np.isin(shuffle_df['subject'].values,
-                        subjects.loc[subjects['Far'] == 1, 'SubjectID'].values.astype(int))]
+                        subjects.loc[subjects['Far'] == 1, 'SubjectID'].astype(str).values)]
 merged_df = pd.merge(this_df, this_shuffle_df, on=['subject', 'region', 'position'], suffixes=('', '_shuf'))
-results_df = merged_df.groupby('position').apply(run_stats).reset_index()
+results_df = merged_df.groupby('position').apply(run_stats, include_groups=False).reset_index()
 
 # Add rectangles
 ax1.axvspan(WIN_NEAR[0], WIN_NEAR[1], color='grey', alpha=0.2, lw=0)
 ax2.axvspan(WIN_FAR[0], WIN_FAR[1], color='grey', alpha=0.2, lw=0)
 
 sns.lineplot(this_shuffle_df, x='position', y='accuracy', errorbar=('ci', 95), linewidth=0,
-             ax=ax2, err_kws={'lw': 0, 'alpha': 1}, legend=None, zorder=0,
-             hue_order=['Cortex', 'CA1'], color='lightgrey')
+             ax=ax2, err_kws={'lw': 0, 'alpha': 1}, legend=None, zorder=0, color='lightgrey')
 sns.lineplot(this_df, x='position', y='accuracy', hue='region', errorbar='se',
              ax=ax2, err_kws={'lw': 0}, legend='brief', zorder=2,
              hue_order=['Cortex', 'CA1'], palette=[colors['PERI'], colors['CA1']])
@@ -103,8 +102,8 @@ ax2.set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
 ax2.legend(title='', bbox_to_anchor=(0.38, 0.3))
 
 f.text(0.5, 0.04, 'Position (cm)', ha='center')
-f.text(0.06, 0.5, 'Context decoding accuracy (%)', ha='center', va='center', rotation='vertical')
-plt.subplots_adjust(left=0.15, bottom=0.2, right=0.98, top=0.9, wspace=0, hspace=0.2)
+f.text(0.06, 0.55, 'Context decoding accuracy (%)', ha='center', va='center', rotation='vertical')
+plt.subplots_adjust(left=0.14, bottom=0.2, right=0.98, top=0.9, wspace=0.05, hspace=0.2)
 sns.despine(trim=True)
 
 ax2.spines['left'].set_visible(False)

@@ -30,12 +30,32 @@ path_dict = paths(sync=False)
 subjects = load_subjects()
 
 # Create hypothesis RDMs
-object_rdm = np.array([[1, 0, 1, 1, 1, 1], [0, 1, 1, 1, 1, 1],
-                       [1, 1, 1, 0, 1, 1], [1, 1, 0, 1, 1, 1],
-                       [1, 1, 1, 1, 1, 0], [1, 1, 1, 1, 0, 1]])
-reward_rdm = np.array([[1, 1, 0, 1, 0, 1], [1, 1, 1, 0, 1, 0],
-                       [0, 1, 1, 1, 0, 1], [1, 0, 1, 1, 1, 0],
-                       [0, 1, 0, 1, 1, 1], [1, 0, 1, 0, 1, 1]])
+object_rdm = np.array([[9, 0, 1, 1, 1, 1],
+                       [0, 9, 1, 1, 1, 1],
+                       [1, 1, 9, 0, 1, 1],
+                       [1, 1, 0, 9, 1, 1],
+                       [1, 1, 1, 1, 9, 0],
+                       [1, 1, 1, 1, 0, 9]])
+reward_rdm = np.array([[9, 1, 1, 1, 0, 1],
+                       [1, 9, 1, 1, 1, 0],
+                       [1, 1, 9, 1, 1, 1],
+                       [1, 1, 1, 9, 1, 1],
+                       [0, 1, 1, 1, 9, 1],
+                       [1, 0, 1, 1, 1, 9]])
+state_rdm = np.array([[9, 0, 1, 1, 0, 1],
+                      [0, 9, 1, 1, 1, 0],
+                      [1, 1, 9, 0, 1, 1],
+                      [1, 1, 0, 9, 1, 1],
+                      [0, 1, 1, 1, 9, 0],
+                      [1, 0, 1, 1, 0, 9]])
+"""
+state_rdm = np.array([[9, 1, 0, 1, 0, 1],
+                      [1, 9, 1, 0, 1, 0],
+                      [0, 1, 9, 1, 0, 1],
+                      [1, 0, 1, 9, 1, 0],
+                      [0, 1, 0, 1, 9, 1],
+                      [1, 0, 1, 0, 1, 9]])
+"""
 
 # Load in processed data
 with open(path_dict['google_drive_data_path'] / 'residuals_position_0mms.pickle', 'rb') as handle:
@@ -114,10 +134,12 @@ for i, this_ses in enumerate(np.unique(spike_dict['date'])):
             # Correlate with hypothesis representations
             r_obj, p_obj = stats.spearmanr(rdm[np.triu_indices(rdm.shape[0], k=1)], object_rdm[np.triu_indices(rdm.shape[0], k=1)])
             r_rew, p_rew = stats.spearmanr(rdm[np.triu_indices(rdm.shape[0], k=1)], reward_rdm[np.triu_indices(rdm.shape[0], k=1)])
+            r_state, p_state = stats.spearmanr(rdm[np.triu_indices(rdm.shape[0], k=1)], state_rdm[np.triu_indices(rdm.shape[0], k=1)])
 
             # Add to dicts and dfs
             corr_df = pd.concat((corr_df, pd.DataFrame(data={
                 'p_object': [p_obj], 'r_object': [r_obj], 'r_reward': [r_rew], 'p_reward': [p_rew],
+                'p_state': [p_state], 'r_state': [r_state],
                 'region': [region], 'subject': [subject], 'date': [this_ses]})))
             rdm_regions[region] = rdm
             all_rdms[region].append(rdm)
@@ -151,7 +173,7 @@ use_cmap = 'viridis_r'
 plot_min = 0.7
 plot_max = 1.2
 
-f, axs = plt.subplots(1, 2, figsize=(2.3, 1.6), dpi=dpi, sharey=True)
+f, axs = plt.subplots(1, 3, figsize=(3.3, 1.6), dpi=dpi, sharey=True)
 
 # Create a copy of the colormap and set NaN values to white
 cmap_hypo = plt.get_cmap(use_cmap).copy()
@@ -160,8 +182,10 @@ cmap_hypo.set_bad('white')
 # Plot hypothesis RDMs with diagonal set to NaN for white display
 object_rdm_plot = object_rdm.astype(float)
 reward_rdm_plot = reward_rdm.astype(float)
+state_rdm_plot = state_rdm.astype(float)
 np.fill_diagonal(object_rdm_plot, np.nan)
 np.fill_diagonal(reward_rdm_plot, np.nan)
+np.fill_diagonal(state_rdm_plot, np.nan)
 
 axs[0].imshow(object_rdm_plot, cmap=cmap_hypo)
 axs[0].set(xticks=np.arange(len(labels)), yticks=np.arange(len(labels)),
@@ -173,9 +197,13 @@ axs[1].imshow(reward_rdm_plot, cmap=cmap_hypo)
 axs[1].set(xticks=np.arange(len(labels)), yticks=np.arange(len(labels)),
            xticklabels=labels, yticklabels=labels, title='Reward')
 axs[1].tick_params('x', rotation=90)
+axs[2].imshow(state_rdm_plot, cmap=cmap_hypo)
+axs[2].set(xticks=np.arange(len(labels)), yticks=np.arange(len(labels)),
+           xticklabels=labels, yticklabels=labels, title='State')
+axs[2].tick_params('x', rotation=90)
 plt.tight_layout()
-plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'hypotheses.jpg', dpi=600)
-plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'hypotheses.pdf')
+#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'hypotheses.jpg', dpi=600)
+#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'hypotheses.pdf')
 plt.show()
 
 # %%
@@ -202,51 +230,20 @@ cbar = f.colorbar(sm, ax=axs, orientation='vertical', fraction=0.012)
 cbar.set_label('Dissimilarity (1-r)', rotation=270, labelpad=10)
 
 plt.subplots_adjust(left=0.12, bottom=0.25, right=0.85, top=1)
-plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_dissimilatrity.jpg', dpi=600)
-plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_dissimilatrity.pdf')
+#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_dissimilatrity.jpg', dpi=600)
+#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_dissimilatrity.pdf')
 plt.show()
 
 # %%
+f, axs = plt.subplots(1, 3, figsize=(4, 1.75), dpi=dpi)
 
-# Compute mean and SEM per region
-grouped = corr_df.groupby('region').agg(
-    x_mean=('r_object', 'mean'),
-    x_sem=('r_object', lambda x: x.sem()),
-    y_mean=('r_reward', 'mean'),
-    y_sem=('r_reward', lambda x: x.sem()),
-).reset_index()
+sns.barplot(data=corr_df, x='region', y='r_object', ax=axs[0], hue='region', palette=colors, errorbar='se')
 
-# Assign a color per region (optional but nice)
-regions = grouped['region'].unique()
+sns.barplot(data=corr_df, x='region', y='r_reward', ax=axs[1], hue='region', palette=colors, errorbar='se')
 
-f, ax = plt.subplots(figsize=(1.9, 1.75), dpi=dpi)
-for _, row in grouped.iterrows():
-    color = colors[row['region']]
-    ax.errorbar(
-        x=row['x_mean'],
-        y=row['y_mean'],
-        xerr=row['x_sem'],
-        yerr=row['y_sem'],
-        fmt='s',           # square marker
-        color=color,
-        markersize=4,
-        capsize=2,
-        label=row['region'],
-        linewidth=1,
-    )
+sns.barplot(data=corr_df, x='region', y='r_state', ax=axs[2], hue='region', palette=colors, errorbar='se')
 
-ax.axhline(0, color='lightgray', linewidth=0.75, linestyle='--', zorder=0)
-ax.axvline(0, color='lightgray', linewidth=0.75, linestyle='--', zorder=0)
-ax.set(xlabel='Object representation', ylabel='Reward representation', ylim=[-0.21, 0.6], xlim=[-0.5, 0.5],
-       xticks=[-0.5, -0.25, 0, 0.25, 0.5], yticks=[-0.2, 0, 0.2, 0.4, 0.6],
-       xticklabels=[-0.5, -0.25, 0, 0.25, 0.5], yticklabels=[-0.2, 0, 0.2, 0.4, 0.6])
-
-sns.despine(trim=True)
-plt.tight_layout()
-plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'object_reward_representation.jpg', dpi=600)
-plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'object_reward_representation.pdf')
 plt.show()
-
 #%%
 # Calculate mean RSA correlation between region pairs
 mean_rsa = rsa_df.groupby(['region1', 'region2'])['rsa_correlation'].mean().reset_index()
@@ -282,8 +279,8 @@ cbar = plt.colorbar(sm, ax=plt.gca(), ticks=[0.2, 0.4, 0.6, 0.8, 1.0])
 cbar.set_label('Representation similarity', rotation=270, labelpad=10)
 plt.axis('off')
 plt.tight_layout()
-plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_similarity_analysis.jpg', dpi=600)
-plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_similarity_analysis.pdf')
+#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_similarity_analysis.jpg', dpi=600)
+#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_similarity_analysis.pdf')
 plt.show()
 
 # %% Plot mean RSA correlation as a heatmap
@@ -302,6 +299,6 @@ sns.heatmap(heatmap_matrix, annot=True, fmt=".2f", cmap='Reds', vmin=0.2, vmax=1
             cbar_kws={'label': 'RSA correlation'}) # Use mask to hide diagonal
 plt.title('Region-pair RSA correlations')
 plt.tight_layout()
-plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'rsa_heatmap.jpg', dpi=600)
-plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'rsa_heatmap.pdf')
+#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'rsa_heatmap.jpg', dpi=600)
+#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'rsa_heatmap.pdf')
 plt.show()
