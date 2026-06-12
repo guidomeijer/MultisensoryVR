@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.cross_decomposition import PLSCanonical
-from sklearn.model_selection import LeaveOneGroupOut, KFold
+from sklearn.model_selection import LeaveOneGroupOut, KFold, cross_val_predict
 from sklearn.metrics import accuracy_score
 from joblib import Parallel, delayed
 from msvr_functions import paths, load_multiple_probes, load_subjects, calculate_peths, load_objects, bin_signal
@@ -41,6 +41,18 @@ bin_centers_common = np.arange(TIME_WIN_COMMON[0] + (DECODING_BIN_SIZE / 2),
                                TIME_WIN_COMMON[1] - (DECODING_BIN_SIZE / 2) + DECODING_BIN_SHIFT,
                                step=DECODING_BIN_SHIFT)
 
+def _fit_single_trial(x_region_a, x_region_b, train_idx, test_idx, use_n_components, n_neurons_X, n_neurons_Y):
+    X_train_2D = x_region_a[train_idx].reshape(-1, n_neurons_X)
+    Y_train_2D = x_region_b[train_idx].reshape(-1, n_neurons_Y)
+    X_test_2D = x_region_a[test_idx].reshape(-1, n_neurons_X)
+    Y_test_2D = x_region_b[test_idx].reshape(-1, n_neurons_Y)
+
+    pls = PLSCanonical(n_components=use_n_components)
+    pls.fit(X_train_2D, Y_train_2D)
+    X_latent_test, Y_latent_test = pls.transform(X_test_2D, Y_test_2D)
+    
+    return test_idx[0], X_latent_test, Y_latent_test
+
 def fit_pla(x_region_a, x_region_b, use_n_components):
     """
     Calculate the inter-regional coupling strength using PLS-Canonical and leave-one-trial-out cross-validation.
@@ -52,28 +64,34 @@ def fit_pla(x_region_a, x_region_b, use_n_components):
     Y_latents = np.zeros((n_trials, n_timebins, use_n_components))
 
     logo = LeaveOneGroupOut()
-    pls = PLSCanonical(n_components=use_n_components)
 
-    for train_idx, test_idx in logo.split(x_region_a, x_region_b, groups=np.arange(n_trials)):
-        current_trial = test_idx[0]
+    results = Parallel(n_jobs=N_CPUS)(
+        delayed(_fit_single_trial)(
+            x_region_a, x_region_b, train_idx, test_idx, use_n_components, n_neurons_X, n_neurons_Y
+        )
+        for train_idx, test_idx in logo.split(x_region_a, x_region_b, groups=np.arange(n_trials))
+    )
 
-        X_train_3D = x_region_a[train_idx]
-        Y_train_3D = x_region_b[train_idx]
-        X_test_3D = x_region_a[test_idx]
-        Y_test_3D = x_region_b[test_idx]
-
-        X_train_2D = X_train_3D.reshape(-1, n_neurons_X)
-        Y_train_2D = Y_train_3D.reshape(-1, n_neurons_Y)
-        X_test_2D = X_test_3D.reshape(-1, n_neurons_X)
-        Y_test_2D = Y_test_3D.reshape(-1, n_neurons_Y)
-
-        pls.fit(X_train_2D, Y_train_2D)
-        X_latent_test, Y_latent_test = pls.transform(X_test_2D, Y_test_2D)
-
+    for current_trial, X_latent_test, Y_latent_test in results:
         X_latents[current_trial] = X_latent_test
         Y_latents[current_trial] = Y_latent_test
 
     return X_latents, Y_latents
+
+def _decode_timebin(tt, decode_cortex_tt, decode_ca1_tt, trial_goals, trial_objects, cv, clf):
+    # Context (goal) decoding
+    pred_ctx_goal = cross_val_predict(clf, decode_cortex_tt, trial_goals, cv=cv, n_jobs=1)
+    pred_ca1_goal = cross_val_predict(clf, decode_ca1_tt, trial_goals, cv=cv, n_jobs=1)
+    acc_ctx_goal = accuracy_score(trial_goals, pred_ctx_goal)
+    acc_ca1_goal = accuracy_score(trial_goals, pred_ca1_goal)
+
+    # Object decoding
+    pred_ctx_obj = cross_val_predict(clf, decode_cortex_tt, trial_objects, cv=cv, n_jobs=1)
+    pred_ca1_obj = cross_val_predict(clf, decode_ca1_tt, trial_objects, cv=cv, n_jobs=1)
+    acc_ctx_obj = accuracy_score(trial_objects, pred_ctx_obj)
+    acc_ca1_obj = accuracy_score(trial_objects, pred_ca1_obj)
+
+    return tt, acc_ctx_goal, acc_ca1_goal, acc_ctx_obj, acc_ca1_obj
 
 def process_session(subject, date):
     print(f'Processing session {subject} {date}...')
@@ -158,32 +176,18 @@ def process_session(subject, date):
         accuracy_cortex_obj = np.full(decode_cortex.shape[2], np.nan)
         accuracy_ca1_obj = np.full(decode_ca1.shape[2], np.nan)
 
-        for tt in range(decode_cortex.shape[2]):
-            # Context (goal) decoding
-            pred_ctx_goal = np.empty(decode_cortex.shape[0])
-            pred_ca1_goal = np.empty(decode_ca1.shape[0])
-            for train_idx, test_idx in cv.split(decode_cortex[:, :, tt], trial_goals):
-                clf.fit(decode_cortex[train_idx, :, tt], trial_goals[train_idx])
-                pred_ctx_goal[test_idx] = clf.predict(decode_cortex[test_idx, :, tt])
-                
-                clf.fit(decode_ca1[train_idx, :, tt], trial_goals[train_idx])
-                pred_ca1_goal[test_idx] = clf.predict(decode_ca1[test_idx, :, tt])
-                
-            accuracy_cortex_goal[tt] = accuracy_score(trial_goals, pred_ctx_goal)
-            accuracy_ca1_goal[tt] = accuracy_score(trial_goals, pred_ca1_goal)
-
-            # Object decoding
-            pred_ctx_obj = np.empty(decode_cortex.shape[0], dtype=object)
-            pred_ca1_obj = np.empty(decode_ca1.shape[0], dtype=object)
-            for train_idx, test_idx in cv.split(decode_cortex[:, :, tt], trial_objects):
-                clf.fit(decode_cortex[train_idx, :, tt], trial_objects[train_idx])
-                pred_ctx_obj[test_idx] = clf.predict(decode_cortex[test_idx, :, tt])
-                
-                clf.fit(decode_ca1[train_idx, :, tt], trial_objects[train_idx])
-                pred_ca1_obj[test_idx] = clf.predict(decode_ca1[test_idx, :, tt])
-                
-            accuracy_cortex_obj[tt] = accuracy_score(trial_objects, pred_ctx_obj)
-            accuracy_ca1_obj[tt] = accuracy_score(trial_objects, pred_ca1_obj)
+        decode_results = Parallel(n_jobs=N_CPUS)(
+            delayed(_decode_timebin)(
+                tt, decode_cortex[:, :, tt], decode_ca1[:, :, tt], trial_goals, trial_objects, cv, clf
+            )
+            for tt in range(decode_cortex.shape[2])
+        )
+        
+        for tt, acc_c_g, acc_ca_g, acc_c_o, acc_ca_o in decode_results:
+            accuracy_cortex_goal[tt] = acc_c_g
+            accuracy_ca1_goal[tt] = acc_ca_g
+            accuracy_cortex_obj[tt] = acc_c_o
+            accuracy_ca1_obj[tt] = acc_ca_o
 
         session_pla_df = pd.concat([session_pla_df, pd.DataFrame(data={
             'accuracy': np.concatenate((accuracy_cortex_goal, accuracy_ca1_goal, accuracy_cortex_obj, accuracy_ca1_obj)),
@@ -206,12 +210,11 @@ def process_session(subject, date):
     return session_pla_df
 
 if __name__ == '__main__':
-    print(f'Starting parallel processing of {len(rec)} sessions using {N_CPUS} CPUs...')
+    print(f'Processing {len(rec)} sessions sequentially with parallel internal operations...')
     
-    results = Parallel(n_jobs=N_CPUS)(
-        delayed(process_session)(row['subject'], row['date']) 
-        for _, row in rec.iterrows()
-    )
+    results = []
+    for _, row in rec.iterrows():
+        results.append(process_session(row['subject'], row['date']))
 
     pla_df = pd.concat(results, ignore_index=True)
     pla_df.to_csv(path_dict['google_drive_data_path'] / 'cortex_ca1_pla_decoding.csv', index=False)
