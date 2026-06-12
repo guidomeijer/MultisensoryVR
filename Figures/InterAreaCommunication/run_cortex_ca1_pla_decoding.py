@@ -27,7 +27,7 @@ TARGET_REGION = 'CA1'
 # Initialize
 path_dict = paths()
 subjects = load_subjects()
-clf = LogisticRegression(random_state=42, max_iter=1000)
+kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
 cv = KFold(n_splits=5, shuffle=True, random_state=42)
 
 # Load in data
