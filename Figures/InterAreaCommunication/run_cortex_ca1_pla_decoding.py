@@ -111,11 +111,11 @@ def process_session(subject, date):
             for obj in ['obj1', 'obj2']:
                 spikes_dropped = binned_spikes_tmp[obj][:, :, active_mask]
                 spikes_dict[obj][region] = spikes_dropped - np.mean(spikes_dropped, axis=0)
-
+        
     # Check if CA1 is present for both objects
     if 'CA1' not in spikes_dict['obj1'] or 'CA1' not in spikes_dict['obj2']:
         return session_pla_df
-        
+
     for ctx_region in CORTICAL_REGIONS:
         if ctx_region not in spikes_dict['obj1'] or ctx_region not in spikes_dict['obj2']:
             continue
