@@ -89,12 +89,12 @@ sns.lineplot(this_shuffle_df, x='position', y='accuracy', errorbar=('ci', 95), l
              ax=ax2, err_kws={'lw': 0, 'alpha': 1}, legend=None, zorder=0, color='lightgrey')
 sns.lineplot(this_df, x='position', y='accuracy', hue='region', errorbar='se',
              ax=ax2, err_kws={'lw': 0}, legend='brief', zorder=2,
-             hue_order=['Cortex', 'CA1'], palette=[colors['PERI'], colors['CA1']])
+             hue_order=['Cortex', 'CA1'], palette=[colors['Cortex'], colors['CA1']])
 ax2.plot([450, 450], [0.3, 0.9], ls='--', color='grey', zorder=1, lw=0.5)
 ax2.plot([1350, 1350], [0.3, 0.9], ls='--', color='grey', zorder=1, lw=0.5)
 _, p_cortex, _,  _ = multipletests(results_df['p_cortex'].values, alpha=0.05, method='bonferroni')
 _, p_ca1, _, _ = multipletests(results_df['p_ca1'].values, alpha=0.05, method='bonferroni')
-add_significance(results_df['position'].values, p_cortex, ax2, y_pos=0.88, alpha=0.05, color=colors['PERI'])
+add_significance(results_df['position'].values, p_cortex, ax2, y_pos=0.88, alpha=0.05, color=colors['Cortex'])
 add_significance(results_df['position'].values, p_ca1, ax2, y_pos=0.86, alpha=0.05, color=colors['CA1'])
 ax2.set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
        yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90],

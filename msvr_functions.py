@@ -368,6 +368,7 @@ def figure_style(font_size=7):
         'sound2': matplotlib.colors.to_rgb('darkorchid'),
         'INT': matplotlib.colors.to_rgb('hotpink'),
         'PYR': matplotlib.colors.to_rgb('royalblue'),
+        'Cortex': sns.color_palette('Set3')[5],
         'PERI 36': sns.color_palette('Set3')[5],
         'PERI 35': sns.color_palette('Set3')[3],
         'PERI': sns.color_palette('Set3')[5],
