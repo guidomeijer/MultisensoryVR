@@ -5,7 +5,7 @@ Created on Thu Jun 11 12:30:00 2026 by Guido Meijer
 
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.cross_decomposition import PLSCanonical
 from sklearn.model_selection import LeaveOneGroupOut, KFold, cross_val_predict
 from sklearn.metrics import accuracy_score
@@ -27,7 +27,7 @@ TARGET_REGION = 'CA1'
 # Initialize
 path_dict = paths()
 subjects = load_subjects()
-kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
+clf = RandomForestClassifier(random_state=42, n_jobs=1, n_estimators=20, max_depth=5)
 cv = KFold(n_splits=5, shuffle=True, random_state=42)
 
 # Load in data
