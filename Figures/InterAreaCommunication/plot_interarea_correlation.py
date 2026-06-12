@@ -40,13 +40,13 @@ for i, region_pair in enumerate(region_pairs):
 
             # Do baseline subtraction
             time_ax = corr_df['time_ax'].values[0]
-            diag_means = diag_means - np.mean(diag_means[time_ax < 0])
+            #diag_means = diag_means - np.mean(diag_means[time_ax < 0])
 
             # Get asymetry around the diagonal
             diag_asym = []
             for col in range(n):
                 row_start = max(0, col - 10)
-                row_end = min(n, col + 15)
+                row_end = min(n, col + 10)
                 diag_asym.append(np.mean(this_corr[col+1:row_end, col]) - np.mean(this_corr[row_start:col, col]))
             diag_asym = np.array(diag_asym)
 
@@ -62,6 +62,8 @@ nodes = [0.0, 0.5, 0.8, 1.0]
 custom_cmap = mcolors.LinearSegmentedColormap.from_list("diverging_black", list(zip(nodes, cmap_colors)))
 plot_region1 = np.array(['TEa', 'PERI', 'LEC', 'CA1', 'AUD'])
 plot_region2 = np.array(['VIS', 'TEa', 'PERI', 'LEC', 'CA1'])
+time_min = -1
+time_max = 1
 
 f, axs = plt.subplots(5, 5, figsize=(5, 4), dpi=dpi, sharex=True, sharey=True)
 for i, region1 in enumerate(plot_region1):
@@ -71,17 +73,17 @@ for i, region1 in enumerate(plot_region1):
             axs[i,j].axis('off')
             continue
         avg_corr = np.mean(np.stack(this_df['corr_matrix'].values), axis=0)
-        axs[i,j].imshow(avg_corr, cmap=custom_cmap, aspect='auto', extent=(-1, 0.5, 0.5, -1), clim=(-0.5, 0.5))
+        axs[i,j].imshow(avg_corr, cmap=custom_cmap, aspect='auto', extent=(time_min, time_max, time_max, time_min),
+                        clim=(-0.5, 0.5))
         axs[i,j].invert_yaxis()
-        axs[i,j].plot([0, 0], [-1, 0.5], color='white', lw=0.5, ls='--')
-        axs[i,j].plot([-1, 0.5], [0, 0], color='white', lw=0.5, ls='--')
+        axs[i,j].plot([0, 0], [time_min, time_max], color='white', lw=0.5, ls='--')
+        axs[i,j].plot([time_min, time_max], [0, 0], color='white', lw=0.5, ls='--')
         if j == 0:
-            axs[i,j].set(ylabel=region1, xticks=[-1, 0, 0.5], yticks=[-1, 0, 0.5],
-                         yticklabels=[-1, 0, 0.5], xticklabels=[-1, 0, 0.5])
+            axs[i,j].set(ylabel=region1, xticks=[time_min, 0, time_max], yticks=[time_min, 0, time_max],
+                         yticklabels=[time_min, 0, time_max], xticklabels=[time_min, 0, time_max])
         if i == 4:
-            axs[i,j].set(xlabel=region2, xticks=[-1, 0, 0.5], yticks=[-1, 0, 0.5],
-                         yticklabels=[-1, 0, 0.5], xticklabels=[-1, 0, 0.5])
-
+            axs[i,j].set(xlabel=region2, xticks=[time_min, 0, time_max], yticks=[time_min, 0, time_max],
+                         yticklabels=[time_min, 0, time_max], xticklabels=[time_min, 0, time_max])
 f.suptitle('Object 1')
 
 sns.despine(trim=True)
@@ -97,16 +99,17 @@ for i, region1 in enumerate(plot_region1):
             axs[i,j].axis('off')
             continue
         avg_corr = np.mean(np.stack(this_df['corr_matrix'].values), axis=0)
-        axs[i,j].imshow(avg_corr, cmap=custom_cmap, aspect='auto', extent=(-1, 0.5, 0.5, -1), clim=(-0.5, 0.5))
+        axs[i,j].imshow(avg_corr, cmap=custom_cmap, aspect='auto', extent=(time_min, time_max, time_max, time_min),
+                        clim=(-0.5, 0.5))
         axs[i,j].invert_yaxis()
-        axs[i,j].plot([0, 0], [-1, 0.5], color='white', lw=0.5, ls='--')
-        axs[i,j].plot([-1, 0.5], [0, 0], color='white', lw=0.5, ls='--')
+        axs[i,j].plot([0, 0], [time_min, time_max], color='white', lw=0.5, ls='--')
+        axs[i,j].plot([time_min, time_max], [0, 0], color='white', lw=0.5, ls='--')
         if j == 0:
-            axs[i,j].set(ylabel=region1, xticks=[-1, 0, 0.5], yticks=[-1, 0, 0.5],
-                         yticklabels=[-1, 0, 0.5], xticklabels=[-1, 0, 0.5])
+            axs[i,j].set(ylabel=region1, xticks=[time_min, 0, time_max], yticks=[time_min, 0, time_max],
+                         yticklabels=[time_min, 0, time_max], xticklabels=[time_min, 0, time_max])
         if i == 4:
-            axs[i,j].set(xlabel=region2, xticks=[-1, 0, 0.5], yticks=[-1, 0, 0.5],
-                         yticklabels=[-1, 0, 0.5], xticklabels=[-1, 0, 0.5])
+            axs[i,j].set(xlabel=region2, xticks=[time_min, 0, time_max], yticks=[time_min, 0, time_max],
+                         yticklabels=[time_min, 0, time_max], xticklabels=[time_min, 0, time_max])
 
 f.suptitle('Object 2')
 

@@ -145,10 +145,9 @@ ax5.tick_params(axis='x', labelrotation=90)
 
 sns.despine(trim=False)
 plt.tight_layout()
-plt.show(block=False)
-
 plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'perc_sig_neurons.jpg', dpi=600)
 plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'perc_sig_neurons.pdf')
+plt.show(block=False)
 
 
 # %%
