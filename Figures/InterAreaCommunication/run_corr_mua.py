@@ -13,7 +13,7 @@ from msvr_functions import paths, load_multiple_probes, load_subjects, calculate
 
 # Settings
 T_BEFORE = 1
-T_AFTER = 0.5
+T_AFTER = 1
 BIN_SIZE = 0.02
 SMOOTHING = 0.021
 

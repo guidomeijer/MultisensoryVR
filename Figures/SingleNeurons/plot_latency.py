@@ -30,11 +30,12 @@ f, ax1 = plt.subplots(1, 1, figsize=(1.4, 1.75), dpi=dpi)
 
 sns.barplot(merged_df, x='region', y='latency', order=region_order, ax=ax1, errorbar='se', hue_order=region_order,
             hue='region', palette=colors)
-ax1.set(ylabel='Reward modulation latency (s)', xlabel='', yticks=[0, 0.2, 0.4, 0.6, 0.8, 1],
+ax1.set(ylabel='Context modulation latency (s)', xlabel='', yticks=[0, 0.2, 0.4, 0.6, 0.8, 1],
         yticklabels=[0, 0.2, 0.4, 0.6, 0.8, 1])
 ax1.tick_params(axis='x', labelrotation=90)
 
 sns.despine(trim=False)
 plt.tight_layout()
-
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'latency.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'latency.pdf')
 plt.show()
