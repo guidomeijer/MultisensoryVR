@@ -142,7 +142,7 @@ for i, region_pair in enumerate(region_pairs):
     axs[i].plot([-0.5, 0.5], [0, 0], color='grey', ls='--', lw=0.5)
     axs[i].set(title=f'{region_pair}', ylabel='', xlabel='', ylim=[-0.2, 0.2])
 
-axs[0].set(ylabel='Correlation (r)')
+axs[0].set(ylabel='Asymmetry (r)')
 
 sns.despine(trim=True)
 plt.tight_layout()

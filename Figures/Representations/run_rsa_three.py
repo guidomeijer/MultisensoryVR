@@ -36,12 +36,13 @@ object_rdm = np.array([[9, 0, 1, 1, 1, 1],
                        [1, 1, 0, 9, 1, 1],
                        [1, 1, 1, 1, 9, 0],
                        [1, 1, 1, 1, 0, 9]])
-reward_rdm = np.array([[9, 1, 1, 1, 0, 1],
-                       [1, 9, 1, 1, 1, 0],
+reward_rdm = np.array([[9, 1, 1, 1, 0, 2],
+                       [1, 9, 1, 1, 2, 0],
                        [1, 1, 9, 1, 1, 1],
                        [1, 1, 1, 9, 1, 1],
-                       [0, 1, 1, 1, 9, 1],
-                       [1, 0, 1, 1, 1, 9]])
+                       [0, 2, 1, 1, 9, 1],
+                       [2, 0, 1, 1, 1, 9]])
+"""
 state_rdm = np.array([[9, 0, 1, 1, 0, 1],
                       [0, 9, 1, 1, 1, 0],
                       [1, 1, 9, 0, 1, 1],
@@ -55,7 +56,7 @@ state_rdm = np.array([[9, 1, 0, 1, 0, 1],
                       [1, 0, 1, 9, 1, 0],
                       [0, 1, 0, 1, 9, 1],
                       [1, 0, 1, 0, 1, 9]])
-"""
+
 
 # Load in processed data
 with open(path_dict['google_drive_data_path'] / 'residuals_position_0mms.pickle', 'rb') as handle:
@@ -235,14 +236,27 @@ plt.subplots_adjust(left=0.12, bottom=0.25, right=0.85, top=1)
 plt.show()
 
 # %%
-f, axs = plt.subplots(1, 3, figsize=(4, 1.75), dpi=dpi)
+f, axs = plt.subplots(1, 3, figsize=(4, 1.75), dpi=dpi, sharey=True)
 
-sns.barplot(data=corr_df, x='region', y='r_object', ax=axs[0], hue='region', palette=colors, errorbar='se')
+region_order = corr_df.groupby('region').mean(numeric_only=True)['r_object'].sort_values(ascending=False).index.values
+sns.barplot(data=corr_df, x='region', y='r_object', ax=axs[0], hue='region', palette=colors, errorbar='se',
+            order=region_order)
+axs[0].set(title='Object', ylabel='Correlation')
+axs[0].tick_params('x', rotation=90)
 
-sns.barplot(data=corr_df, x='region', y='r_reward', ax=axs[1], hue='region', palette=colors, errorbar='se')
+region_order = corr_df.groupby('region').mean(numeric_only=True)['r_reward'].sort_values(ascending=False).index.values
+sns.barplot(data=corr_df, x='region', y='r_reward', ax=axs[1], hue='region', palette=colors, errorbar='se',
+            order=region_order)
+axs[1].set(title='Reward', ylabel='')
+axs[1].tick_params('x', rotation=90)
 
-sns.barplot(data=corr_df, x='region', y='r_state', ax=axs[2], hue='region', palette=colors, errorbar='se')
+region_order = corr_df.groupby('region').mean(numeric_only=True)['r_state'].sort_values(ascending=False).index.values
+sns.barplot(data=corr_df, x='region', y='r_state', ax=axs[2], hue='region', palette=colors, errorbar='se',
+            order=region_order)
+axs[2].set(title='State', ylabel='')
+axs[2].tick_params('x', rotation=90)
 
+plt.tight_layout()
 plt.show()
 #%%
 # Calculate mean RSA correlation between region pairs
@@ -281,24 +295,4 @@ plt.axis('off')
 plt.tight_layout()
 #plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_similarity_analysis.jpg', dpi=600)
 #plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_similarity_analysis.pdf')
-plt.show()
-
-# %% Plot mean RSA correlation as a heatmap
-
-# Create a symmetric matrix for the heatmap
-heatmap_matrix = pd.DataFrame(np.nan, index=node_order, columns=node_order)
-for _, row in mean_rsa.iterrows():
-    heatmap_matrix.loc[row['region1'], row['region2']] = row['rsa_correlation']
-    heatmap_matrix.loc[row['region2'], row['region1']] = row['rsa_correlation']
-
-# The diagonal is left as NaN to be plotted as white (masked)
-mask_diagonal = heatmap_matrix.isnull()
-
-plt.figure(figsize=(3.5, 3), dpi=dpi)
-sns.heatmap(heatmap_matrix, annot=True, fmt=".2f", cmap='Reds', vmin=0.2, vmax=1, mask=mask_diagonal,
-            cbar_kws={'label': 'RSA correlation'}) # Use mask to hide diagonal
-plt.title('Region-pair RSA correlations')
-plt.tight_layout()
-#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'rsa_heatmap.jpg', dpi=600)
-#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'rsa_heatmap.pdf')
 plt.show()
