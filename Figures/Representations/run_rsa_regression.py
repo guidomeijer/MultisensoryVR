@@ -37,12 +37,19 @@ object_rdm = np.array([[9, 0, 1, 1, 1, 1],
                        [1, 1, 0, 9, 1, 1],
                        [1, 1, 1, 1, 9, 0],
                        [1, 1, 1, 1, 0, 9]])
-reward_rdm = np.array([[9, 2, 1, 1, 0, 2],
-                       [2, 9, 1, 1, 2, 0],
+reward_rdm = np.array([[9, 1, 1, 1, 2, 0],
+                       [1, 9, 1, 1, 0, 2],
                        [1, 1, 9, 1, 1, 1],
                        [1, 1, 1, 9, 1, 1],
-                       [0, 2, 1, 1, 9, 2],
-                       [2, 0, 1, 1, 2, 9]])
+                       [2, 0, 1, 1, 9, 1],
+                       [0, 2, 1, 1, 1, 9]])
+
+reward_rdm = np.array([[9, 1, 1, 1, 0, 2],
+                       [1, 9, 1, 1, 2, 0],
+                       [1, 1, 9, 1, 1, 1],
+                       [1, 1, 1, 9, 1, 1],
+                       [0, 2, 1, 1, 9, 1],
+                       [2, 0, 1, 1, 1, 9]])
 """
 state_rdm = np.array([[9, 0, 1, 1, 0, 1],
                       [0, 9, 1, 1, 1, 0],
@@ -57,12 +64,12 @@ state_rdm = np.array([[9, 1, 0, 1, 0, 1],
                       [0, 1, 0, 1, 9, 1],
                       [1, 0, 1, 0, 1, 9]])
 """
-state_rdm = np.array([[9, 2, 0, 2, 0, 2],
-                      [2, 9, 2, 0, 2, 0],
+state_rdm = np.array([[9, 2, 0, 2, 1, 1],
+                      [2, 9, 2, 0, 1, 1],
                       [0, 2, 9, 2, 0, 2],
                       [2, 0, 2, 9, 2, 0],
-                      [0, 2, 0, 2, 9, 2],
-                      [2, 0, 2, 0, 2, 9]])
+                      [1, 1, 0, 2, 9, 2],
+                      [1, 1, 2, 0, 2, 9]])
 
 
 # Load in processed data
@@ -112,6 +119,7 @@ for i, this_ses in enumerate(np.unique(spike_dict['date'])):
             spatial_bins = spike_dict['position'][j]
             context_per_bin = spike_dict['context'][j]
 
+
             # Get average population vector per condition
             pop_vec = dict()
             pop_vec['First   A'] = np.mean(spike_counts[(spatial_bins == FIRST_OBJ + AFTER_OBJ) & (context_per_bin == obj1_goal), :], axis=0)
@@ -126,7 +134,23 @@ for i, this_ses in enumerate(np.unique(spike_dict['date'])):
                 pop_vec['Between   B'] = np.mean(spike_counts[(spatial_bins == BRIDGE_NEAR) & (context_per_bin == 3 - obj1_goal), :], axis=0)
                 pop_vec['Second   A'] = np.mean(spike_counts[(spatial_bins == NEAR_OBJ + AFTER_OBJ) & (context_per_bin == obj2_goal), :], axis=0)
                 pop_vec['Second   B'] = np.mean(spike_counts[(spatial_bins == NEAR_OBJ + AFTER_OBJ) & (context_per_bin == 3 - obj2_goal), :], axis=0)
+            """
 
+            # Get average population vector per condition
+            pop_vec = dict()
+            pop_vec['First   A'] = np.mean(spike_counts[(spatial_bins == FIRST_OBJ + AFTER_OBJ) & (context_per_bin == 1), :], axis=0)
+            pop_vec['First   B'] = np.mean(spike_counts[(spatial_bins == FIRST_OBJ + AFTER_OBJ) & (context_per_bin == 2), :], axis=0)
+            if is_far:
+                pop_vec['Between   A'] = np.mean(spike_counts[(spatial_bins == BRIDGE_FAR) & (context_per_bin == 1), :], axis=0)
+                pop_vec['Between   B'] = np.mean(spike_counts[(spatial_bins == BRIDGE_FAR) & (context_per_bin == 2), :], axis=0)
+                pop_vec['Second   A'] = np.mean(spike_counts[(spatial_bins == FAR_OBJ + AFTER_OBJ) & (context_per_bin == 1), :], axis=0)
+                pop_vec['Second   B'] = np.mean(spike_counts[(spatial_bins == FAR_OBJ + AFTER_OBJ) & (context_per_bin == 2), :], axis=0)
+            else:
+                pop_vec['Between   A'] = np.mean(spike_counts[(spatial_bins == BRIDGE_NEAR) & (context_per_bin == 1), :], axis=0)
+                pop_vec['Between   B'] = np.mean(spike_counts[(spatial_bins == BRIDGE_NEAR) & (context_per_bin == 2), :], axis=0)
+                pop_vec['Second   A'] = np.mean(spike_counts[(spatial_bins == NEAR_OBJ + AFTER_OBJ) & (context_per_bin == 1), :], axis=0)
+                pop_vec['Second   B'] = np.mean(spike_counts[(spatial_bins == NEAR_OBJ + AFTER_OBJ) & (context_per_bin == 2), :], axis=0)
+            """
             # Construct representation dissimilarity matrix (RDM)
             labels = list(pop_vec.keys())
             rdm = np.ones((len(labels), len(labels)))*2
