@@ -87,9 +87,6 @@ for i, this_ses in enumerate(np.unique(spike_dict['date'])):
         is_far = subjects.loc[subjects['SubjectID'] == subject, 'Far'].values[0]
         obj_df = load_objects(subject, this_ses)
 
-        if is_far == 1:
-            continue
-
         # Get which context is the rewarded context for the first and second object
         obj1_goal = obj_df.loc[(obj_df['object'] == 1) & (obj_df['goal'] == 1), 'sound'].values[0]
         obj2_goal = obj_df.loc[(obj_df['object'] == 2) & (obj_df['goal'] == 1), 'sound'].values[0]
@@ -239,8 +236,8 @@ axs[2].set(xticks=np.arange(len(labels)), yticks=np.arange(len(labels)),
            xticklabels=labels, yticklabels=labels, title='State')
 axs[2].tick_params('x', rotation=90)
 plt.tight_layout()
-#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'hypotheses.jpg', dpi=600)
-#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'hypotheses.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'hypotheses.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'hypotheses.pdf')
 plt.show()
 
 # %%
@@ -267,34 +264,8 @@ cbar = f.colorbar(sm, ax=axs, orientation='vertical', fraction=0.012)
 cbar.set_label('Dissimilarity (1-r)', rotation=270, labelpad=10)
 
 plt.subplots_adjust(left=0.12, bottom=0.25, right=0.85, top=1)
-#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_dissimilatrity.jpg', dpi=600)
-#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_dissimilatrity.pdf')
-plt.show()
-
-# %%
-f, axs = plt.subplots(1, 3, figsize=(1.2*3, 1.75), dpi=dpi, sharey=True)
-
-region_order = corr_df.groupby('region').mean(numeric_only=True)['r_object'].sort_values(ascending=False).index.values
-sns.barplot(data=corr_df, x='region', y='r_object', ax=axs[0], hue='region', palette=colors, errorbar='se',
-            order=region_order)
-axs[0].set(title='Object', ylabel='Correlation', yticks=[-0.4, -0.2, 0, 0.2, 0.4, 0.6],
-            yticklabels=[-0.4, -0.2, 0, 0.2, 0.4, 0.6], ylim=[-0.4, 0.6], xlabel='')  
-axs[0].tick_params('x', rotation=90)
-
-region_order = corr_df.groupby('region').mean(numeric_only=True)['r_reward'].sort_values(ascending=False).index.values
-sns.barplot(data=corr_df, x='region', y='r_reward', ax=axs[1], hue='region', palette=colors, errorbar='se',
-            order=region_order)
-axs[1].set(title='Reward', ylabel='', xlabel='')
-axs[1].tick_params('x', rotation=90)
-
-region_order = corr_df.groupby('region').mean(numeric_only=True)['r_state'].sort_values(ascending=False).index.values
-sns.barplot(data=corr_df, x='region', y='r_state', ax=axs[2], hue='region', palette=colors, errorbar='se',
-            order=region_order)
-axs[2].set(title='State', ylabel='', xlabel='')
-axs[2].tick_params('x', rotation=90)
-
-sns.despine(trim=True)
-plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_dissimilatrity.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_dissimilatrity.pdf')
 plt.show()
 
 # %% Plot Multiple Regression Beta Weights
@@ -362,34 +333,77 @@ axs[2].tick_params('x', rotation=90)
 
 sns.despine(trim=True)
 plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_regression.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_regression.pdf')
 plt.show()
 
 # %% Plot Multiple Regression Interaction Beta Weights
 f, axs = plt.subplots(1, 3, figsize=(1.2*3, 1.75), dpi=dpi, sharey=False)
 
 region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_obj_rew'].sort_values(ascending=False).index.values
+p_values = np.full(len(region_order), np.nan)
+for i, region in enumerate(region_order):
+    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_obj_rew'].values, 0)[1]  
 sns.barplot(data=corr_df, x='region', y='beta_obj_rew', ax=axs[0], hue='region', palette=colors, errorbar='se',
             order=region_order)
+for i, p in enumerate(p_values):
+    if p < 0.001:
+        label = '***'
+    elif p < 0.01:
+        label = '**'
+    elif p < 0.05:
+        label = '*'
+    else:
+        label = ''
+    axs[0].text(i, 0.2, label, ha='center', va='center', fontsize=8)
 axs[0].set(title='Object x Reward', ylabel='Interaction Beta Weight', xlabel='', yticks=[-0.4, -0.2, 0, 0.2],
            yticklabels=[-0.4, -0.2, 0, 0.2], ylim=[-0.4, 0.2])
 axs[0].tick_params('x', rotation=90)
 
 region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_obj_state'].sort_values(ascending=False).index.values
+p_values = np.full(len(region_order), np.nan)
+for i, region in enumerate(region_order):
+    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_obj_state'].values, 0)[1]  
 sns.barplot(data=corr_df, x='region', y='beta_obj_state', ax=axs[1], hue='region', palette=colors, errorbar='se',
             order=region_order)
+for i, p in enumerate(p_values):
+    if p < 0.001:
+        label = '***'
+    elif p < 0.01:
+        label = '**'
+    elif p < 0.05:
+        label = '*'
+    else:
+        label = ''
+    axs[1].text(i, 0.28, label, ha='center', va='center', fontsize=8)
 axs[1].set(title='Object x State', ylabel='', xlabel='', yticks=[-0.3, 0, 0.3],
            yticklabels=[-0.3, 0, 0.3], ylim=[-0.3, 0.3])
 axs[1].tick_params('x', rotation=90)
 
 region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_rew_state'].sort_values(ascending=False).index.values
+p_values = np.full(len(region_order), np.nan)
+for i, region in enumerate(region_order):
+    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_rew_state'].values, 0)[1]  
 sns.barplot(data=corr_df, x='region', y='beta_rew_state', ax=axs[2], hue='region', palette=colors, errorbar='se',
             order=region_order)
+for i, p in enumerate(p_values):
+    if p < 0.001:
+        label = '***'
+    elif p < 0.01:
+        label = '**'
+    elif p < 0.05:
+        label = '*'
+    else:
+        label = ''
+    axs[2].text(i, -0.58, label, ha='center', va='center', fontsize=8)
 axs[2].set(title='Reward x State', ylabel='', xlabel='', yticks=[-0.6, -0.4, -0.2, 0],
            yticklabels=[-0.6, -0.4, -0.2, 0], ylim=[-0.6, 0])
 axs[2].tick_params('x', rotation=90)
 
 sns.despine(trim=True)
 plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_interaction.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_interaction.pdf')
 plt.show()
 
 #%%
@@ -427,6 +441,6 @@ cbar = plt.colorbar(sm, ax=plt.gca(), ticks=[0.2, 0.4, 0.6, 0.8, 1.0])
 cbar.set_label('Representation similarity', rotation=270, labelpad=10)
 plt.axis('off')
 plt.tight_layout()
-#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_similarity_analysis.jpg', dpi=600)
-#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_similarity_analysis.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_similarity_analysis.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_similarity_analysis.pdf')
 plt.show()
