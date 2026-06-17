@@ -11,6 +11,7 @@ import pickle
 import matplotlib.pyplot as plt
 from itertools import combinations
 from scipy import stats
+from sklearn.linear_model import LinearRegression
 import seaborn as sns
 import networkx as nx
 from msvr_functions import paths, load_subjects, figure_style, load_objects
@@ -30,33 +31,18 @@ path_dict = paths(sync=False)
 subjects = load_subjects()
 
 # Create hypothesis RDMs
-object_rdm = np.array([[9, 0, 1, 1, 1, 1],
-                       [0, 9, 1, 1, 1, 1],
-                       [1, 1, 9, 0, 1, 1],
-                       [1, 1, 0, 9, 1, 1],
-                       [1, 1, 1, 1, 9, 0],
-                       [1, 1, 1, 1, 0, 9]])
-reward_rdm = np.array([[9, 1, 1, 1, 0, 2],
-                       [1, 9, 1, 1, 2, 0],
-                       [1, 1, 9, 1, 1, 1],
-                       [1, 1, 1, 9, 1, 1],
-                       [0, 2, 1, 1, 9, 1],
-                       [2, 0, 1, 1, 1, 9]])
-"""
-state_rdm = np.array([[9, 0, 1, 1, 0, 1],
-                      [0, 9, 1, 1, 1, 0],
-                      [1, 1, 9, 0, 1, 1],
-                      [1, 1, 0, 9, 1, 1],
-                      [0, 1, 1, 1, 9, 0],
-                      [1, 0, 1, 1, 0, 9]])
-"""
-state_rdm = np.array([[9, 1, 0, 1, 0, 1],
-                      [1, 9, 1, 0, 1, 0],
-                      [0, 1, 9, 1, 0, 1],
-                      [1, 0, 1, 9, 1, 0],
-                      [0, 1, 0, 1, 9, 1],
-                      [1, 0, 1, 0, 1, 9]])
-
+object_rdm = np.array([[9, 0, 1, 1],
+                       [0, 9, 1, 1],
+                       [1, 1, 9, 0],
+                       [1, 1, 0, 9]])
+reward_rdm = np.array([[9, 2, 2, 0],
+                       [2, 9, 0, 2],
+                       [2, 0, 9, 2],
+                       [0, 2, 2, 9]])
+state_rdm = np.array([[9, 2, 0, 2],
+                      [2, 9, 2, 0],
+                      [0, 2, 9, 2],
+                      [2, 0, 2, 9]])
 
 # Load in processed data
 with open(path_dict['google_drive_data_path'] / 'residuals_position_0mms.pickle', 'rb') as handle:
@@ -105,20 +91,17 @@ for i, this_ses in enumerate(np.unique(spike_dict['date'])):
             spatial_bins = spike_dict['position'][j]
             context_per_bin = spike_dict['context'][j]
 
+
             # Get average population vector per condition
             pop_vec = dict()
-            pop_vec['First   Y'] = np.mean(spike_counts[(spatial_bins == FIRST_OBJ + AFTER_OBJ) & (context_per_bin == obj1_goal), :], axis=0)
-            pop_vec['First   N'] = np.mean(spike_counts[(spatial_bins == FIRST_OBJ + AFTER_OBJ) & (context_per_bin == 3 - obj1_goal), :], axis=0)
+            pop_vec['A   A'] = np.mean(spike_counts[(spatial_bins == FIRST_OBJ + AFTER_OBJ) & (context_per_bin == obj1_goal), :], axis=0)
+            pop_vec['A   B'] = np.mean(spike_counts[(spatial_bins == FIRST_OBJ + AFTER_OBJ) & (context_per_bin == 3 - obj1_goal), :], axis=0)
             if is_far:
-                pop_vec['Between   Y'] = np.mean(spike_counts[(spatial_bins == BRIDGE_FAR) & (context_per_bin == obj1_goal), :], axis=0)
-                pop_vec['Between   N'] = np.mean(spike_counts[(spatial_bins == BRIDGE_FAR) & (context_per_bin == 3 - obj1_goal), :], axis=0)
-                pop_vec['Second   Y'] = np.mean(spike_counts[(spatial_bins == FAR_OBJ + AFTER_OBJ) & (context_per_bin == obj2_goal), :], axis=0)
-                pop_vec['Second   N'] = np.mean(spike_counts[(spatial_bins == FAR_OBJ + AFTER_OBJ) & (context_per_bin == 3 - obj2_goal), :], axis=0)
+                pop_vec['B   A'] = np.mean(spike_counts[(spatial_bins == FAR_OBJ + AFTER_OBJ) & (context_per_bin == obj1_goal), :], axis=0)
+                pop_vec['B   B'] = np.mean(spike_counts[(spatial_bins == FAR_OBJ + AFTER_OBJ) & (context_per_bin == 3 - obj1_goal), :], axis=0)
             else:
-                pop_vec['Between   Y'] = np.mean(spike_counts[(spatial_bins == BRIDGE_NEAR) & (context_per_bin == obj1_goal), :], axis=0)
-                pop_vec['Between   N'] = np.mean(spike_counts[(spatial_bins == BRIDGE_NEAR) & (context_per_bin == 3 - obj1_goal), :], axis=0)
-                pop_vec['Second   Y'] = np.mean(spike_counts[(spatial_bins == NEAR_OBJ + AFTER_OBJ) & (context_per_bin == obj2_goal), :], axis=0)
-                pop_vec['Second   N'] = np.mean(spike_counts[(spatial_bins == NEAR_OBJ + AFTER_OBJ) & (context_per_bin == 3 - obj2_goal), :], axis=0)
+                pop_vec['B   A'] = np.mean(spike_counts[(spatial_bins == NEAR_OBJ + AFTER_OBJ) & (context_per_bin == obj1_goal), :], axis=0)
+                pop_vec['B   B'] = np.mean(spike_counts[(spatial_bins == NEAR_OBJ + AFTER_OBJ) & (context_per_bin == 3 - obj1_goal), :], axis=0)
 
             # Construct representation dissimilarity matrix (RDM)
             labels = list(pop_vec.keys())
@@ -137,10 +120,36 @@ for i, this_ses in enumerate(np.unique(spike_dict['date'])):
             r_rew, p_rew = stats.spearmanr(rdm[np.triu_indices(rdm.shape[0], k=1)], reward_rdm[np.triu_indices(rdm.shape[0], k=1)])
             r_state, p_state = stats.spearmanr(rdm[np.triu_indices(rdm.shape[0], k=1)], state_rdm[np.triu_indices(rdm.shape[0], k=1)])
 
+            # Multiple Regression
+            X = np.column_stack((
+                object_rdm[np.triu_indices(rdm.shape[0], k=1)],
+                reward_rdm[np.triu_indices(rdm.shape[0], k=1)],
+                state_rdm[np.triu_indices(rdm.shape[0], k=1)]
+            ))
+            y = rdm[np.triu_indices(rdm.shape[0], k=1)]
+            
+            # Standardize X and y to get standardized beta coefficients
+            X_std = (X - np.mean(X, axis=0)) / np.std(X, axis=0)
+            y_std = (y - np.mean(y)) / np.std(y)
+            
+            # Interaction terms
+            int_obj_rew = X_std[:, 0] * X_std[:, 1]
+            int_obj_state = X_std[:, 0] * X_std[:, 2]
+            int_rew_state = X_std[:, 1] * X_std[:, 2]
+            
+            # Add interaction terms to X_std
+            X_std_full = np.column_stack((X_std, int_obj_rew, int_obj_state, int_rew_state))
+            
+            # Perform multiple linear regression
+            reg = LinearRegression().fit(X_std_full, y_std)
+            beta_obj, beta_rew, beta_state, beta_obj_rew, beta_obj_state, beta_rew_state = reg.coef_
+
             # Add to dicts and dfs
             corr_df = pd.concat((corr_df, pd.DataFrame(data={
                 'p_object': [p_obj], 'r_object': [r_obj], 'r_reward': [r_rew], 'p_reward': [p_rew],
                 'p_state': [p_state], 'r_state': [r_state],
+                'beta_object': [beta_obj], 'beta_reward': [beta_rew], 'beta_state': [beta_state],
+                'beta_obj_rew': [beta_obj_rew], 'beta_obj_state': [beta_obj_state], 'beta_rew_state': [beta_rew_state],
                 'region': [region], 'subject': [subject], 'date': [this_ses]})))
             rdm_regions[region] = rdm
             all_rdms[region].append(rdm)
@@ -188,17 +197,17 @@ np.fill_diagonal(object_rdm_plot, np.nan)
 np.fill_diagonal(reward_rdm_plot, np.nan)
 np.fill_diagonal(state_rdm_plot, np.nan)
 
-axs[0].imshow(object_rdm_plot, cmap=cmap_hypo)
+axs[0].imshow(object_rdm_plot, cmap=cmap_hypo, clim=[0, 2])
 axs[0].set(xticks=np.arange(len(labels)), yticks=np.arange(len(labels)),
            xticklabels=labels, yticklabels=labels, title='Object')
 axs[0].tick_params('x', rotation=90)
 axs[0].text(-3.7, -1, 'Object', ha='center', va='center', clip_on=False, weight='bold')
-axs[0].text(-1, -1, 'Rew.', ha='center', va='center', clip_on=False, weight='bold')
-axs[1].imshow(reward_rdm_plot, cmap=cmap_hypo)
+axs[0].text(-1, -1, 'State', ha='center', va='center', clip_on=False, weight='bold')
+axs[1].imshow(reward_rdm_plot, cmap=cmap_hypo, clim=[0, 2])
 axs[1].set(xticks=np.arange(len(labels)), yticks=np.arange(len(labels)),
            xticklabels=labels, yticklabels=labels, title='Reward')
 axs[1].tick_params('x', rotation=90)
-axs[2].imshow(state_rdm_plot, cmap=cmap_hypo)
+axs[2].imshow(state_rdm_plot, cmap=cmap_hypo, clim=[0, 2])
 axs[2].set(xticks=np.arange(len(labels)), yticks=np.arange(len(labels)),
            xticklabels=labels, yticklabels=labels, title='State')
 axs[2].tick_params('x', rotation=90)
@@ -223,7 +232,7 @@ for i, plot_region in enumerate(all_rdms.keys()):
                xticklabels=labels, yticklabels=labels, title=plot_region)
     axs[i].tick_params('x', rotation=90)
 axs[0].text(-4, -1, 'Object', ha='center', va='center', clip_on=False, weight='bold')
-axs[0].text(-1.5, -1, 'Rew.', ha='center', va='center', clip_on=False, weight='bold')
+axs[0].text(-1.5, -1, 'State', ha='center', va='center', clip_on=False, weight='bold')
 
 sm = plt.cm.ScalarMappable(cmap=use_cmap, norm=plt.Normalize(vmin=plot_min, vmax=plot_max))
 sm.set_array([])
@@ -235,29 +244,144 @@ plt.subplots_adjust(left=0.12, bottom=0.25, right=0.85, top=1)
 #plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_dissimilatrity.pdf')
 plt.show()
 
-# %%
-f, axs = plt.subplots(1, 3, figsize=(4, 1.75), dpi=dpi, sharey=True)
+# %% Plot Multiple Regression Beta Weights
+f, axs = plt.subplots(1, 3, figsize=(1.2*3, 1.75), dpi=dpi, sharey=False)
 
-region_order = corr_df.groupby('region').mean(numeric_only=True)['r_object'].sort_values(ascending=False).index.values
-sns.barplot(data=corr_df, x='region', y='r_object', ax=axs[0], hue='region', palette=colors, errorbar='se',
+region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_object'].sort_values(ascending=False).index.values
+p_values = np.full(len(region_order), np.nan)
+for i, region in enumerate(region_order):
+    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_object'].values, 0)[1]  
+ax = sns.barplot(data=corr_df, x='region', y='beta_object', ax=axs[0], hue='region', palette=colors, errorbar='se',
             order=region_order)
-axs[0].set(title='Object', ylabel='Correlation')
+for i, p in enumerate(p_values):
+    if p < 0.001:
+        label = '***'
+    elif p < 0.01:
+        label = '**'
+    elif p < 0.05:
+        label = '*'
+    else:
+        label = ''
+    axs[0].text(i, 0.6, label, ha='center', va='center', fontsize=8)
+axs[0].set(title='Object', ylabel='Beta weight', yticks=[-0.4, -0.2, 0, 0.2, 0.4, 0.6],
+            yticklabels=[-0.4, -0.2, 0, 0.2, 0.4, 0.6], ylim=[-0.4, 0.6], xlabel='')  
 axs[0].tick_params('x', rotation=90)
 
-region_order = corr_df.groupby('region').mean(numeric_only=True)['r_reward'].sort_values(ascending=False).index.values
-sns.barplot(data=corr_df, x='region', y='r_reward', ax=axs[1], hue='region', palette=colors, errorbar='se',
+region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_reward'].sort_values(ascending=False).index.values
+p_values = np.full(len(region_order), np.nan)
+for i, region in enumerate(region_order):
+    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_reward'].values, 0)[1]  
+sns.barplot(data=corr_df, x='region', y='beta_reward', ax=axs[1], hue='region', palette=colors, errorbar='se',
             order=region_order)
-axs[1].set(title='Reward', ylabel='')
+for i, p in enumerate(p_values):
+    if p < 0.001:
+        label = '***'
+    elif p < 0.01:
+        label = '**'
+    elif p < 0.05:
+        label = '*'
+    else:
+        label = ''
+    axs[1].text(i, 0.8, label, ha='center', va='center', fontsize=8)
+axs[1].set(title='Reward', ylabel='', xlabel='', yticks=[-0.2, 0, 0.2, 0.4, 0.6, 0.8],
+           yticklabels=[-0.2, 0, 0.2, 0.4, 0.6, 0.8], ylim=[-0.2, 0.8])
 axs[1].tick_params('x', rotation=90)
 
-region_order = corr_df.groupby('region').mean(numeric_only=True)['r_state'].sort_values(ascending=False).index.values
-sns.barplot(data=corr_df, x='region', y='r_state', ax=axs[2], hue='region', palette=colors, errorbar='se',
+region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_state'].sort_values(ascending=False).index.values
+p_values = np.full(len(region_order), np.nan)
+for i, region in enumerate(region_order):
+    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_state'].values, 0)[1]  
+sns.barplot(data=corr_df, x='region', y='beta_state', ax=axs[2], hue='region', palette=colors, errorbar='se',
             order=region_order)
-axs[2].set(title='State', ylabel='')
+for i, p in enumerate(p_values):
+    if p < 0.001:
+        label = '***'
+    elif p < 0.01:
+        label = '**'
+    elif p < 0.05:
+        label = '*'
+    else:
+        label = ''
+    axs[2].text(i, 0.3, label, ha='center', va='center', fontsize=8)
+axs[2].set(title='State', ylabel='', xlabel='', yticks=[-0.3, 0, 0.3],
+           yticklabels=[-0.3, 0, 0.3], ylim=[-0.3, 0.3])
 axs[2].tick_params('x', rotation=90)
 
+sns.despine(trim=True)
 plt.tight_layout()
+#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_regression.jpg', dpi=600)
+#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_regression.pdf')
 plt.show()
+
+# %% Plot Multiple Regression Interaction Beta Weights
+f, axs = plt.subplots(1, 3, figsize=(1.2*3, 1.75), dpi=dpi, sharey=False)
+
+region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_obj_rew'].sort_values(ascending=False).index.values
+p_values = np.full(len(region_order), np.nan)
+for i, region in enumerate(region_order):
+    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_obj_rew'].values, 0)[1]  
+sns.barplot(data=corr_df, x='region', y='beta_obj_rew', ax=axs[0], hue='region', palette=colors, errorbar='se',
+            order=region_order)
+for i, p in enumerate(p_values):
+    if p < 0.001:
+        label = '***'
+    elif p < 0.01:
+        label = '**'
+    elif p < 0.05:
+        label = '*'
+    else:
+        label = ''
+    axs[0].text(i, 0.2, label, ha='center', va='center', fontsize=8)
+axs[0].set(title='Object x Reward', ylabel='Interaction Beta Weight', xlabel='', yticks=[-0.4, -0.2, 0, 0.2],
+           yticklabels=[-0.4, -0.2, 0, 0.2], ylim=[-0.4, 0.2])
+axs[0].tick_params('x', rotation=90)
+
+region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_obj_state'].sort_values(ascending=False).index.values
+p_values = np.full(len(region_order), np.nan)
+for i, region in enumerate(region_order):
+    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_obj_state'].values, 0)[1]  
+sns.barplot(data=corr_df, x='region', y='beta_obj_state', ax=axs[1], hue='region', palette=colors, errorbar='se',
+            order=region_order)
+for i, p in enumerate(p_values):
+    if p < 0.001:
+        label = '***'
+    elif p < 0.01:
+        label = '**'
+    elif p < 0.05:
+        label = '*'
+    else:
+        label = ''
+    axs[1].text(i, 0.28, label, ha='center', va='center', fontsize=8)
+axs[1].set(title='Object x State', ylabel='', xlabel='', yticks=[-0.3, 0, 0.3],
+           yticklabels=[-0.3, 0, 0.3], ylim=[-0.3, 0.3])
+axs[1].tick_params('x', rotation=90)
+
+region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_rew_state'].sort_values(ascending=False).index.values
+p_values = np.full(len(region_order), np.nan)
+for i, region in enumerate(region_order):
+    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_rew_state'].values, 0)[1]  
+sns.barplot(data=corr_df, x='region', y='beta_rew_state', ax=axs[2], hue='region', palette=colors, errorbar='se',
+            order=region_order)
+for i, p in enumerate(p_values):
+    if p < 0.001:
+        label = '***'
+    elif p < 0.01:
+        label = '**'
+    elif p < 0.05:
+        label = '*'
+    else:
+        label = ''
+    axs[2].text(i, -0.58, label, ha='center', va='center', fontsize=8)
+axs[2].set(title='Reward x State', ylabel='', xlabel='', yticks=[-0.6, -0.4, -0.2, 0],
+           yticklabels=[-0.6, -0.4, -0.2, 0], ylim=[-0.6, 0])
+axs[2].tick_params('x', rotation=90)
+
+sns.despine(trim=True)
+plt.tight_layout()
+#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_interaction.jpg', dpi=600)
+#plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_interaction.pdf')
+plt.show()
+
 #%%
 # Calculate mean RSA correlation between region pairs
 mean_rsa = rsa_df.groupby(['region1', 'region2'])['rsa_correlation'].mean().reset_index()
