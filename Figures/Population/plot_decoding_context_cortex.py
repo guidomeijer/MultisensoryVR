@@ -11,10 +11,12 @@ import pandas as pd
 from os.path import join
 import seaborn as sns
 from scipy import stats
+import mne
 from statsmodels.stats.multitest import multipletests
 import matplotlib.pyplot as plt
 from msvr_functions import paths, load_subjects, figure_style, add_significance
 colors, dpi = figure_style()
+mne.set_log_level('WARNING')
 
 # Settings
 CLASSIFIER = 'randomforest'
@@ -29,33 +31,40 @@ context_df = pd.read_csv(join(path_dict['save_path'], f'decode_context_cortex_25
 shuffle_df = pd.read_csv(join(path_dict['save_path'], f'decode_context_cortex_25neurons_{CLASSIFIER}_shuffle.csv'),
                          dtype={'subject': str, 'region': str})
 
-def run_stats(df):
-    """
-    Runs a paired t-test between decoding accuracy and shuffled accuracy.
-    """
-    cortex_acc = df.loc[df['region'] == 'Cortex', 'accuracy']
-    cortex_shuf = df.loc[df['region'] == 'Cortex', 'accuracy_shuf']
-    ca1_acc = df.loc[df['region'] == 'CA1', 'accuracy']
-    ca1_shuf = df.loc[df['region'] == 'CA1', 'accuracy_shuf']
-
-    # Paired t-test: actual vs shuffled
-    p_cortex = stats.ttest_rel(cortex_acc, cortex_shuf)[1] if len(cortex_acc) > 1 else np.nan
-    p_ca1 = stats.ttest_rel(ca1_acc, ca1_shuf)[1] if len(ca1_acc) > 1 else np.nan
-
-    return pd.Series([p_cortex, p_ca1], index=['p_cortex', 'p_ca1'])
-
+def run_stats(df, shuffle_df):
+    test_matrix = df.pivot_table(index=['subject', 'date'], columns='position', values='accuracy', aggfunc='mean')
+    control_matrix = shuffle_df.pivot_table(index=['subject', 'date'], columns='position', values='accuracy', aggfunc='mean')
+    positions = test_matrix.columns.values
+    X = test_matrix.values - control_matrix.values
+    t_threshold = stats.t.ppf(1 - 0.3 / 2, test_matrix.shape[0]-1)
+    t_obs, clusters, cluster_p_values, H0 = mne.stats.permutation_cluster_1samp_test(
+       X,
+       threshold=t_threshold,
+       n_permutations=1000, 
+       tail=0,          # Two-tailed test
+       out_type='mask'  # Returns boolean masks for positions
+       )
+    p_cortex = np.ones(len(positions))
+    for cluster_mask, p_val in zip(clusters, cluster_p_values):
+        if p_val < 0.05:
+            # Assign the cluster-level p-value to all positions in this cluster
+            p_cortex[cluster_mask] = p_val
+    return p_cortex, positions
 
 # %%
 
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(3.5, 1.75), dpi=dpi, sharey=True)
 
-# Do statistics
+# Near object
 this_df = context_df[np.isin(context_df['subject'].values,
                      subjects.loc[subjects['Far'] == 0, 'SubjectID'].astype(str).values)]
 this_shuffle_df = shuffle_df[np.isin(shuffle_df['subject'].values,
                         subjects.loc[subjects['Far'] == 0, 'SubjectID'].astype(str).values)]
-merged_df = pd.merge(this_df, this_shuffle_df, on=['subject', 'region', 'position'], suffixes=('', '_shuf'))
-results_df = merged_df.groupby('position').apply(run_stats, include_groups=False).reset_index()
+# Do stats
+p_cortex, positions = run_stats(this_df[this_df['region'] == 'Cortex'], 
+                                this_shuffle_df[this_shuffle_df['region'] == 'Cortex'])
+p_ca1, positions = run_stats(this_df[this_df['region'] == 'CA1'], 
+                             this_shuffle_df[this_shuffle_df['region'] == 'CA1'])
 
 # Plot
 sns.lineplot(this_shuffle_df, x='position', y='accuracy', errorbar=('ci', 95), linewidth=0,
@@ -65,21 +74,23 @@ sns.lineplot(this_df, x='position', y='accuracy', hue='region', errorbar='se',
              hue_order=['Cortex', 'CA1'], palette=[colors['PERI'], colors['CA1']])
 ax1.plot([450, 450], [0.3, 0.9], ls='--', color='grey', zorder=1, lw=0.5)
 ax1.plot([900, 900], [0.3, 0.9], ls='--', color='grey', zorder=1, lw=0.5)
-_, p_cortex, _,  _ = multipletests(results_df['p_cortex'].values, alpha=0.05, method='bonferroni')
-_, p_ca1, _, _ = multipletests(results_df['p_ca1'].values, alpha=0.05, method='bonferroni')
-add_significance(results_df['position'].values, p_cortex, ax1, y_pos=0.88, alpha=0.05, color=colors['PERI'])
-add_significance(results_df['position'].values, p_ca1, ax1, y_pos=0.86, alpha=0.05, color=colors['CA1'])
+add_significance(positions, p_cortex, ax1, y_pos=0.88, alpha=0.05, color=colors['PERI'])
+add_significance(positions, p_ca1, ax1, y_pos=0.86, alpha=0.05, color=colors['CA1'])
 ax1.set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
        yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90],
        ylim=[0.3, 0.9], xlabel='', ylabel='', title='Near')
 
-# Do statistics
+# Far objects
 this_df = context_df[np.isin(context_df['subject'].values,
                      subjects.loc[subjects['Far'] == 1, 'SubjectID'].astype(str).values)]
 this_shuffle_df = shuffle_df[np.isin(shuffle_df['subject'].values,
                         subjects.loc[subjects['Far'] == 1, 'SubjectID'].astype(str).values)]
-merged_df = pd.merge(this_df, this_shuffle_df, on=['subject', 'region', 'position'], suffixes=('', '_shuf'))
-results_df = merged_df.groupby('position').apply(run_stats, include_groups=False).reset_index()
+
+# Do stats
+p_cortex, positions = run_stats(this_df[this_df['region'] == 'Cortex'], 
+                                this_shuffle_df[this_shuffle_df['region'] == 'Cortex'])
+p_ca1, positions = run_stats(this_df[this_df['region'] == 'CA1'], 
+                             this_shuffle_df[this_shuffle_df['region'] == 'CA1'])
 
 # Add rectangles
 ax1.axvspan(WIN_NEAR[0], WIN_NEAR[1], color='grey', alpha=0.2, lw=0)
@@ -92,10 +103,8 @@ sns.lineplot(this_df, x='position', y='accuracy', hue='region', errorbar='se',
              hue_order=['Cortex', 'CA1'], palette=[colors['Cortex'], colors['CA1']])
 ax2.plot([450, 450], [0.3, 0.9], ls='--', color='grey', zorder=1, lw=0.5)
 ax2.plot([1350, 1350], [0.3, 0.9], ls='--', color='grey', zorder=1, lw=0.5)
-_, p_cortex, _,  _ = multipletests(results_df['p_cortex'].values, alpha=0.05, method='bonferroni')
-_, p_ca1, _, _ = multipletests(results_df['p_ca1'].values, alpha=0.05, method='bonferroni')
-add_significance(results_df['position'].values, p_cortex, ax2, y_pos=0.88, alpha=0.05, color=colors['Cortex'])
-add_significance(results_df['position'].values, p_ca1, ax2, y_pos=0.86, alpha=0.05, color=colors['CA1'])
+add_significance(positions, p_cortex, ax2, y_pos=0.88, alpha=0.05, color=colors['Cortex'])
+add_significance(positions, p_ca1, ax2, y_pos=0.86, alpha=0.05, color=colors['CA1'])
 ax2.set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
        yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90],
        ylim=[0.3, 0.9], xlabel='', ylabel='', title='Far')
