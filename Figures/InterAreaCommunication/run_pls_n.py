@@ -143,5 +143,5 @@ results = Parallel(n_jobs=N_CPUS)(
 
 # Concatenate and save to disk
 pla_df = pd.concat(results, ignore_index=True)
-pla_df.to_csv(path_dict['google_drive_data_path'] / 'pla_n_components.csv', index=False)
+pla_df.to_csv(path_dict['google_drive_data_path'] / 'pls_n_components.csv', index=False)
 print('Done!')

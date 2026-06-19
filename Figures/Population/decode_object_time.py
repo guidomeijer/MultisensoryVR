@@ -57,6 +57,30 @@ def classify_subselection(these_spike_counts, n_sub_neurons, these_trial_labels,
     # Return accuracy
     return accuracy_score(these_trial_labels, pred)
 
+
+def classify_traintest_context(these_spike_counts, n_sub_neurons, object_labels, context_labels, this_clf):
+    """
+    Decode object while training on one context and testing the other
+    """
+    # Subselect neurons
+    these_neurons = np.random.choice(np.arange(these_spike_counts.shape[1]), n_sub_neurons, replace=False)
+    pop_activity = these_spike_counts[:, these_neurons]
+
+    # Decode goal vs distractor
+    pred = np.empty(object_labels.shape[0])
+
+    # Train on context 1 and test on context 2
+    this_clf.fit(pop_activity[context_labels == 1], object_labels[context_labels == 1])
+    pred[context_labels == 2] = this_clf.predict(pop_activity[context_labels == 2])
+    
+    # Train on context 2 and test on context 1
+    this_clf.fit(pop_activity[context_labels == 2], object_labels[context_labels == 2])
+    pred[context_labels == 1] = this_clf.predict(pop_activity[context_labels == 1])
+
+    # Return accuracy
+    return accuracy_score(object_labels, pred)
+
+
 def process_single_session(subject, date, probe, path_dict, kfold_cv, clf, t_centers,
                            BIN_SIZE, MIN_NEURONS, N_NEURONS_SUB, N_ITER, MERGE_CORTEX):
     """
@@ -109,20 +133,27 @@ def process_single_session(subject, date, probe, path_dict, kfold_cv, clf, t_cen
             if region_counts.shape[1] < N_NEURONS_SUB:
                 continue
 
-            # Do decoding with random subselection of neurons, now sequentially within this parallel job.
-            # The outer loop is parallelized over sessions, so this inner loop runs sequentially
-            # within each session's dedicated process.
+            # Do decoding with random subselection of neurons
             iteration_accuracies = []
             for _ in range(N_ITER):
                 acc = classify_subselection(region_counts, N_NEURONS_SUB, all_obj_df['object'].values,
                                             clf, kfold_cv)
                 iteration_accuracies.append(acc)
-            accuracy_region = np.mean(iteration_accuracies)
+            accuracy_overall = np.mean(iteration_accuracies)
+
+            # Do decoding per context            
+            iteration_accuracies = []
+            for _ in range(N_ITER):
+                acc = classify_traintest_context(
+                    region_counts, N_NEURONS_SUB, all_obj_df['object'].values,
+                    all_obj_df['sound'].values, clf)
+                iteration_accuracies.append(acc)
+            acc_per_context = np.mean(iteration_accuracies)
 
             # Add to dataframe
             session_decode_df = pd.concat((session_decode_df, pd.DataFrame(index=[session_decode_df.shape[0]], data={
-                'time': bin_center, 'accuracy': accuracy_region, 'region': region, 'subject': subject,
-                'date': date, 'probe': probe})))
+                'time': bin_center, 'accuracy': accuracy_overall, 'accuracy_per_context': acc_per_context, 
+                'region': region, 'subject': subject, 'date': date, 'probe': probe})))
 
     return session_decode_df
 

@@ -12,31 +12,140 @@ import seaborn as sns
 import pickle
 import matplotlib.pyplot as plt
 from dPCA import dPCA
-from msvr_functions import paths, load_subjects, figure_style, combine_regions
+from msvr_functions import paths, load_subjects, figure_style, load_objects
 colors, dpi = figure_style()
+
+# Settings
+MIN_NEURONS = 5
 
 # Load in data
 path_dict = paths()
-with open(join(path_dict['save_path'], 'env_act_dict.pkl'), 'rb') as f:
-    env_act_dict = pickle.load(f)
+subjects = load_subjects()
+with open(path_dict['google_drive_data_path'] / 'residuals_position_0mms.pickle', 'rb') as handle:
+    spike_dict = pickle.load(handle)
     
-# Loop over regions
-dpca_region = dict()
-for i, region in enumerate(env_act_dict.keys()):
-    
-    # Center the data
-    this_act = env_act_dict[region]  # neurons x distance bins x context
-    this_act -= np.mean(this_act.reshape((this_act.shape[0], -1)), 1)[:, None, None]
-    
-    # Fit dPCA
-    dpca = dPCA.dPCA(labels='ds', n_components=1)
-    Z = dpca.fit_transform(this_act)
- 
-    dpca_region[region] = np.squeeze(Z['ds'])[:, 1]
+# Loop over recordings
+dpca_df = pd.DataFrame()
+for i in np.arange(len(spike_dict['date'])):
 
+    # Get session info
+    this_subject = spike_dict['subject'][i]
+    this_ses = spike_dict['date'][i]
+
+    # Get whether this is a FAR or NEAR session
+    is_far = subjects.loc[subjects['SubjectID'] == this_subject, 'Far'].values[0]
     
+    # Load in object data
+    obj_df = load_objects(this_subject, this_ses)
+
+    # Loop over regions
+    unique_regions = np.unique(spike_dict['region'][i])
+    for region in unique_regions:
+        if region == 'root':
+            continue
+
+        # Get data from this session and region
+        spike_counts = spike_dict['residuals'][i][:, spike_dict['region'][i] == region]  # spatial bins x neurons
+
+        # Throw out silent neurons
+        spike_counts = spike_counts[:, np.std(spike_counts, axis=0) > 0.5]
+
+        # If not enough neurons, continue
+        if spike_counts.shape[1] < MIN_NEURONS:
+            continue
+        
+        # Z-score the spike counts
+        spike_counts = (spike_counts - np.mean(spike_counts, axis=0)) / np.std(spike_counts, axis=0)
+
+        # Get the spatial bins and context for this session
+        spatial_bins = spike_dict['position'][i]
+        context_per_bin = spike_dict['context'][i]
+
+        # Create a arrays per context (neurons x spatial bins x trials)
+        n_bins = np.unique(spatial_bins).shape[0]
+        n_neurons = spike_counts.shape[1]
+        n_trials_A = spatial_bins[context_per_bin == 1].shape[0] // n_bins
+        n_trials_B = spatial_bins[context_per_bin == 2].shape[0] // n_bins
+        min_trials = np.min([n_trials_A, n_trials_B])  # trim the extra trials
+        state_A_trials = spike_counts[context_per_bin == 1, :].reshape(n_trials_A, n_bins, n_neurons).transpose(2, 1, 0)[:, :, :min_trials]
+        state_B_trials = spike_counts[context_per_bin == 2, :].reshape(n_trials_B, n_bins, n_neurons).transpose(2, 1, 0)[:, :, :min_trials]
+        
+        # Create a 4D array (neurons x state x spatial bins x trials)
+        X_trials = np.zeros((n_neurons, 2, n_bins, min_trials))
+        X_trials[:, 0, :, :] = state_A_trials
+        X_trials[:, 1, :, :] = state_B_trials
+
+        # Create the 3D trial-averaged array (N_neurons, N_states, N_spatial_bins)
+        X_mean = np.nanmean(X_trials, axis=-1) 
+
+        # Initialize dPCA
+        dpca = dPCA.dPCA(labels='st', regularizer=0.01)
+        dpca.protect = ['t'] # Protect the spatial dimension from being mixed
+
+        # Fit the model using BOTH the 3D and 4D arrays
+        Z = dpca.fit_transform(X_mean, X_trials)
+
+        # Put results in dataframe
+        dpca_df = pd.concat((dpca_df, pd.DataFrame(data={
+            'pos_traj': np.concatenate((Z['t'][0, 0, :], Z['t'][0, 1, :])),
+            'context_traj': np.concatenate((Z['s'][0, 0, :], Z['s'][0, 1, :])),
+            'interaction_traj': np.concatenate((Z['st'][0, 0, :], Z['st'][0, 1, :])),
+            'context': np.concatenate((np.ones(n_bins), 2*np.ones(n_bins))),
+            'position': np.tile(np.unique(spatial_bins), 2),
+            'subject': this_subject, 
+            'session': this_ses, 
+            'region': region, 
+            'is_far': is_far})))
+
+
 # %% Plot
+f, ax = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi)
+for i, region in enumerate(np.unique(dpca_df['region'])):
+    plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 1)]
+    sns.lineplot(data=plot_df, x='position', y='pos_traj', hue='context',
+                 ax=ax[i], palette='Set2', legend=False)
+    ax[i].set_title(region)
+f.suptitle('Position')
+sns.despine(trim=True)
+plt.tight_layout()
+plt.show()
 
-f, ax = plt.subplots(1, 1, figsize=(1.75, 1.75), dpi=dpi)
-for i, region in enumerate(dpca_region.keys()):
-    ax.plot(dpca_region[region], label=region)
+# %%
+f, ax = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
+for i, region in enumerate(np.unique(dpca_df['region'])):
+    plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 1)]
+    sns.lineplot(data=plot_df, x='position', y='context_traj', hue='context',
+                 ax=ax[i], palette='Set2', legend=False, errorbar='se', err_kws={'lw': 0})
+    ax[i].set_title(region)
+f.suptitle('Context')
+
+sns.despine(trim=True)
+plt.tight_layout()
+plt.show()
+
+# %%
+f, ax = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
+for i, region in enumerate(np.unique(dpca_df['region'])):
+    plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 1)]
+    sns.lineplot(data=plot_df, x='position', y='interaction_traj', hue='context',
+                 ax=ax[i], palette='Set2', legend=False, errorbar='se', err_kws={'lw': 0})
+    ax[i].set_title(region)
+f.suptitle('Interaction')
+sns.despine(trim=True)
+plt.tight_layout()
+plt.show()
+
+f, ax = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
+for i, region in enumerate(np.unique(dpca_df['region'])):
+    plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 0)]
+    sns.lineplot(data=plot_df, x='position', y='interaction_traj', hue='context',
+                 ax=ax[i], palette='Set2', legend=False, errorbar='se', err_kws={'lw': 0})
+    ax[i].set_title(region)
+f.suptitle('Interaction')
+sns.despine(trim=True)
+plt.tight_layout()
+plt.show()
+
+
+
+

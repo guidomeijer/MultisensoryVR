@@ -29,9 +29,10 @@ import statsmodels.formula.api as smf
 from msvr_functions import paths, load_neural_data, load_subjects, load_objects
 
 # ─────────────────────────── Settings ────────────────────────────────────────
-T_EPOCH   = 0.5   # seconds post object-entry to count spikes in
+T_START = 0.5
+T_END = 1.0
 OVERWRITE = True
-N_CORES   = -4    # joblib: use all but 4 CPUs  (-1 = all cores)
+N_CORES   = -6    # joblib: use all but 4 CPUs  (-1 = all cores)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -61,7 +62,7 @@ def run_anova(neuron_id, encounter_df, spike_times):
 
     # ── Build the per-encounter firing rate vector ────────────────────────────
     rates = np.array([
-        spikes_in_window(spike_times, t, t + T_EPOCH) / T_EPOCH
+        spikes_in_window(spike_times, t + T_START, t + T_END) / (T_END - T_START)
         for t in encounter_df['times'].values
     ])
 
@@ -187,7 +188,8 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         'eta2_interaction': e2_int,
         # Diagnostics
         'n_encounters':  n_enc,    # total object encounters entering the ANOVA
-        't_epoch_s':     T_EPOCH,  # epoch window used
+        't_win_start_s':     T_START,  # epoch window used
+        't_win_end_s':     T_END,  # epoch window used
     })
 
     anova_df = pd.concat([anova_df, session_df], ignore_index=True)

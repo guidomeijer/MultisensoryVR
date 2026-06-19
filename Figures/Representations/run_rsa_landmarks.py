@@ -190,8 +190,6 @@ for i, this_ses in enumerate(np.unique(spike_dict['date'])):
 
 # %% Plot results
 use_cmap = 'viridis_r'
-plot_min = 0.7
-plot_max = 1.2
 
 f, axs = plt.subplots(1, 3, figsize=(3.3, 1.6), dpi=dpi, sharey=True)
 
@@ -211,7 +209,7 @@ axs[0].imshow(object_rdm_plot, cmap=cmap_hypo, clim=[0, 2])
 axs[0].set(xticks=np.arange(len(labels)), yticks=np.arange(len(labels)),
            xticklabels=labels, yticklabels=labels, title='Object')
 axs[0].tick_params('x', rotation=90)
-axs[0].text(-3.7, -1, 'Object', ha='center', va='center', clip_on=False, weight='bold')
+axs[0].text(-3.5, -1, 'Object', ha='center', va='center', clip_on=False, weight='bold')
 axs[0].text(-1, -1, 'State', ha='center', va='center', clip_on=False, weight='bold')
 axs[1].imshow(reward_rdm_plot, cmap=cmap_hypo, clim=[0, 2])
 axs[1].set(xticks=np.arange(len(labels)), yticks=np.arange(len(labels)),
@@ -227,7 +225,10 @@ plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'hypotheses.pdf')
 plt.show()
 
 # %%
-f, axs = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
+plot_min = 0.7
+plot_max = 1.3
+
+f, axs = plt.subplots(1, 6, figsize=(6.5, 1.5), dpi=dpi, sharey=True)
 
 # Create a copy of the colormap and set NaN values to white for the mean RDMs
 cmap_rdm = plt.get_cmap(use_cmap).copy()
@@ -241,21 +242,20 @@ for i, plot_region in enumerate(all_rdms.keys()):
     axs[i].set(xticks=np.arange(len(labels)), yticks=np.arange(len(labels)),
                xticklabels=labels, yticklabels=labels, title=plot_region)
     axs[i].tick_params('x', rotation=90)
-axs[0].text(-4, -1, 'Object', ha='center', va='center', clip_on=False, weight='bold')
-axs[0].text(-1.5, -1, 'State', ha='center', va='center', clip_on=False, weight='bold')
 
 sm = plt.cm.ScalarMappable(cmap=use_cmap, norm=plt.Normalize(vmin=plot_min, vmax=plot_max))
 sm.set_array([])
-cbar = f.colorbar(sm, ax=axs, orientation='vertical', fraction=0.012)
+cbar_ax = f.add_axes([0.87, 0.4, 0.008, 0.45])
+cbar = f.colorbar(sm, cax=cbar_ax, orientation='vertical')
 cbar.set_label('Dissimilarity (1-r)', rotation=270, labelpad=10)
 
-plt.subplots_adjust(left=0.12, bottom=0.25, right=0.85, top=1)
+plt.subplots_adjust(left=0.05, bottom=0.25, right=0.85, top=1)
 plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_dissimilatrity.jpg', dpi=600)
 plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_dissimilatrity.pdf')
 plt.show()
 
 # %% Plot Multiple Regression Beta Weights
-f, axs = plt.subplots(1, 3, figsize=(1.2*3, 1.75), dpi=dpi, sharey=False)
+f, axs = plt.subplots(1, 3, figsize=(3.4, 1.75), dpi=dpi, sharey=False)
 
 region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_object'].sort_values(ascending=False).index.values
 p_values = np.full(len(region_order), np.nan)
@@ -324,7 +324,7 @@ plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_re
 plt.show()
 
 # %% Plot Multiple Regression Interaction Beta Weights
-f, axs = plt.subplots(1, 3, figsize=(1.2*3, 1.75), dpi=dpi, sharey=True)
+f, axs = plt.subplots(1, 3, figsize=(3.2, 1.75), dpi=dpi, sharey=True)
 
 region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_obj_rew'].sort_values(ascending=False).index.values
 p_values = np.full(len(region_order), np.nan)

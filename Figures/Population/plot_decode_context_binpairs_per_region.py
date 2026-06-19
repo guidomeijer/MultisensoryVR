@@ -47,8 +47,6 @@ for i, region in enumerate(PLOT_REGIONS):
     sns.heatmap(pivot_df, cmap='RdBu_r', ax=axs[i], vmin=0.3, vmax=0.7, cbar=False)
     axs[i].plot([40, 40], [0, 150], color=LINE_COLOR, ls='--', lw=0.5)
     axs[i].plot([0, 150], [40, 40], color=LINE_COLOR, ls='--', lw=0.5)
-    axs[i].plot([0, 150], [97.5, 97.5], color=LINE_COLOR, ls='--', lw=0.5)
-    axs[i].plot([97.5, 97.5], [0, 150], color=LINE_COLOR, ls='--', lw=0.5)
     axs[i].plot([130, 130], [0, 150], color=LINE_COLOR, ls='--', lw=0.5)
     axs[i].plot([0, 150], [130, 130], color=LINE_COLOR, ls='--', lw=0.5)
     axs[i].set(xlabel='', ylabel='', title=region, xticks=[], yticks=[])
@@ -117,11 +115,11 @@ for i, region in enumerate(PLOT_REGIONS):
     control_matrix = control_df.pivot(index=['subject', 'date'], columns='train_position_cm', values='accuracy')
     positions = test_matrix.columns.values
     X = test_matrix.values - control_matrix.values
-    t_threshold = stats.t.ppf(1 - 0.05 / 2, test_matrix.shape[0]-1)
+    t_threshold = stats.t.ppf(1 - 0.2 / 2, test_matrix.shape[0]-1)
     t_obs, clusters, cluster_p_values, H0 = mne.stats.permutation_cluster_1samp_test(
             X,
             threshold=t_threshold,
-            n_permutations=500, 
+            n_permutations=1000, 
             tail=0,          # Two-tailed test
             out_type='mask'  # Returns boolean masks for positions
         )
@@ -136,12 +134,12 @@ for i, region in enumerate(PLOT_REGIONS):
     add_significance(np.unique(plot_df['train_position_cm']), region_p_values, ax=axs[i], y_pos=0.78)
     axs[i].axhline(0.5, ls='--', color='k', lw=0.5)
     axs[i].set(xlabel='', ylabel='', ylim=[0.3, 0.8], xticks=[0, 50, 100, 150],
-               yticks=[0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
+               yticks=[0.3, 0.4, 0.5, 0.6, 0.7, 0.8], yticklabels=[30, 40, 50, 60, 70, 80])
     axs[i].text(15, 0.65, region, color=colors[region], weight='bold') # Original region text
 
 sns.despine(trim=True)
 
-axs[0].set(ylabel='Decoding accuracy')
+axs[0].set(ylabel='Decoding accuracy (%)')
 f.text(0.5, 0.04, 'Train position (cm)', ha='center')
 plt.subplots_adjust(left=0.08, bottom=0.25, right=0.98, top=0.95, wspace=0.15)
 plt.savefig(path_dict['paper_fig_path'] / 'Decoding' / 'decode_context_second_landmark.pdf')
