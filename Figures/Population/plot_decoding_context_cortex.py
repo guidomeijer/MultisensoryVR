@@ -122,3 +122,84 @@ ax2.tick_params(labelleft=False)
 plt.savefig(path_dict['paper_fig_path'] / 'Decoding' / f'decode_context_cortex_{CLASSIFIER}.pdf')
 plt.savefig(path_dict['paper_fig_path'] / 'Decoding' /f'decode_context_cortex_{CLASSIFIER}.jpg', dpi=600)
 plt.show()
+
+# %%
+
+f, ax1 = plt.subplots(1, 1, figsize=(1.9, 1.75), dpi=dpi)
+
+# Near object
+this_df = context_df[np.isin(context_df['subject'].values,
+                     subjects.loc[subjects['Far'] == 0, 'SubjectID'].astype(str).values)]
+this_shuffle_df = shuffle_df[np.isin(shuffle_df['subject'].values,
+                        subjects.loc[subjects['Far'] == 0, 'SubjectID'].astype(str).values)]
+
+sns.lineplot(this_shuffle_df, x='position', y='accuracy', errorbar=('ci', 95), linewidth=0,
+             ax=ax1, err_kws={'lw': 0, 'alpha': 1}, legend=None, zorder=0, color='w')
+sns.lineplot(this_df[this_df['region'] == 'CA1'], x='position', y='accuracy', color='w',
+             errorbar='se', ax=ax1, err_kws={'lw': 0}, legend=None, zorder=2)
+ax1.plot([450, 450], [0.3, 0.9], ls='--', color='grey', zorder=1, lw=0.5)
+ax1.plot([900, 900], [0.3, 0.9], ls='--', color='grey', zorder=1, lw=0.5)
+ax1.set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
+       yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90],
+       ylim=[0.3, 0.9], xlabel='Position (cm)', ylabel='Context decoding accuracy (%)')
+
+plt.tight_layout()
+sns.despine(trim=True)
+
+plt.savefig(path_dict['paper_fig_path'] / 'Presentations' / 'decoding_only_lines.jpg', dpi=600)
+plt.show()
+
+f, ax1 = plt.subplots(1, 1, figsize=(1.9, 1.75), dpi=dpi)
+
+# Do stats
+p_cortex, positions = run_stats(this_df[this_df['region'] == 'Cortex'], 
+                                this_shuffle_df[this_shuffle_df['region'] == 'Cortex'])
+p_ca1, positions = run_stats(this_df[this_df['region'] == 'CA1'], 
+                             this_shuffle_df[this_shuffle_df['region'] == 'CA1'])
+
+# Plot
+sns.lineplot(this_shuffle_df, x='position', y='accuracy', errorbar=('ci', 95), linewidth=0,
+             ax=ax1, err_kws={'lw': 0, 'alpha': 1}, legend=None, zorder=0, color='lightgrey')
+sns.lineplot(this_df[this_df['region'] == 'CA1'], x='position', y='accuracy', color=colors['CA1'],
+             errorbar='se', ax=ax1, err_kws={'lw': 0}, legend=None, zorder=2)
+ax1.plot([450, 450], [0.3, 0.9], ls='--', color='grey', zorder=1, lw=0.5)
+ax1.plot([900, 900], [0.3, 0.9], ls='--', color='grey', zorder=1, lw=0.5)
+#add_significance(positions, p_cortex, ax1, y_pos=0.88, alpha=0.05, color=colors['PERI'])
+add_significance(positions, p_ca1, ax1, y_pos=0.86, alpha=0.05, color=colors['CA1'])
+ax1.set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
+       yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90],
+       ylim=[0.3, 0.9], xlabel='Position (cm)', ylabel='Context decoding accuracy (%)')
+
+plt.tight_layout()
+sns.despine(trim=True)
+
+plt.savefig(path_dict['paper_fig_path'] / 'Presentations' / 'decoding_only_CA1.jpg', dpi=600)
+plt.show()
+
+f, ax1 = plt.subplots(1, 1, figsize=(1.9, 1.75), dpi=dpi)
+
+# Do stats
+p_cortex, positions = run_stats(this_df[this_df['region'] == 'Cortex'], 
+                                this_shuffle_df[this_shuffle_df['region'] == 'Cortex'])
+p_ca1, positions = run_stats(this_df[this_df['region'] == 'CA1'], 
+                             this_shuffle_df[this_shuffle_df['region'] == 'CA1'])
+
+# Plot
+sns.lineplot(this_shuffle_df, x='position', y='accuracy', errorbar=('ci', 95), linewidth=0,
+             ax=ax1, err_kws={'lw': 0, 'alpha': 1}, legend=None, zorder=0, color='lightgrey')
+sns.lineplot(this_df, x='position', y='accuracy', hue='region', hue_order=['Cortex', 'CA1'],
+             palette=[colors['Cortex'], colors['CA1']],
+             errorbar='se', ax=ax1, err_kws={'lw': 0}, legend=None, zorder=2)
+ax1.plot([450, 450], [0.3, 0.9], ls='--', color='grey', zorder=1, lw=0.5)
+ax1.plot([900, 900], [0.3, 0.9], ls='--', color='grey', zorder=1, lw=0.5)
+add_significance(positions, p_cortex, ax1, y_pos=0.88, alpha=0.05, color=colors['PERI'])
+add_significance(positions, p_ca1, ax1, y_pos=0.86, alpha=0.05, color=colors['CA1'])
+ax1.set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
+       yticks=[0.3, 0.5, 0.7, 0.9], yticklabels=[30, 50, 70, 90],
+       ylim=[0.3, 0.9], xlabel='Position (cm)', ylabel='Context decoding accuracy (%)')
+
+plt.tight_layout()
+sns.despine(trim=True)
+
+plt.savefig(path_dict['paper_fig_path'] / 'Presentations' / 'decoding_CA1_and_cortex.jpg', dpi=600)
+plt.show()
