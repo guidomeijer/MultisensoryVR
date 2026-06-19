@@ -38,6 +38,10 @@ for i in np.arange(len(spike_dict['date'])):
     # Load in object data
     obj_df = load_objects(this_subject, this_ses)
 
+    # Get which context is the rewarded context for the first and second object
+    obj1_goal = obj_df.loc[(obj_df['object'] == 1) & (obj_df['goal'] == 1), 'sound'].values[0]
+    obj2_goal = obj_df.loc[(obj_df['object'] == 2) & (obj_df['goal'] == 1), 'sound'].values[0]
+
     # Loop over regions
     unique_regions = np.unique(spike_dict['region'][i])
     for region in unique_regions:
@@ -64,11 +68,11 @@ for i in np.arange(len(spike_dict['date'])):
         # Create a arrays per context (neurons x spatial bins x trials)
         n_bins = np.unique(spatial_bins).shape[0]
         n_neurons = spike_counts.shape[1]
-        n_trials_A = spatial_bins[context_per_bin == 1].shape[0] // n_bins
-        n_trials_B = spatial_bins[context_per_bin == 2].shape[0] // n_bins
+        n_trials_A = spatial_bins[context_per_bin == obj1_goal].shape[0] // n_bins
+        n_trials_B = spatial_bins[context_per_bin == 3 - obj1_goal].shape[0] // n_bins
         min_trials = np.min([n_trials_A, n_trials_B])  # trim the extra trials
-        state_A_trials = spike_counts[context_per_bin == 1, :].reshape(n_trials_A, n_bins, n_neurons).transpose(2, 1, 0)[:, :, :min_trials]
-        state_B_trials = spike_counts[context_per_bin == 2, :].reshape(n_trials_B, n_bins, n_neurons).transpose(2, 1, 0)[:, :, :min_trials]
+        state_A_trials = spike_counts[context_per_bin == obj1_goal, :].reshape(n_trials_A, n_bins, n_neurons).transpose(2, 1, 0)[:, :, :min_trials]
+        state_B_trials = spike_counts[context_per_bin == 3 - obj1_goal, :].reshape(n_trials_B, n_bins, n_neurons).transpose(2, 1, 0)[:, :, :min_trials]
         
         # Create a 4D array (neurons x state x spatial bins x trials)
         X_trials = np.zeros((n_neurons, 2, n_bins, min_trials))
