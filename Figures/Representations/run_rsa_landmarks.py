@@ -43,7 +43,7 @@ reward_rdm = np.array([[9, 2, 2, 0, 1, 1],
                        [0, 2, 2, 9, 1, 1],
                        [1, 1, 1, 1, 9, 1],
                        [1, 1, 1, 1, 1, 9]])
-state_rdm = np.array([[9, 2, 0, 2, 0, 2],
+context_rdm = np.array([[9, 2, 0, 2, 0, 2],
                       [2, 9, 2, 0, 2, 0],
                       [0, 2, 9, 2, 0, 2],
                       [2, 0, 2, 9, 2, 0],
@@ -128,13 +128,13 @@ for i, this_ses in enumerate(np.unique(spike_dict['date'])):
             # Correlate with hypothesis representations
             r_obj, p_obj = stats.spearmanr(rdm[np.triu_indices(rdm.shape[0], k=1)], object_rdm[np.triu_indices(rdm.shape[0], k=1)])
             r_rew, p_rew = stats.spearmanr(rdm[np.triu_indices(rdm.shape[0], k=1)], reward_rdm[np.triu_indices(rdm.shape[0], k=1)])
-            r_state, p_state = stats.spearmanr(rdm[np.triu_indices(rdm.shape[0], k=1)], state_rdm[np.triu_indices(rdm.shape[0], k=1)])
+            r_context, p_context = stats.spearmanr(rdm[np.triu_indices(rdm.shape[0], k=1)], context_rdm[np.triu_indices(rdm.shape[0], k=1)])
 
             # Multiple Regression
             X = np.column_stack((
                 object_rdm[np.triu_indices(rdm.shape[0], k=1)],
                 reward_rdm[np.triu_indices(rdm.shape[0], k=1)],
-                state_rdm[np.triu_indices(rdm.shape[0], k=1)]
+                context_rdm[np.triu_indices(rdm.shape[0], k=1)]
             ))
             y = rdm[np.triu_indices(rdm.shape[0], k=1)]
             
@@ -144,22 +144,22 @@ for i, this_ses in enumerate(np.unique(spike_dict['date'])):
             
             # Interaction terms
             int_obj_rew = X_std[:, 0] * X_std[:, 1]
-            int_obj_state = X_std[:, 0] * X_std[:, 2]
-            int_rew_state = X_std[:, 1] * X_std[:, 2]
+            int_obj_context = X_std[:, 0] * X_std[:, 2]
+            int_rew_context = X_std[:, 1] * X_std[:, 2]
             
             # Add interaction terms to X_std
-            X_std_full = np.column_stack((X_std, int_obj_rew, int_obj_state, int_rew_state))
+            X_std_full = np.column_stack((X_std, int_obj_rew, int_obj_context, int_rew_context))
             
             # Perform multiple linear regression
             reg = LinearRegression().fit(X_std_full, y_std)
-            beta_obj, beta_rew, beta_state, beta_obj_rew, beta_obj_state, beta_rew_state = reg.coef_
+            beta_obj, beta_rew, beta_context, beta_obj_rew, beta_obj_context, beta_rew_context = reg.coef_
 
             # Add to dicts and dfs
             corr_df = pd.concat((corr_df, pd.DataFrame(data={
                 'p_object': [p_obj], 'r_object': [r_obj], 'r_reward': [r_rew], 'p_reward': [p_rew],
-                'p_state': [p_state], 'r_state': [r_state],
-                'beta_object': [beta_obj], 'beta_reward': [beta_rew], 'beta_state': [beta_state],
-                'beta_obj_rew': [beta_obj_rew], 'beta_obj_state': [beta_obj_state], 'beta_rew_state': [beta_rew_state],
+                'p_context': [p_context], 'r_context': [r_context],
+                'beta_object': [beta_obj], 'beta_reward': [beta_rew], 'beta_context': [beta_context],
+                'beta_obj_rew': [beta_obj_rew], 'beta_obj_context': [beta_obj_context], 'beta_rew_context': [beta_rew_context],
                 'region': [region], 'subject': [subject], 'date': [this_ses]})))
             rdm_regions[region] = rdm
             all_rdms[region].append(rdm)
@@ -200,24 +200,24 @@ cmap_hypo.set_bad('white')
 # Plot hypothesis RDMs with diagonal set to NaN for white display
 object_rdm_plot = object_rdm.astype(float)
 reward_rdm_plot = reward_rdm.astype(float)
-state_rdm_plot = state_rdm.astype(float)
+context_rdm_plot = context_rdm.astype(float)
 np.fill_diagonal(object_rdm_plot, np.nan)
 np.fill_diagonal(reward_rdm_plot, np.nan)
-np.fill_diagonal(state_rdm_plot, np.nan)
+np.fill_diagonal(context_rdm_plot, np.nan)
 
 axs[0].imshow(object_rdm_plot, cmap=cmap_hypo, clim=[0, 2])
 axs[0].set(xticks=np.arange(len(labels)), yticks=np.arange(len(labels)),
            xticklabels=labels, yticklabels=labels, title='Object')
 axs[0].tick_params('x', rotation=90)
 axs[0].text(-3.5, -1, 'Object', ha='center', va='center', clip_on=False, weight='bold')
-axs[0].text(-1, -1, 'State', ha='center', va='center', clip_on=False, weight='bold')
+axs[0].text(-1, -1, 'Context', ha='center', va='center', clip_on=False, weight='bold')
 axs[1].imshow(reward_rdm_plot, cmap=cmap_hypo, clim=[0, 2])
 axs[1].set(xticks=np.arange(len(labels)), yticks=np.arange(len(labels)),
            xticklabels=labels, yticklabels=labels, title='Reward')
 axs[1].tick_params('x', rotation=90)
-axs[2].imshow(state_rdm_plot, cmap=cmap_hypo, clim=[0, 2])
+axs[2].imshow(context_rdm_plot, cmap=cmap_hypo, clim=[0, 2])
 axs[2].set(xticks=np.arange(len(labels)), yticks=np.arange(len(labels)),
-           xticklabels=labels, yticklabels=labels, title='State')
+           xticklabels=labels, yticklabels=labels, title='Context')
 axs[2].tick_params('x', rotation=90)
 plt.tight_layout()
 plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'hypotheses.jpg', dpi=600)
@@ -297,11 +297,11 @@ axs[1].set(title='Reward', ylabel='', xlabel='', yticks=[-0.2, 0, 0.2, 0.4, 0.6,
            yticklabels=[-0.2, 0, 0.2, 0.4, 0.6, 0.8], ylim=[-0.2, 0.8])
 axs[1].tick_params('x', rotation=90)
 
-region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_state'].sort_values(ascending=False).index.values
+region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_context'].sort_values(ascending=False).index.values
 p_values = np.full(len(region_order), np.nan)
 for i, region in enumerate(region_order):
-    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_state'].values, 0)[1]  
-sns.barplot(data=corr_df, x='region', y='beta_state', ax=axs[2], hue='region', palette=colors, errorbar='se',
+    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_context'].values, 0)[1]  
+sns.barplot(data=corr_df, x='region', y='beta_context', ax=axs[2], hue='region', palette=colors, errorbar='se',
             order=region_order)
 for i, p in enumerate(p_values):
     if p < 0.001:
@@ -313,7 +313,7 @@ for i, p in enumerate(p_values):
     else:
         label = ''
     axs[2].text(i, 0.3, label, ha='center', va='center', fontsize=8)
-axs[2].set(title='State', ylabel='', xlabel='', yticks=[-0.1, 0, 0.1, 0.2, 0.3],
+axs[2].set(title='Context', ylabel='', xlabel='', yticks=[-0.1, 0, 0.1, 0.2, 0.3],
            yticklabels=[-0.1, 0, 0.1, 0.2, 0.3], ylim=[-0.1, 0.3])
 axs[2].tick_params('x', rotation=90)
 
@@ -346,11 +346,11 @@ axs[0].set(title='Object x Reward', ylabel='Interaction Beta Weight', xlabel='',
            yticklabels=[-0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5], ylim=[-0.3, 0.5])
 axs[0].tick_params('x', rotation=90)
 
-region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_obj_state'].sort_values(ascending=False).index.values
+region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_obj_context'].sort_values(ascending=False).index.values
 p_values = np.full(len(region_order), np.nan)
 for i, region in enumerate(region_order):
-    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_obj_state'].values, 0)[1]  
-sns.barplot(data=corr_df, x='region', y='beta_obj_state', ax=axs[1], hue='region', palette=colors, errorbar='se',
+    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_obj_context'].values, 0)[1]  
+sns.barplot(data=corr_df, x='region', y='beta_obj_context', ax=axs[1], hue='region', palette=colors, errorbar='se',
             order=region_order)
 for i, p in enumerate(p_values):
     if p < 0.001:
@@ -362,14 +362,14 @@ for i, p in enumerate(p_values):
     else:
         label = ''
     axs[1].text(i, 0.48, label, ha='center', va='center', fontsize=8)
-axs[1].set(title='Object x State', ylabel='', xlabel='')
+axs[1].set(title='Object x context', ylabel='', xlabel='')
 axs[1].tick_params('x', rotation=90)
 
-region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_rew_state'].sort_values(ascending=False).index.values
+region_order = corr_df.groupby('region').mean(numeric_only=True)['beta_rew_context'].sort_values(ascending=False).index.values
 p_values = np.full(len(region_order), np.nan)
 for i, region in enumerate(region_order):
-    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_rew_state'].values, 0)[1]  
-sns.barplot(data=corr_df, x='region', y='beta_rew_state', ax=axs[2], hue='region', palette=colors, errorbar='se',
+    p_values[i] = stats.ttest_1samp(corr_df.loc[corr_df['region'] == region, 'beta_rew_context'].values, 0)[1]  
+sns.barplot(data=corr_df, x='region', y='beta_rew_context', ax=axs[2], hue='region', palette=colors, errorbar='se',
             order=region_order)
 for i, p in enumerate(p_values):
     if p < 0.001:
@@ -381,7 +381,7 @@ for i, p in enumerate(p_values):
     else:
         label = ''
     axs[2].text(i, 0.48, label, ha='center', va='center', fontsize=8)
-axs[2].set(title='Reward x State', ylabel='', xlabel='')
+axs[2].set(title='Reward x Context', ylabel='', xlabel='')
 axs[2].tick_params('x', rotation=90)
 
 sns.despine(trim=True)
