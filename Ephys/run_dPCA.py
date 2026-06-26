@@ -7,16 +7,40 @@ By Guido Meijer
 
 import numpy as np
 import pandas as pd
-from os.path import join
 import seaborn as sns
 import pickle
+from scipy import stats
+import mne
 import matplotlib.pyplot as plt
 from dPCA import dPCA
-from msvr_functions import paths, load_subjects, figure_style, load_objects
+from msvr_functions import paths, load_subjects, figure_style, load_objects, add_significance
 colors, dpi = figure_style()
+mne.set_log_level('WARNING')
 
 # Settings
 MIN_NEURONS = 5
+
+def run_stats(df):
+    test1_matrix = df[df['context'] == 1].pivot_table(
+        index=['subject', 'session'], columns='position', values='interaction_traj', aggfunc='mean')
+    test2_matrix = df[df['context'] == 2].pivot_table(
+        index=['subject', 'session'], columns='position', values='interaction_traj', aggfunc='mean')
+    positions = test1_matrix.columns.values
+    X = test1_matrix.values - test2_matrix.values
+    t_threshold = stats.t.ppf(1 - 0.05 / 2, test1_matrix.shape[0]-1)
+    t_obs, clusters, cluster_p_values, H0 = mne.stats.permutation_cluster_1samp_test(
+       X,
+       threshold=t_threshold,
+       n_permutations=1000, 
+       tail=0,          # Two-tailed test
+       out_type='mask'  # Returns boolean masks for positions
+       )
+    p_values = np.ones(len(positions))
+    for cluster_mask, p_val in zip(clusters, cluster_p_values):
+        if p_val < 0.05:
+            # Assign the cluster-level p-value to all positions in this cluster
+            p_values[cluster_mask] = p_val
+    return p_values, positions
 
 # Load in data
 path_dict = paths()
@@ -94,7 +118,7 @@ for i in np.arange(len(spike_dict['date'])):
             'pos_traj': np.concatenate((Z['t'][0, 0, :], Z['t'][0, 1, :])),
             'context_traj': np.concatenate((Z['s'][0, 0, :], Z['s'][0, 1, :])),
             'interaction_traj': np.concatenate((Z['st'][0, 0, :], Z['st'][0, 1, :])),
-            'context': np.concatenate((np.ones(n_bins), 2*np.ones(n_bins))),
+            'context': np.concatenate((np.ones(n_bins), 2*np.ones(n_bins))).astype(int),
             'position': np.tile(np.unique(spatial_bins), 2),
             'subject': this_subject, 
             'session': this_ses, 
@@ -128,24 +152,71 @@ plt.tight_layout()
 plt.show()
 
 # %%
-f, ax = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
-for i, region in enumerate(np.unique(dpca_df['region'])):
+f, axs = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
+for i, region in enumerate(['AUD', 'VIS', 'TEa', 'PERI', 'LEC', 'CA1']):
     plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 1)]
+    p_values, positions = run_stats(plot_df)
     sns.lineplot(data=plot_df, x='position', y='interaction_traj', hue='context',
-                 ax=ax[i], palette='Set2', legend=False, errorbar='se', err_kws={'lw': 0})
-    ax[i].set_title(region)
-f.suptitle('Interaction')
+                 hue_order=[1, 2], ax=axs[i], palette=[colors['context1'], colors['context2']],
+                 legend=False, errorbar='se', err_kws={'lw': 0}, zorder=1)
+    add_significance(positions, p_values, ax=axs[i])
+    axs[i].plot([425, 425], [-1.5, 1.5], ls='--', lw=0.5, color='k', zorder=0)
+    axs[i].plot([1325, 1325], [-1.5, 1.5], ls='--', lw=0.5, color='k', zorder=0)
+    axs[i].plot([0, 1500], [0, 0], ls='--', lw=0.5, color='k', zorder=0)
+    axs[i].set(title=f'{region}', xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
+                  ylim=[-1.5, 1.5], yticks=[-1.5, 0, 1.5], yticklabels=[-1.5, 0, 1.5],
+                  xlabel='', ylabel='')
+axs[0].set_ylabel('Interaction', labelpad=0)
+f.supxlabel('Position (cm)', fontsize=7, y=0.08)   
 sns.despine(trim=True)
 plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / 'interaction_far.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / 'interaction_far.jpg', dpi=600)
 plt.show()
 
-f, ax = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
+# %%
+f, axs = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
+for i, region in enumerate(['AUD', 'VIS', 'TEa', 'PERI', 'LEC', 'CA1']):
+    plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 1)
+                      & (dpca_df['position'] >= 900) & (dpca_df['position'] <= 1325)]
+    p_values, positions = run_stats(plot_df)
+    sns.lineplot(data=plot_df, x='position', y='interaction_traj', hue='context',
+                 hue_order=[1, 2], ax=axs[i], palette=[colors['context1'], colors['context2']],
+                 legend=False, errorbar='se', err_kws={'lw': 0}, zorder=1)
+    add_significance(positions, p_values, ax=axs[i])
+    axs[i].plot([900, 1325], [0, 0], ls='--', lw=0.5, color='k', zorder=0)
+    axs[i].set(title=f'{region}', xticks=[900, 1050, 1200, 1325], xticklabels=[90, 105, 120, 135],
+                  ylim=[-0.4, 0.4], yticks=[-0.4, 0, 0.4], yticklabels=[-0.4, 0, 0.4],
+                  xlabel='', ylabel='')
+axs[0].set_ylabel('Interaction', labelpad=0)
+f.supxlabel('Position (cm)', fontsize=7, y=0.08)   
+sns.despine(trim=True)
+plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / 'interaction_far_closeup.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / 'interaction_far_closeup.jpg', dpi=600)
+plt.show()
+
+
+# %%
+
+# Plot
+f, axs = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
 for i, region in enumerate(np.unique(dpca_df['region'])):
     plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 0)]
+    p_values, positions = run_stats(plot_df)
     sns.lineplot(data=plot_df, x='position', y='interaction_traj', hue='context',
-                 ax=ax[i], palette='Set2', legend=False, errorbar='se', err_kws={'lw': 0})
-    ax[i].set_title(region)
-f.suptitle('Interaction')
+                 ax=axs[i], palette='Set2', legend=False, errorbar='se', err_kws={'lw': 0},
+                 zorder=1)
+    add_significance(positions, p_values, ax=axs[i])
+    axs[i].plot([425, 425], [-1.5, 1.5], ls='--', lw=0.5, color='k', zorder=0)
+    axs[i].plot([875, 875], [-1.5, 1.5], ls='--', lw=0.5, color='k', zorder=0)
+    axs[i].plot([0, 1500], [0, 0], ls='--', lw=0.5, color='k', zorder=0)
+    axs[i].set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
+                  ylim=[-1.5, 1.5], yticks=[-1.5, 0, 1.5], yticklabels=[-1.5, 0, 1.5],
+                  xlabel='')
+axs[0].set(ylabel='Interaction')
+
+f.supxlabel('Position (cm)', fontsize=7)   
 sns.despine(trim=True)
 plt.tight_layout()
 plt.show()

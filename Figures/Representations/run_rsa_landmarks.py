@@ -428,3 +428,158 @@ plt.tight_layout()
 plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_similarity_analysis.jpg', dpi=600)
 plt.savefig(path_dict['paper_fig_path'] / 'Representations' / 'representation_similarity_analysis.pdf')
 plt.show()
+
+
+# %% Plot Grouped Bar Chart for Multiple Regression Beta Weights
+
+# 1. Define conditions and layout parameters
+conditions = ['beta_object', 'beta_reward', 'beta_context']
+cond_labels = ['Object', 'Reward', 'Context']
+condition_colors = ['#7bc0a3', '#e8a87c', '#92a8d1']  # Unique color per condition
+
+# 2. Calculate summary statistics
+means = corr_df.groupby('region')[conditions].mean()
+sems = corr_df.groupby('region')[conditions].sem()
+
+# Establish a single fixed order for the X-axis (sorting by overall average effect)
+region_order = ['AUD', 'VIS', 'TEa', 'PERI', 'LEC', 'CA1']
+
+# 3. Set up cluster geometry
+x = np.arange(len(region_order))  # Total number of region clusters
+width = 0.25                      # Width of individual bars
+offsets = [-width, 0, width]      # X-axis shift for each condition within a cluster
+
+# 4. Initialize Plot
+fig, ax = plt.subplots(figsize=(3.5, 1.5), dpi=600)
+#ax.axhline(0, color='gray', linestyle='-', linewidth=0.6, zorder=1)
+
+# 5. Plot groups and calculate significance
+for j, (cond, label) in enumerate(zip(conditions, cond_labels)):
+    y_means = [means.loc[reg, cond] for reg in region_order]
+    y_sems = [sems.loc[reg, cond] for reg in region_order]
+    x_pos = x + offsets[j]
+    
+    # Plot the bars for the current condition across all regions
+    ax.bar(x_pos, y_means, width, yerr=y_sems, label=label, 
+           color=condition_colors[j], zorder=2,
+           error_kw=dict(ecolor='dimgray', elinewidth=1.1, capsize=0))
+    
+    # Calculate and add significance stars dynamically above each bar
+    for i, reg in enumerate(region_order):
+        vals = corr_df.loc[corr_df['region'] == reg, cond].dropna().values
+        _, p = stats.ttest_1samp(vals, 0) if len(vals) > 1 else (None, np.nan)
+        
+        if p < 0.001:
+            star = '***'
+        elif p < 0.01:
+            star = '**'
+        elif p < 0.05:
+            star = '*'
+        else:
+            star = ''
+            
+        if star:
+            # Place the star just above the positive bar top or error bar ceiling
+            y_star = max(0, y_means[i] + y_sems[i]) + 0.02 if y_means[i] >= 0 else 0.02
+            ax.text(x_pos[i], y_star, star, ha='center', va='bottom', fontsize=7, color='black')
+
+# 6. Styling and Aesthetics
+ax.set_xticks(x)
+ax.set_xticklabels(region_order, rotation=90)
+ax.set_ylabel('Beta weight')
+ax.set_xlabel('')
+
+# Dynamically pad ylim to accommodate the highest star
+ax.set_ylim([-0.3, 1.0]) 
+ax.set_yticks([-0.3, 0, 0.3, 0.6, 0.9])
+ax.set_yticklabels([-0.3, 0, 0.3, 0.6, 0.9])
+
+# Clean legend positioned out of the way of the data data
+#ax.legend(frameon=False, bbox_to_anchor=(0.5, 0.7))
+
+sns.despine(trim=True)
+plt.tight_layout()
+
+# 7. Save figures
+output_dir = path_dict['paper_fig_path'] / 'Representations'
+output_dir.mkdir(parents=True, exist_ok=True)
+plt.savefig(output_dir / 'representation_regression_grouped.jpg', dpi=600)
+plt.savefig(output_dir / 'representation_regression_grouped.pdf')
+plt.show()
+
+# %% Plot Grouped Bar Chart for Interactions
+
+# 1. Define conditions and layout parameters
+conditions = ['beta_obj_rew', 'beta_obj_context', 'beta_rew_context']
+cond_labels = ['Object', 'Reward', 'Context']
+condition_colors = ['#7bc0a3', '#e8a87c', '#92a8d1']  # Unique color per condition
+
+# 2. Calculate summary statistics
+means = corr_df.groupby('region')[conditions].mean()
+sems = corr_df.groupby('region')[conditions].sem()
+
+# Establish a single fixed order for the X-axis (sorting by overall average effect)
+region_order = ['AUD', 'VIS', 'TEa', 'PERI', 'LEC', 'CA1']
+
+# 3. Set up cluster geometry
+x = np.arange(len(region_order))  # Total number of region clusters
+width = 0.25                      # Width of individual bars
+offsets = [-width, 0, width]      # X-axis shift for each condition within a cluster
+
+# 4. Initialize Plot
+fig, ax = plt.subplots(figsize=(3.5, 1.5), dpi=600)
+#ax.axhline(0, color='gray', linestyle='-', linewidth=0.6, zorder=1)
+
+# 5. Plot groups and calculate significance
+for j, (cond, label) in enumerate(zip(conditions, cond_labels)):
+    y_means = [means.loc[reg, cond] for reg in region_order]
+    y_sems = [sems.loc[reg, cond] for reg in region_order]
+    x_pos = x + offsets[j]
+    
+    # Plot the bars for the current condition across all regions
+    ax.bar(x_pos, y_means, width, yerr=y_sems, label=label, 
+           color=condition_colors[j], zorder=2,
+           error_kw=dict(ecolor='dimgray', elinewidth=1.1, capsize=0))
+    
+    # Calculate and add significance stars dynamically above each bar
+    for i, reg in enumerate(region_order):
+        vals = corr_df.loc[corr_df['region'] == reg, cond].dropna().values
+        _, p = stats.ttest_1samp(vals, 0) if len(vals) > 1 else (None, np.nan)
+        
+        if p < 0.001:
+            star = '***'
+        elif p < 0.01:
+            star = '**'
+        elif p < 0.05:
+            star = '*'
+        else:
+            star = ''
+            
+        if star:
+            # Place the star just above the positive bar top or error bar ceiling
+            y_star = max(0, y_means[i] + y_sems[i]) if y_means[i] >= 0 else 0
+            ax.text(x_pos[i], y_star, star, ha='center', va='bottom', fontsize=7, color='black')
+
+# 6. Styling and Aesthetics
+ax.set_xticks(x)
+ax.set_xticklabels(region_order, rotation=90)
+ax.set_ylabel('Interaction beta weight')
+ax.set_xlabel('')
+
+# Dynamically pad ylim to accommodate the highest star
+ax.set_ylim([-0.3, 0.5]) 
+ax.set_yticks([-0.3, 0, 0.3, 0.6])
+ax.set_yticklabels([-0.3, 0, 0.3, 0.6])
+
+# Clean legend positioned out of the way of the data data
+#ax.legend(frameon=False, bbox_to_anchor=(0.5, 0.7))
+
+sns.despine(trim=True)
+plt.tight_layout()
+
+# 7. Save figures
+output_dir = path_dict['paper_fig_path'] / 'Representations'
+output_dir.mkdir(parents=True, exist_ok=True)
+plt.savefig(output_dir / 'representation_regression_interaction.jpg', dpi=600)
+plt.savefig(output_dir / 'representation_regression_interaction.pdf')
+plt.show()
