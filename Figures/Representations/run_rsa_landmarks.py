@@ -53,6 +53,9 @@ context_rdm = np.array([[9, 2, 0, 2, 0, 2],
 # Load in processed data
 with open(path_dict['google_drive_data_path'] / 'residuals_position_0mms.pickle', 'rb') as handle:
     spike_dict = pickle.load(handle)
+    
+#with open(path_dict['google_drive_data_path'] / 'residuals_motor.pickle', 'rb') as handle:
+#    spike_dict = pickle.load(handle)
 
 # Load recording info
 rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv')
@@ -100,18 +103,23 @@ for i, this_ses in enumerate(np.unique(spike_dict['date'])):
 
             # Get average population vector per condition
             pop_vec = dict()
-            pop_vec['A   A'] = np.mean(spike_counts[(spatial_bins == FIRST_OBJ + AFTER_OBJ) & (context_per_bin == obj1_goal), :], axis=0)
-            pop_vec['A   B'] = np.mean(spike_counts[(spatial_bins == FIRST_OBJ + AFTER_OBJ) & (context_per_bin == 3 - obj1_goal), :], axis=0)
+            first_obj_mask = spatial_bins == spatial_bins[np.argmin(np.abs(spatial_bins - (FIRST_OBJ + AFTER_OBJ)))]
+            near_obj_mask = spatial_bins == spatial_bins[np.argmin(np.abs(spatial_bins - (NEAR_OBJ + AFTER_OBJ)))]
+            far_obj_mask = spatial_bins == spatial_bins[np.argmin(np.abs(spatial_bins - (FAR_OBJ + AFTER_OBJ)))]
+            control_far_mask = spatial_bins == spatial_bins[np.argmin(np.abs(spatial_bins - (CONTROL_FAR + AFTER_OBJ)))]
+            control_near_mask = spatial_bins == spatial_bins[np.argmin(np.abs(spatial_bins - (CONTROL_NEAR + AFTER_OBJ)))]
+            pop_vec['A   A'] = np.mean(spike_counts[first_obj_mask & (context_per_bin == obj1_goal), :], axis=0)
+            pop_vec['A   B'] = np.mean(spike_counts[first_obj_mask & (context_per_bin == 3 - obj1_goal), :], axis=0)
             if is_far:
-                pop_vec['B   A'] = np.mean(spike_counts[(spatial_bins == FAR_OBJ + AFTER_OBJ) & (context_per_bin == obj1_goal), :], axis=0)
-                pop_vec['B   B'] = np.mean(spike_counts[(spatial_bins == FAR_OBJ + AFTER_OBJ) & (context_per_bin == 3 - obj1_goal), :], axis=0)
-                pop_vec['C   A'] = np.mean(spike_counts[(spatial_bins == CONTROL_FAR + AFTER_OBJ) & (context_per_bin == obj1_goal), :], axis=0)
-                pop_vec['C   B'] = np.mean(spike_counts[(spatial_bins == CONTROL_FAR + AFTER_OBJ) & (context_per_bin == 3 - obj1_goal), :], axis=0)
+                pop_vec['B   A'] = np.mean(spike_counts[far_obj_mask & (context_per_bin == obj1_goal), :], axis=0)
+                pop_vec['B   B'] = np.mean(spike_counts[far_obj_mask & (context_per_bin == 3 - obj1_goal), :], axis=0)
+                pop_vec['C   A'] = np.mean(spike_counts[control_far_mask & (context_per_bin == obj1_goal), :], axis=0)
+                pop_vec['C   B'] = np.mean(spike_counts[control_far_mask & (context_per_bin == 3 - obj1_goal), :], axis=0)
             else:
-                pop_vec['B   A'] = np.mean(spike_counts[(spatial_bins == NEAR_OBJ + AFTER_OBJ) & (context_per_bin == obj1_goal), :], axis=0)
-                pop_vec['B   B'] = np.mean(spike_counts[(spatial_bins == NEAR_OBJ + AFTER_OBJ) & (context_per_bin == 3 - obj1_goal), :], axis=0)
-                pop_vec['C   A'] = np.mean(spike_counts[(spatial_bins == CONTROL_NEAR + AFTER_OBJ) & (context_per_bin == obj1_goal), :], axis=0)
-                pop_vec['C   B'] = np.mean(spike_counts[(spatial_bins == CONTROL_NEAR + AFTER_OBJ) & (context_per_bin == 3 - obj1_goal), :], axis=0)
+                pop_vec['B   A'] = np.mean(spike_counts[near_obj_mask & (context_per_bin == obj1_goal), :], axis=0)
+                pop_vec['B   B'] = np.mean(spike_counts[near_obj_mask & (context_per_bin == 3 - obj1_goal), :], axis=0)
+                pop_vec['C   A'] = np.mean(spike_counts[control_near_mask & (context_per_bin == obj1_goal), :], axis=0)
+                pop_vec['C   B'] = np.mean(spike_counts[control_near_mask & (context_per_bin == 3 - obj1_goal), :], axis=0)
 
             # Construct representation dissimilarity matrix (RDM)
             labels = list(pop_vec.keys())

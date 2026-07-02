@@ -19,6 +19,7 @@ mne.set_log_level('WARNING')
 
 # Settings
 MIN_NEURONS = 5
+USE_TYPE = 'PYR'  # INT, PYR or ALL
 
 def run_stats(df):
     test1_matrix = df[df['context'] == 1].pivot_table(
@@ -47,7 +48,11 @@ path_dict = paths()
 subjects = load_subjects()
 with open(path_dict['google_drive_data_path'] / 'residuals_position_0mms.pickle', 'rb') as handle:
     spike_dict = pickle.load(handle)
-    
+
+# Add neuron type to spike_dict
+neuron_type = pd.read_csv(path_dict['save_path'] / 'waveform_metrics.csv',
+                          dtype={'subject': str, 'date': str})
+
 # Loop over recordings
 dpca_df = pd.DataFrame()
 for i in np.arange(len(spike_dict['date'])):
@@ -55,6 +60,16 @@ for i in np.arange(len(spike_dict['date'])):
     # Get session info
     this_subject = spike_dict['subject'][i]
     this_ses = spike_dict['date'][i]
+    this_probe = spike_dict['probe'][i]
+
+    # Subselect neuron types
+    if USE_TYPE != 'ALL':
+        neuron_types = neuron_type[(neuron_type['subject'] == this_subject) &
+                                   (neuron_type['date'] == this_ses) &
+                                   (neuron_type['probe'] == this_probe) &
+                                   (neuron_type['unit_id'].isin(spike_dict['neuron_id'][i]))]['neuron_type'].values
+    else:
+        neuron_types = np.array(['ALL'] * spike_dict['neuron_id'][i].shape[0])
 
     # Get whether this is a FAR or NEAR session
     is_far = subjects.loc[subjects['SubjectID'] == this_subject, 'Far'].values[0]
@@ -73,7 +88,8 @@ for i in np.arange(len(spike_dict['date'])):
             continue
 
         # Get data from this session and region
-        spike_counts = spike_dict['residuals'][i][:, spike_dict['region'][i] == region]  # spatial bins x neurons
+        spike_counts = spike_dict['residuals'][i][
+            :, (spike_dict['region'][i] == region) & (neuron_types == USE_TYPE)]  # spatial bins x neurons
 
         # Throw out silent neurons
         spike_counts = spike_counts[:, np.std(spike_counts, axis=0) > 0.5]
@@ -170,8 +186,8 @@ axs[0].set_ylabel('Interaction', labelpad=0)
 f.supxlabel('Position (cm)', fontsize=7, y=0.08)   
 sns.despine(trim=True)
 plt.tight_layout()
-plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / 'interaction_far.pdf')
-plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / 'interaction_far.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'interaction_far_{USE_TYPE}.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'interaction_far_{USE_TYPE}.jpg', dpi=600)
 plt.show()
 
 # %%
@@ -192,8 +208,8 @@ axs[0].set_ylabel('Interaction', labelpad=0)
 f.supxlabel('Position (cm)', fontsize=7, y=0.08)   
 sns.despine(trim=True)
 plt.tight_layout()
-plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / 'interaction_far_closeup.pdf')
-plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / 'interaction_far_closeup.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'interaction_far_closeup_{USE_TYPE}.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'interaction_far_closeup_{USE_TYPE}.jpg', dpi=600)
 plt.show()
 
 
@@ -219,6 +235,8 @@ axs[0].set(ylabel='Interaction')
 f.supxlabel('Position (cm)', fontsize=7)   
 sns.despine(trim=True)
 plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'interaction_near_{USE_TYPE}.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'interaction_near_{USE_TYPE}.jpg', dpi=600)
 plt.show()
 
 

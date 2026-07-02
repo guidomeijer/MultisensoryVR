@@ -19,8 +19,9 @@ BIN_SIZE = 50  # mm
 STEP_SIZE = 10
 MIN_TRIALS = 0
 MIN_SPEED = 0  # mm/s
-N_CORES = 18
+N_CORES = -8
 OVERWRITE = True
+ADD_POSITION = False
 
 # Create position bins
 rel_bin_centers = np.arange((BIN_SIZE/2), 1500 - ((BIN_SIZE/2) - STEP_SIZE), STEP_SIZE)
@@ -132,19 +133,23 @@ def process_recording(i, subject, date, probe, n_recs, path_dict, rel_bin_center
     # Convert to pandas dataframe
     df = pd.DataFrame(final_predictors)
 
+    if ADD_POSITION:
     # Add position splines
-    all_rel_positions = np.concatenate(rel_pos_list)
-    spatial_basis = dmatrix(
-        "bs(pos, df=10, include_intercept=False) - 1", 
-        {"pos": all_rel_positions}, 
-        return_type='dataframe'
-    )
-    spatial_basis.columns = [f'spatial_basis_{i}' for i in range(spatial_basis.shape[1])]
-    
-    # Get the base X matrix and add the constant
-    X_motor = df[['speed', 'acceleration', 'lick']]
-    X_motor_with_pos = pd.concat([X_motor, spatial_basis.reset_index(drop=True)], axis=1)
-    X_full = sm.add_constant(X_motor_with_pos, prepend=False)
+        all_rel_positions = np.concatenate(rel_pos_list)
+        spatial_basis = dmatrix(
+            "bs(pos, df=10, include_intercept=False) - 1", 
+            {"pos": all_rel_positions}, 
+            return_type='dataframe'
+        )
+        spatial_basis.columns = [f'spatial_basis_{i}' for i in range(spatial_basis.shape[1])]
+        
+        # Get the base X matrix and add the constant
+        X_motor = df[['speed', 'acceleration', 'lick']]
+        X_motor_with_pos = pd.concat([X_motor, spatial_basis.reset_index(drop=True)], axis=1)
+        X_full = sm.add_constant(X_motor_with_pos, prepend=False)
+    else:
+        X_full = df[['speed', 'acceleration', 'lick']]
+        X_full = sm.add_constant(X_full, prepend=False)
 
     # Fit GLM
     # print("Fitting GLM...")
@@ -235,6 +240,9 @@ if __name__ == '__main__':
                 residuals_dict[key].append(result[key])
         
     # Save to disk
-    with open(path_dict['google_drive_data_path'] / f'residuals_position_motor.pickle', 'wb') as handle:
-        pickle.dump(residuals_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    
+    if ADD_POSITION:
+        with open(path_dict['google_drive_data_path'] / f'residuals_position_motor.pickle', 'wb') as handle:
+            pickle.dump(residuals_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    else:
+        with open(path_dict['google_drive_data_path'] / f'residuals_motor.pickle', 'wb') as handle:
+            pickle.dump(residuals_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)

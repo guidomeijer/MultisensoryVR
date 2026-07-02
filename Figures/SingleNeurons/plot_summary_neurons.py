@@ -67,19 +67,20 @@ res_sig_only = pd.concat([sig_totals, sig_pos_counts, sig_neg_counts], axis=1).f
 res_sig_only['perc_pos_in_sig'] = (res_sig_only['sig_pos_count'] / res_sig_only['total_sig_neurons']) * 100
 res_sig_only['perc_neg_in_sig'] = (res_sig_only['sig_neg_count'] / res_sig_only['total_sig_neurons']) * 100
 
-# Get percentage of positively and negatively modulated neurons
-session_totals = stats_df.groupby('ses_id').size().rename('total_neurons')
-is_sig = stats_df['p_context_obj1'] < 0.05
-is_pos = stats_df['z_context_obj1'] > 0
-is_neg = stats_df['z_context_obj1'] < 0
-sig_pos_counts = stats_df[is_sig & is_pos].groupby('ses_id').size().rename('sig_pos_count')
-sig_neg_counts = stats_df[is_sig & is_neg].groupby('ses_id').size().rename('sig_neg_count')
+# Get percentage of positively and negatively modulated neurons per region
+session_totals = stats_df.groupby(['region', 'ses_id']).size().rename('total_neurons')
+is_sig = stats_df['p_context_obj2'] < 0.05
+is_pos = stats_df['z_context_obj2'] > 0
+is_neg = stats_df['z_context_obj2'] < 0
+sig_pos_counts = stats_df[is_sig & is_pos].groupby(['region', 'ses_id']).size().rename('sig_pos_count')
+sig_neg_counts = stats_df[is_sig & is_neg].groupby(['region', 'ses_id']).size().rename('sig_neg_count')
 results_df = pd.concat([session_totals, sig_pos_counts, sig_neg_counts], axis=1).fillna(0)
 results_df['perc_sig_pos'] = (results_df['sig_pos_count'] / results_df['total_neurons']) * 100
 results_df['perc_sig_neg'] = (results_df['sig_neg_count'] / results_df['total_neurons']) * 100
+results_df = results_df.reset_index()
 
-# Display the resulting percentages per session
-print(results_df[['perc_sig_pos', 'perc_sig_neg']])
+# Display the resulting percentages per session and region
+print(results_df[['region', 'perc_sig_pos', 'perc_sig_neg']])
 
 # Plot number of neurons per region
 merge_peri = per_ses_df.copy()
@@ -166,6 +167,52 @@ plt.tight_layout(w_pad=0.8)
 
 plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'n_neurons.jpg', dpi=600)
 plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'n_neurons.pdf')
+plt.show()
+
+
+# %% Plot percentage of significant positively and negatively modulated neurons split by brain region
+results_melt = results_df.melt(id_vars=['region', 'ses_id'], value_vars=['perc_sig_pos', 'perc_sig_neg'],
+                               var_name='modulation', value_name='percentage')
+results_melt['modulation'] = results_melt['modulation'].replace({'perc_sig_pos': 'Positive', 'perc_sig_neg': 'Negative'})
+
+f, ax1 = plt.subplots(1, 1, figsize=(1.9, 2), dpi=dpi)
+this_order = results_df.groupby('region')['perc_sig_pos'].mean().sort_values(ascending=False).index.values
+sns.barplot(data=results_melt, x='region', y='percentage', hue='modulation', ax=ax1, errorbar='se',
+            palette={'Positive': colors['goal'], 'Negative': colors['no-goal']}, order=this_order,
+            legend=False)
+ax1.set(ylabel='Significant neurons (%)', xlabel='', yticks=[0, 2, 4, 6, 8, 10], ylim=[0, 10])
+ax1.tick_params(axis='x', labelrotation=90)
+
+# Perform paired t-test per brain region and place significance stars
+from scipy.stats import ttest_rel
+for i, region in enumerate(this_order):
+    region_data = results_df[results_df['region'] == region]
+    pos_vals = region_data['perc_sig_pos'].values
+    neg_vals = region_data['perc_sig_neg'].values
+    if len(pos_vals) >= 2 and not np.all(pos_vals == neg_vals):
+        stat, p = ttest_rel(pos_vals, neg_vals)
+        if p < 0.05:
+            if p < 0.001:
+                stars = '***'
+            elif p < 0.01:
+                stars = '**'
+            else:
+                stars = '*'
+            
+            # Calculate height above the error bars
+            mean_pos = np.mean(pos_vals)
+            sem_pos = np.std(pos_vals, ddof=1) / np.sqrt(len(pos_vals))
+            mean_neg = np.mean(neg_vals)
+            sem_neg = np.std(neg_vals, ddof=1) / np.sqrt(len(neg_vals))
+            h = max(mean_pos + sem_pos, mean_neg + sem_neg) + 0.3
+            h = min(max(h, 2), 9)  # Keep the stars within a reasonable range below the y-limit of 10
+            
+            ax1.text(i, h, stars, ha='center', va='bottom', fontsize=12, color='black')
+
+sns.despine(trim=False)
+plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'perc_sig_pos_neg_neurons.jpg', dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'SingleNeurons' / 'perc_sig_pos_neg_neurons.pdf')
 plt.show()
 
 
