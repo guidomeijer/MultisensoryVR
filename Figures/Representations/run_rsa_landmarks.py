@@ -458,7 +458,7 @@ width = 0.25                      # Width of individual bars
 offsets = [-width, 0, width]      # X-axis shift for each condition within a cluster
 
 # 4. Initialize Plot
-fig, ax = plt.subplots(figsize=(3.5, 1.5), dpi=600)
+fig, ax = plt.subplots(figsize=(3, 1.5), dpi=600)
 #ax.axhline(0, color='gray', linestyle='-', linewidth=0.6, zorder=1)
 
 # 5. Plot groups and calculate significance
@@ -535,7 +535,7 @@ width = 0.25                      # Width of individual bars
 offsets = [-width, 0, width]      # X-axis shift for each condition within a cluster
 
 # 4. Initialize Plot
-fig, ax = plt.subplots(figsize=(3.5, 1.5), dpi=600)
+fig, ax = plt.subplots(figsize=(3, 1.5), dpi=600)
 #ax.axhline(0, color='gray', linestyle='-', linewidth=0.6, zorder=1)
 
 # 5. Plot groups and calculate significance

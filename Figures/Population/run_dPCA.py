@@ -19,33 +19,56 @@ mne.set_log_level('WARNING')
 
 # Settings
 MIN_NEURONS = 5
-USE_TYPE = 'PYR'  # INT, PYR or ALL
+USE_TYPE = 'ALL'  # INT, PYR or ALL
+
 
 def run_stats(df):
+    # Ensure position is numeric so pivoting sorts it correctly/sequentially
+    df = df.copy()
+    df['position'] = pd.to_numeric(df['position'])
+    
+    # Average within subject/session/context first
     test1_matrix = df[df['context'] == 1].pivot_table(
         index=['subject', 'session'], columns='position', values='interaction_traj', aggfunc='mean')
     test2_matrix = df[df['context'] == 2].pivot_table(
         index=['subject', 'session'], columns='position', values='interaction_traj', aggfunc='mean')
+    
+    # CRITICAL: Align the dataframes so rows match perfectly across contexts
+    test1_matrix, test2_matrix = test1_matrix.align(test2_matrix, join='inner', axis=0)
+    
+    if test1_matrix.empty:
+        raise ValueError("No matching subject/session pairs found between context 1 and 2.")
+        
     positions = test1_matrix.columns.values
     X = test1_matrix.values - test2_matrix.values
-    t_threshold = stats.t.ppf(1 - 0.05 / 2, test1_matrix.shape[0]-1)
+    
+    # Calculate threshold
+    t_threshold = stats.t.ppf(1 - 0.05 / 2, test1_matrix.shape[0] - 1)
+    
+    # Run MNE cluster test
     t_obs, clusters, cluster_p_values, H0 = mne.stats.permutation_cluster_1samp_test(
-       X,
-       threshold=t_threshold,
-       n_permutations=1000, 
-       tail=0,          # Two-tailed test
-       out_type='mask'  # Returns boolean masks for positions
-       )
+        X,
+        threshold=t_threshold,
+        n_permutations=1000, 
+        tail=0,          
+        out_type='mask'  
+    )
+    
+    # Initialize with 1.0, but assign ALL calculated cluster p-values to see reality
     p_values = np.ones(len(positions))
     for cluster_mask, p_val in zip(clusters, cluster_p_values):
-        if p_val < 0.05:
-            # Assign the cluster-level p-value to all positions in this cluster
-            p_values[cluster_mask] = p_val
+        # Assign the actual cluster p-value to its corresponding positions
+        p_values[cluster_mask] = p_val
+        
     return p_values, positions
+
 
 # Load in data
 path_dict = paths()
 subjects = load_subjects()
+#with open(path_dict['google_drive_data_path'] / 'residuals_motor.pickle', 'rb') as handle:
+#    spike_dict = pickle.load(handle)
+    
 with open(path_dict['google_drive_data_path'] / 'residuals_position_0mms.pickle', 'rb') as handle:
     spike_dict = pickle.load(handle)
 
@@ -182,7 +205,7 @@ for i, region in enumerate(['AUD', 'VIS', 'TEa', 'PERI', 'LEC', 'CA1']):
     axs[i].set(title=f'{region}', xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
                   ylim=[-1.5, 1.5], yticks=[-1.5, 0, 1.5], yticklabels=[-1.5, 0, 1.5],
                   xlabel='', ylabel='')
-axs[0].set_ylabel('Interaction', labelpad=0)
+axs[0].set_ylabel('Context-Space interaction', labelpad=0)
 f.supxlabel('Position (cm)', fontsize=7, y=0.08)   
 sns.despine(trim=True)
 plt.tight_layout()
@@ -204,7 +227,7 @@ for i, region in enumerate(['AUD', 'VIS', 'TEa', 'PERI', 'LEC', 'CA1']):
     axs[i].set(title=f'{region}', xticks=[900, 1050, 1200, 1325], xticklabels=[90, 105, 120, 135],
                   ylim=[-0.4, 0.4], yticks=[-0.4, 0, 0.4], yticklabels=[-0.4, 0, 0.4],
                   xlabel='', ylabel='')
-axs[0].set_ylabel('Interaction', labelpad=0)
+axs[0].set_ylabel('Context-Space interaction', labelpad=0)
 f.supxlabel('Position (cm)', fontsize=7, y=0.08)   
 sns.despine(trim=True)
 plt.tight_layout()

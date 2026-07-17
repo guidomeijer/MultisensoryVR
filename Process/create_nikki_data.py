@@ -12,11 +12,11 @@ from msvr_functions import paths, load_multiple_probes, get_spike_counts_in_bins
 
 # Settings
 BIN_SIZE = 0.05   # s
+DATA_PATH = Path(r'V:\imaging1\guido')
 SAVE_PATH = Path(r'D:\MultisensoryVR\Nikki')
 
 # Initialize
-path_dict = paths(sync=False)
-rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv', dtype={'subject': str, 'date': str})
+rec = pd.read_csv(DATA_PATH / 'recordings.csv', dtype={'subject': str, 'date': str})
 rec = rec.drop_duplicates(subset=['subject', 'date'], keep='first')
 
 # Loop over recordings
