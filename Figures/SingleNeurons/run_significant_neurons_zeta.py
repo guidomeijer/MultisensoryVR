@@ -26,8 +26,8 @@ rec = pd.read_csv(join(path_dict['repo_path'], 'recordings.csv')).astype(str)
 if OVERWRITE:
     stats_df = pd.DataFrame()
 else:
-    stats_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
-    stats_df[['subject', 'date', 'probe']] = stats_df[['subject', 'date', 'probe']].astype(str)
+    stats_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'),
+                           dtype={'subject': str, 'date': str})
     merged = rec.merge(stats_df, on=['subject', 'date', 'probe'], how='left', indicator=True)
     rec = merged[merged['_merge'] == 'left_only'].drop(columns=['_merge'])
     
