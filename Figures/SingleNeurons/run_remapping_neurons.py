@@ -91,7 +91,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         'subject': subject,
         'date': date,
         'probe': probe,
-        'cluster_id': clusters['cluster_id'],
+        'neuron_id': clusters['cluster_id'],
         'region': clusters['region'],
         'acronym': clusters['acronym'],
         'p_obj1': p_values_1,

@@ -51,8 +51,8 @@ this_order = per_ses_df[['region', 'perc_obj1']].groupby('region').mean().sort_v
 sns.barplot(data=per_ses_df, x='region', y='perc_obj1', ax=ax1, hue='region', errorbar='se',
             palette=colors, order=this_order)
 
-ax1.set(ylabel='Significant neurons (%)',  yticks=[0, 5, 10, 15], xlabel='',
-        title='Object 1', ylim=[0, 18], xlim=use_xlim)
+ax1.set(ylabel='Significant neurons (%)',  yticks=[0, 10, 20, 30], xlabel='',
+        title='Object 1', ylim=[0, 30], xlim=use_xlim)
 ax1.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_obj2']].groupby('region').mean().sort_values(
@@ -61,7 +61,7 @@ sns.barplot(data=per_ses_df, x='region', y='perc_obj2', ax=ax2, hue='region', er
             palette=colors, order=this_order)
 
 #ax2.set(xlabel='', title='Context first landmark', yticks=[0, 1, 2, 3, 4, 5, 6], ylim=[0, 6], ylabel='')
-ax2.set(xlabel='', title='Object 2', yticks=[0, 5, 10, 15], ylim=[0, 18], ylabel='', xlim=use_xlim)
+ax2.set(xlabel='', title='Object 2', yticks=[0, 10, 20, 30], ylim=[0, 30], ylabel='', xlim=use_xlim)
 ax2.tick_params(axis='x', labelrotation=90)
 
 sns.despine(trim=False)

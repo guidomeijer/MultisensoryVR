@@ -65,11 +65,8 @@ def run_stats(df):
 
 # Load in data
 path_dict = paths()
-subjects = load_subjects()
-#with open(path_dict['google_drive_data_path'] / 'residuals_motor.pickle', 'rb') as handle:
-#    spike_dict = pickle.load(handle)
-    
-with open(path_dict['google_drive_data_path'] / 'residuals_position_0mms.pickle', 'rb') as handle:
+subjects = load_subjects()    
+with open(path_dict['google_drive_data_path'] / 'residuals_position_20mms.pickle', 'rb') as handle:
     spike_dict = pickle.load(handle)
 
 # Add neuron type to spike_dict
