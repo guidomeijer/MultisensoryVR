@@ -21,18 +21,20 @@ mne.set_log_level('WARNING')
 MIN_NEURONS = 5
 USE_TYPE = 'ALL'  # INT, PYR or ALL
 REGION_ORDER = ['VIS', 'AUD', 'TEa', 'PERI', 'LEC', 'CA1']
+REGION_NAMES = ['Visual cortex', 'Auditory cortex', 'Temporal association cortex',
+                'Perirhinal cortex', 'Lateral entorhinal cortex', 'Hippocampus (CA1)']
 
 
-def run_stats(df):
+def run_stats(df, y_col, t_thres=0.2):
     # Ensure position is numeric so pivoting sorts it correctly/sequentially
     df = df.copy()
     df['position'] = pd.to_numeric(df['position'])
     
     # Average within subject/session/context first
     test1_matrix = df[df['context'] == 1].pivot_table(
-        index=['subject', 'session'], columns='position', values='interaction_traj', aggfunc='mean')
+        index=['subject', 'session'], columns='position', values=y_col, aggfunc='mean')
     test2_matrix = df[df['context'] == 2].pivot_table(
-        index=['subject', 'session'], columns='position', values='interaction_traj', aggfunc='mean')
+        index=['subject', 'session'], columns='position', values=y_col, aggfunc='mean')
     
     # CRITICAL: Align the dataframes so rows match perfectly across contexts
     test1_matrix, test2_matrix = test1_matrix.align(test2_matrix, join='inner', axis=0)
@@ -44,7 +46,7 @@ def run_stats(df):
     X = test1_matrix.values - test2_matrix.values
     
     # Calculate threshold
-    t_threshold = stats.t.ppf(1 - 0.2 / 2, test1_matrix.shape[0] - 1)
+    t_threshold = stats.t.ppf(1 - t_thres / 2, test1_matrix.shape[0] - 1)
     
     # Run MNE cluster test
     t_obs, clusters, cluster_p_values, H0 = mne.stats.permutation_cluster_1samp_test(
@@ -67,7 +69,7 @@ def run_stats(df):
 # Load in data
 path_dict = paths()
 subjects = load_subjects()    
-with open(path_dict['google_drive_data_path'] / 'residuals_position_20mms.pickle', 'rb') as handle:
+with open(path_dict['google_drive_data_path'] / 'residuals_position_50mms.pickle', 'rb') as handle:
     spike_dict = pickle.load(handle)
 
 # Add neuron type to spike_dict
@@ -188,21 +190,25 @@ for i, region in enumerate(REGION_ORDER):
     plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 1)]
 
     # Position trajectory
+    p_values, positions = run_stats(plot_df, y_col='pos_traj', t_thres=0.2)
     sns.lineplot(data=plot_df, x='position', y='pos_traj', hue='context',
                  hue_order=[1, 2], ax=axs[0, i], palette=[colors['context1'], colors['context2']],
                  legend=False, errorbar='se', err_kws={'lw': 0})
-    axs[0, i].set(ylabel='', xlabel='')
-    axs[0, i].set_title(region, color=colors[region], weight='bold')
+    add_significance(positions, p_values, ax=axs[0, i], y_pos=1.5)
+    axs[0, i].set(ylabel='', xlabel='', ylim=[-1.5, 1.5], yticks=[-1.5, 0, 1.5], yticklabels=[-1.5, 0, 1.5],
+                  title=REGION_NAMES[i])
 
     # Context trajectory
+    p_values, positions = run_stats(plot_df, y_col='context_traj', t_thres=0.8)
     sns.lineplot(data=plot_df, x='position', y='context_traj', hue='context',
                  ax=axs[1, i], hue_order=[1, 2], palette=[colors['context1'], colors['context2']],
                  legend=False, errorbar='se', err_kws={'lw': 0})
+    add_significance(positions, p_values, ax=axs[1, i])
     axs[1, i].set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150], ylabel='', xlabel='',
                   ylim=[-0.4, 0.4], yticks=[-0.4, 0, 0.4], yticklabels=[-0.4, 0, 0.4])
 
     # Interaction trajectory
-    p_values, positions = run_stats(plot_df)
+    p_values, positions = run_stats(plot_df, y_col='interaction_traj', t_thres=0.2)
     sns.lineplot(data=plot_df, x='position', y='interaction_traj', hue='context',
                  hue_order=[1, 2], ax=axs[2, i], palette=[colors['context1'], colors['context2']],
                  legend=False, errorbar='se', err_kws={'lw': 0}, zorder=1)
