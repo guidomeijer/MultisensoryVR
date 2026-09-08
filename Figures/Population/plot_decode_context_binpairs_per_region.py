@@ -4,6 +4,7 @@ Plot the results of decode_context_binpairs_per_region.py
 
 By Guido Meijer
 """
+#%%
 
 import numpy as np
 import pandas as pd
@@ -55,7 +56,8 @@ for i, region in enumerate(PLOT_REGIONS):
     #axs[i].plot([70, 70], [0, 150], color=LINE_COLOR, ls='--', lw=0.5)
     #axs[i].plot([0, 150], [70, 70], color=LINE_COLOR, ls='--', lw=0.5)
 
-    axs[i].set(xlabel='', ylabel='', title=region, xticks=[], yticks=[])
+    axs[i].set(xlabel='', ylabel='', xticks=[], yticks=[])
+    axs[i].set_title(region, color=colors[region], weight='bold')
     axs[i].invert_yaxis()
 axs[0].set(ylabel='Train position')
 f.text(0.5, 0.04, 'Test position', ha='center')
@@ -75,6 +77,7 @@ plt.show()
 plot_df = context_df[context_df['Far'] == 0]
 f, axs = plt.subplots(1, 6, figsize=(7, 1.4), dpi=dpi, sharey=True)
 for i, region in enumerate(PLOT_REGIONS):
+
     # Create spatial bin matrix train_position by test_position and average over dates
     pivot_df = plot_df[plot_df['region'] == region].groupby(['train_position', 'test_position']).mean(
         numeric_only=True)['accuracy'].unstack()
@@ -84,7 +87,8 @@ for i, region in enumerate(PLOT_REGIONS):
     axs[i].plot([0, 150], [40, 40], color=LINE_COLOR, ls='--', lw=0.5)
     axs[i].plot([85, 85], [0, 150], color=LINE_COLOR, ls='--', lw=0.5)
     axs[i].plot([0, 150], [85, 85], color=LINE_COLOR, ls='--', lw=0.5)
-    axs[i].set(xlabel='', ylabel='', title=region, xticks=[], yticks=[])
+    axs[i].set(xlabel='', ylabel='', xticks=[], yticks=[])
+    axs[i].set_title(region, color=colors[region], weight='bold')
     axs[i].invert_yaxis()
 axs[0].set(ylabel='Train position')
 f.text(0.5, 0.04, 'Test position', ha='center')
@@ -101,7 +105,7 @@ plt.show()
 # %% Plot second landmark decoding
 
 
-f, axs = plt.subplots(1, 6, figsize=(7, 1.5), dpi=dpi, sharey=True)
+f, axs = plt.subplots(1, 6, figsize=(6.8, 1.5), dpi=dpi, sharey=True)
 p_values = {} # Dictionary to store p-values for each region
 for i, region in enumerate(PLOT_REGIONS):
     region_df = context_df[context_df['region'] == region]
@@ -141,7 +145,7 @@ for i, region in enumerate(PLOT_REGIONS):
     axs[i].axhline(0.5, ls='--', color='k', lw=0.5)
     axs[i].set(xlabel='', ylabel='', ylim=[0.3, 0.8], xticks=[0, 50, 100, 150],
                yticks=[0.3, 0.4, 0.5, 0.6, 0.7, 0.8], yticklabels=[30, 40, 50, 60, 70, 80])
-    axs[i].text(15, 0.65, region, color=colors[region], weight='bold') # Original region text
+    axs[i].text(7, 0.75, region, color=colors[region], weight='bold') # Original region text
 
 sns.despine(trim=True)
 
@@ -153,7 +157,7 @@ plt.savefig(path_dict['paper_fig_path'] / 'Decoding' / 'decode_context_second_la
 plt.show()
 
 
-# %% Plot second landmark decoding
+# %% Plot first landmark decoding
 
 
 f, axs = plt.subplots(1, 6, figsize=(7, 1.5), dpi=dpi, sharey=True)
@@ -162,7 +166,7 @@ for i, region in enumerate(PLOT_REGIONS):
     region_df = context_df[context_df['region'] == region]
     
     # Far: tested at second landmark 130 - 150 cm (1300 - 1500 mm)
-    far_df = region_df[(region_df['Far'] == 1) & (region_df['test_position'] >= 1350) & (region_df['test_position'] <= 1450)]
+    far_df = region_df[(region_df['Far'] == 1) & (region_df['test_position'] >= 500) & (region_df['test_position'] <= 700)]
     plot_df = far_df.groupby(['subject', 'date', 'train_position']).mean(numeric_only=True).reset_index()
     plot_df['train_position_cm'] = plot_df['train_position'] / 10
 

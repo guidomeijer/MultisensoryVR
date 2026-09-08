@@ -815,39 +815,68 @@ def bin_signal(x, y, bin_centers, bin_size, statistic='mean'):
     return bin_values
 
 
-def add_significance(x, p_values, ax, y_pos='auto', alpha=0.05, color='k'):
+def add_significance(x, p_values, ax, y_pos='auto', x_pos='auto', orientation='horizontal',
+                     alpha=0.05, color='k', lw=1.5):
     """
     Add significance bars to a plot based on p-values.
 
     Parameters
     ----------
     x : array-like
-        The x-coordinates corresponding to the p-values.
+        The coordinates corresponding to the p-values (x-coordinates if horizontal,
+        y-coordinates if vertical).
     p_values : array-like
         The p-values to evaluate for significance.
     ax : matplotlib.axes.Axes
         The axes object to plot the significance bars on.
     y_pos : float or 'auto', optional
-        The y-position of the significance bars. If 'auto', uses the top of the y-axis.
+        The y-position of the significance bars (for horizontal plots). If 'auto',
+        uses the top of the y-axis.
+    x_pos : float or 'auto', optional
+        The x-position of the significance bars (for vertical plots). If 'auto',
+        uses the right of the x-axis.
+    orientation : {'horizontal', 'vertical', 'h', 'v'}, optional
+        The orientation of the plot/significance bars. Default is 'horizontal'.
     alpha : float, optional
         The significance threshold. Default is 0.05.
     color : str, optional
         The color of the significance bars. Default is 'k' (black).
+    lw : float, optional
+        The line width of the significance bars. Default is 1.5.
     """
+    x = np.asarray(x)
+    p_sig = np.asarray(p_values) < alpha
+    if not np.any(p_sig):
+        return
 
-    p_sig = p_values < alpha
     start_end = np.where(np.concatenate(([0], np.diff(p_sig).astype(int))))[0]
     if p_sig[0] == True:
         start_end = np.concatenate(([0], start_end))
     if p_sig[-1] == True:
         start_end = np.concatenate((start_end, [p_sig.shape[0]-1]))
-    if y_pos == 'auto':
-        y = ax.get_ylim()[1]
+
+    if orientation in ['vertical', 'v']:
+        if x_pos != 'auto':
+            pos = x_pos
+        elif y_pos != 'auto':
+            pos = y_pos
+        else:
+            pos = ax.get_xlim()[1]
+        val = pos + (pos * 0.05)
+        for (i, ind) in zip(np.arange(start_end.shape[0])[::2], start_end[::2]):
+            ax.plot([val, val], [x[ind], x[start_end[i+1]]], color=color, lw=lw,
+                    clip_on=False)
     else:
-        y = y_pos
-    for (i, ind) in zip(np.arange(start_end.shape[0])[::2], start_end[::2]):
-        ax.plot([x[ind], x[start_end[i+1]]], [y + (y*0.05), y + (y*0.05)], color=color, lw=1.5,
-                clip_on=False)
+        if y_pos != 'auto':
+            pos = y_pos
+        elif x_pos != 'auto':
+            pos = x_pos
+        else:
+            pos = ax.get_ylim()[1]
+        val = pos + (pos * 0.05)
+        for (i, ind) in zip(np.arange(start_end.shape[0])[::2], start_end[::2]):
+            ax.plot([x[ind], x[start_end[i+1]]], [val, val], color=color, lw=lw,
+                    clip_on=False)
 
 
 def event_aligned_averages(signal, timestamps, events, timebins, baseline=None, return_df=False):

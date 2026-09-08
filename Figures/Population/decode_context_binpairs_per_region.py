@@ -38,7 +38,7 @@ elif DECODER == 'lda':
     clf = LinearDiscriminantAnalysis()
 
 # Load in processed data
-with open(path_dict['google_drive_data_path'] / 'residuals_position_0mms.pickle', 'rb') as handle:
+with open(path_dict['google_drive_data_path'] / 'residuals_position_20mms.pickle', 'rb') as handle:
     residuals_dict = pickle.load(handle)
 
 def decode_single_train_bin(train_bin, rel_pos_bins, X_decode_all, y, positions, trials, train_trials, test_trials, classifier):

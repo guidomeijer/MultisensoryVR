@@ -20,6 +20,7 @@ mne.set_log_level('WARNING')
 # Settings
 MIN_NEURONS = 5
 USE_TYPE = 'ALL'  # INT, PYR or ALL
+REGION_ORDER = ['VIS', 'AUD', 'TEa', 'PERI', 'LEC', 'CA1']
 
 
 def run_stats(df):
@@ -43,7 +44,7 @@ def run_stats(df):
     X = test1_matrix.values - test2_matrix.values
     
     # Calculate threshold
-    t_threshold = stats.t.ppf(1 - 0.05 / 2, test1_matrix.shape[0] - 1)
+    t_threshold = stats.t.ppf(1 - 0.2 / 2, test1_matrix.shape[0] - 1)
     
     # Run MNE cluster test
     t_obs, clusters, cluster_p_values, H0 = mne.stats.permutation_cluster_1samp_test(
@@ -75,6 +76,7 @@ neuron_type = pd.read_csv(path_dict['save_path'] / 'waveform_metrics.csv',
 
 # Loop over recordings
 dpca_df = pd.DataFrame()
+dot_df = pd.DataFrame()
 for i in np.arange(len(spike_dict['date'])):
 
     # Get session info
@@ -149,6 +151,21 @@ for i in np.arange(len(spike_dict['date'])):
         # Fit the model using BOTH the 3D and 4D arrays
         Z = dpca.fit_transform(X_mean, X_trials)
 
+        # Extract encoder/decoder weights for spatial (t) and contextual (s) axes
+        w_spatial = dpca.D['t'][:, 0]
+        w_context = dpca.D['s'][:, 0]
+
+        # Calculate dot product
+        dot_prod = np.dot(w_spatial, w_context) / (np.linalg.norm(w_spatial) * np.linalg.norm(w_context))
+
+        dot_df = pd.concat((dot_df, pd.DataFrame(data={
+            'subject': [this_subject],
+            'session': [this_ses],
+            'region': [region],
+            'is_far': [is_far],
+            'dot_product': [dot_prod],
+            'abs_dot_product': [np.abs(dot_prod)]})))
+
         # Put results in dataframe
         dpca_df = pd.concat((dpca_df, pd.DataFrame(data={
             'pos_traj': np.concatenate((Z['t'][0, 0, :], Z['t'][0, 1, :])),
@@ -160,6 +177,9 @@ for i in np.arange(len(spike_dict['date'])):
             'session': this_ses, 
             'region': region, 
             'is_far': is_far})))
+
+# Save dot product results
+dot_df.to_csv(path_dict['save_path'] / f'dpca_spatial_context_dot_product_{USE_TYPE}.csv', index=False)
 
 
 # %% Plot
@@ -175,21 +195,26 @@ plt.tight_layout()
 plt.show()
 
 # %%
-f, ax = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
-for i, region in enumerate(np.unique(dpca_df['region'])):
+f, axs = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
+for i, region in enumerate(REGION_ORDER):
     plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 1)]
+    #p_values, positions = run_stats(plot_df)
+    #add_significance(positions, p_values, ax=axs[i])
     sns.lineplot(data=plot_df, x='position', y='context_traj', hue='context',
-                 ax=ax[i], palette='Set2', legend=False, errorbar='se', err_kws={'lw': 0})
-    ax[i].set_title(region)
-f.suptitle('Context')
-
+                 ax=axs[i], hue_order=[1, 2], palette=[colors['context1'], colors['context2']],
+                 legend=False, errorbar='se', err_kws={'lw': 0})
+    axs[i].set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150], ylabel='', xlabel='',
+               ylim=[-0.4, 0.4], yticks=[-0.4, 0, 0.4], yticklabels=[-0.4, 0, 0.4])
+    axs[i].set_title(region, color=colors[region], weight='bold')
+axs[0].set_ylabel('Context trajectory', labelpad=0)
+f.supxlabel('Position (cm)', y=0.08)
 sns.despine(trim=True)
 plt.tight_layout()
-plt.show()
+plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'context_far_{USE_TYPE}.pdf')
 
 # %%
 f, axs = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
-for i, region in enumerate(['AUD', 'VIS', 'TEa', 'PERI', 'LEC', 'CA1']):
+for i, region in enumerate(REGION_ORDER):
     plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 1)]
     p_values, positions = run_stats(plot_df)
     sns.lineplot(data=plot_df, x='position', y='interaction_traj', hue='context',
@@ -212,7 +237,7 @@ plt.show()
 
 # %%
 f, axs = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
-for i, region in enumerate(['AUD', 'VIS', 'TEa', 'PERI', 'LEC', 'CA1']):
+for i, region in enumerate(REGION_ORDER):
     plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 1)
                       & (dpca_df['position'] >= 900) & (dpca_df['position'] <= 1325)]
     p_values, positions = run_stats(plot_df)
@@ -237,7 +262,7 @@ plt.show()
 
 # Plot
 f, axs = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
-for i, region in enumerate(np.unique(dpca_df['region'])):
+for i, region in enumerate(REGION_ORDER):
     plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 0)]
     p_values, positions = run_stats(plot_df)
     sns.lineplot(data=plot_df, x='position', y='interaction_traj', hue='context',
@@ -259,6 +284,26 @@ plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'interaction_near_{USE_TYPE}
 plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'interaction_near_{USE_TYPE}.jpg', dpi=600)
 plt.show()
 
+# %% Plot spatial-context dot products per region
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.3 * 2, 1.75), dpi=dpi, sharey=True)
 
+sns.boxplot(data=dot_df[dot_df['is_far'] == 1], x='region', y='abs_dot_product', order=REGION_ORDER,
+            palette=colors, hue='region', linewidth=0.75, fliersize=0, ax=ax1)
+sns.stripplot(data=dot_df[dot_df['is_far'] == 1], x='region', y='abs_dot_product', order=REGION_ORDER,
+              color='k', size=3, jitter=0.2, ax=ax1)
+ax1.set(ylabel='Spatial-context alignment\n(|dot product|)', xlabel='', ylim=[-0.05, 1.05], title='Far')
+ax1.tick_params(axis='x', labelrotation=90)
 
+sns.boxplot(data=dot_df[dot_df['is_far'] == 0], x='region', y='abs_dot_product', order=REGION_ORDER,
+            palette=colors, hue='region', linewidth=0.75, fliersize=0, ax=ax2)
+sns.stripplot(data=dot_df[dot_df['is_far'] == 0], x='region', y='abs_dot_product', order=REGION_ORDER,
+              color='k', size=3, jitter=0.2, ax=ax2)
+ax2.set(ylabel='', xlabel='', title='Near')
+ax2.tick_params(axis='x', labelrotation=90)
+
+sns.despine(trim=True)
+plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'spatial_context_dot_product_{USE_TYPE}.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'spatial_context_dot_product_{USE_TYPE}.jpg', dpi=600)
+plt.show()
 
