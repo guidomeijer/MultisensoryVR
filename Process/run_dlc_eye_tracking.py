@@ -218,14 +218,14 @@ for root, directory, files in os.walk(DATA_PATH / 'Raw_Data_READONLY'):
 
             vf_pipeline = (
                 f'crop={EYE_WIDTH_PX}:{EYE_HEIGHT_PX}:{int(eye_x-EYE_WIDTH_PX/2)}:{int(eye_y-EYE_HEIGHT_PX/2)},'
-                "curves=all='0/0 0.2/0.6 1/1',format=yuv420p"
+                "curves=all='0/0 0.25/0.45 1/1',format=yuv420p"
                 )
 
             subprocess.call([
                 'ffmpeg', '-threads', str(N_CPUS),
                 '-i', str(video_path),
                 '-vf', vf_pipeline,
-                '-c:v', 'libx265', '-preset', 'ultrafast', '-crf', '0',
+                '-c:v', 'libx264', '-crf', '0',
                 '-c:a', 'copy',
                 '-y', str(eye_path)
             ])
