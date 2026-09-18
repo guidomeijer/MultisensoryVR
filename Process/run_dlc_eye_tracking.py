@@ -8,17 +8,17 @@ import shutil
 from scipy.interpolate import interp1d
 from joblib import Parallel, delayed
 from ellipse import LsqEllipse
-lsqe = LsqEllipse()
 
 DATA_PATH = Path('/vol/battaglialab/imaging1/Angela/2_Experiments/2021-0052-018_Neural correlates of memories')
 DLC_FIND_EYE = Path('/vol/battaglialab/imaging1/guido/DLC/find-eye-guido-2023-11-10/config.yaml')
 DLC_EYE_TRACK = Path('/vol/battaglialab/imaging1/guido/DLC/pupil-tracking-guido-2023-11-13/config.yaml')
+N_CPUS = 12
 EYE_WIDTH_PX = 80
 EYE_HEIGHT_PX = 70
 MIN_PROB = 0.7  # minimum probablitiy of tracked points to contribute to pupil fitting
 MIN_POINTS = 5  # minimum number of points to fit pupil ellipse
 MAX_WH_RATIO = 1.5  # maximum ratio between width and height to prevent bad fits
-EYE_FLAG = 'eyetrack_me.flag'
+EYE_FLAG = 'eyetrack_me_fr.flag'
 
 # %% Functions
 def fit_ellipse(i, eye_dlc):
@@ -56,6 +56,7 @@ def fit_ellipse(i, eye_dlc):
     if np.sum(xy_prob > MIN_PROB) >= MIN_POINTS:
         x = x[xy_prob > MIN_PROB]
         y = y[xy_prob > MIN_PROB]
+        lsqe = LsqEllipse()
         lsqe.fit(np.stack((x, y)).T)
         try:
             center, width, height, phi = lsqe.as_parameters()
@@ -70,7 +71,7 @@ def fit_ellipse(i, eye_dlc):
     return center_x, center_y, width*2, height*2, phi
 
 
-def smooth_pupil(signal, window=61, order=3, interp_kind='cubic'):
+def smooth_pupil(signal, window=61, order=3, interp_kind='cubic', n_jobs=N_CPUS):
     """Run savitzy-golay filter on signal, interpolate through nan points.
 
     Parameters
@@ -95,7 +96,7 @@ def smooth_pupil(signal, window=61, order=3, interp_kind='cubic'):
     good_idxs = np.where(~np.isnan(signal_noisy_w_nans))[0]
     # perform savitzky-golay filtering on non-nan points
     signal_smooth_nonans = non_uniform_savgol(
-        timestamps[good_idxs], signal_noisy_w_nans[good_idxs], window=window, polynom=order)
+        timestamps[good_idxs], signal_noisy_w_nans[good_idxs], window=window, polynom=order, n_jobs=n_jobs)
     signal_smooth_w_nans = np.copy(signal_noisy_w_nans)
     signal_smooth_w_nans[good_idxs] = signal_smooth_nonans
     # interpolate nan points
@@ -107,7 +108,15 @@ def smooth_pupil(signal, window=61, order=3, interp_kind='cubic'):
     return signal
 
 
-def non_uniform_savgol(x, y, window, polynom):
+def _savgol_window_fit(i, x, y, half_window, poly_order):
+    """Helper function to compute polynomial fit for a single window."""
+    t = x[i - half_window:i + half_window + 1] - x[i]
+    A = np.vstack([t ** k for k in range(poly_order)]).T
+    coeffs, *_ = np.linalg.lstsq(A, y[i - half_window:i + half_window + 1], rcond=None)
+    return coeffs[0], coeffs
+
+
+def non_uniform_savgol(x, y, window, polynom, n_jobs=N_CPUS):
     """Applies a Savitzky-Golay filter to y with non-uniform spacing as defined in x.
     This is based on
     https://dsp.stackexchange.com/questions/1676/savitzky-golay-smoothing-filter-for-not-equally-spaced-data
@@ -123,6 +132,8 @@ def non_uniform_savgol(x, y, window, polynom):
         Window length of datapoints. Must be odd and smaller than x
     polynom : int
         The order of polynom used. Must be smaller than the window size
+    n_jobs : int
+        Number of CPU cores to use for parallel processing
     Returns
     -------
     np.array
@@ -134,40 +145,32 @@ def non_uniform_savgol(x, y, window, polynom):
 
     y_smoothed = np.full(len(y), np.nan)
 
-    # Precompute powers for efficiency
-    def vandermonde(x, center, order):
-        t = x - center
-        return np.vstack([t ** k for k in range(order)]).T
+    if len(x) <= window:
+        return y_smoothed
 
-    # Store coefficients for border interpolation
-    first_coeffs = None
-    last_coeffs = None
+    # Parallelize window fits across CPUs
+    indices = range(half_window, len(x) - half_window)
+    results = Parallel(n_jobs=n_jobs)(
+        delayed(_savgol_window_fit)(i, x, y, half_window, poly_order) for i in indices
+    )
 
-    for i in range(half_window, len(x) - half_window):
-        x_win = x[i - half_window:i + half_window + 1]
-        y_win = y[i - half_window:i + half_window + 1]
-        A = vandermonde(x_win, x[i], poly_order)
-        # Solve least squares for polynomial coefficients
-        coeffs, *_ = np.linalg.lstsq(A, y_win, rcond=None)
-        y_smoothed[i] = coeffs[0]
-        if i == half_window:
-            first_coeffs = coeffs
-            first_center = x[half_window]
-        elif i == len(x) - half_window - 1:
-            last_coeffs = coeffs
-            last_center = x[-half_window - 1]
+    for idx, (val, _) in enumerate(results):
+        y_smoothed[half_window + idx] = val
+
+    first_coeffs = results[0][1]
+    first_center = x[half_window]
+    last_coeffs = results[-1][1]
+    last_center = x[-half_window - 1]
 
     # Interpolate the result at the left border
-    if first_coeffs is not None:
-        for i in range(half_window):
-            t = x[i] - first_center
-            y_smoothed[i] = np.polyval(first_coeffs[::-1], t)
+    for i in range(half_window):
+        t = x[i] - first_center
+        y_smoothed[i] = np.polyval(first_coeffs[::-1], t)
 
     # Interpolate the result at the right border
-    if last_coeffs is not None:
-        for i in range(len(x) - half_window, len(x)):
-            t = x[i] - last_center
-            y_smoothed[i] = np.polyval(last_coeffs[::-1], t)
+    for i in range(len(x) - half_window, len(x)):
+        t = x[i] - last_center
+        y_smoothed[i] = np.polyval(last_coeffs[::-1], t)
 
     return y_smoothed
 
@@ -243,8 +246,8 @@ for root, directory, files in os.walk(DATA_PATH / 'Raw_Data_READONLY'):
             eye_df = pd.DataFrame()
             print('\nFitting ellipse to tracked points')
 
-            results = Parallel(n_jobs=-1)(delayed(fit_ellipse)(i, eye_dlc)
-                                         for i in range(eye_dlc.shape[0]))
+            results = Parallel(n_jobs=N_CPUS)(delayed(fit_ellipse)(i, eye_dlc)
+                                               for i in range(eye_dlc.shape[0]))
             eye_df = pd.DataFrame(data={'center_x': [res[0] for res in results],
                                         'center_y': [res[1] for res in results],
                                         'width': [res[2] for res in results],
