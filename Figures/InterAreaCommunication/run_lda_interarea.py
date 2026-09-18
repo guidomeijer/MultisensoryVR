@@ -144,26 +144,32 @@ for date in unique_dates:
         state_B_trials = spike_counts[context_per_bin == 3 - obj1_goal, :].reshape(
             n_trials_B, n_bins, n_neurons)[:min_trials, :, :]
 
-        # Fit LDA with the two contexts as classes
-        X_train = np.vstack([state_A_trials.reshape(-1, n_neurons),
-                             state_B_trials.reshape(-1, n_neurons)])
-        y_train = np.concatenate([np.ones(min_trials * n_bins),
-                                  np.full(min_trials * n_bins, 2)])
+        # Fit LDA per spatial bin and project single trials onto bin-specific context axis
+        # state_A_trials shape: (min_trials, n_bins, n_neurons)
+        # state_B_trials shape: (min_trials, n_bins, n_neurons)
+        proj_A = np.zeros((n_bins, min_trials))
+        proj_B = np.zeros((n_bins, min_trials))
+        y_train_bin = np.concatenate([np.ones(min_trials), np.full(min_trials, 2)])
 
-        lda = LinearDiscriminantAnalysis()
-        lda.fit(X_train, y_train)
+        for b in range(n_bins):
+            X_train_bin = np.vstack([state_A_trials[:, b, :], state_B_trials[:, b, :]])
+            lda = LinearDiscriminantAnalysis()
+            lda.fit(X_train_bin, y_train_bin)
 
-        # Project single trials onto context axis
-        proj_A = lda.transform(state_A_trials.reshape(-1, n_neurons)).reshape(min_trials, n_bins)
-        proj_B = lda.transform(state_B_trials.reshape(-1, n_neurons)).reshape(min_trials, n_bins)
+            # Project single trials at this spatial bin
+            p_A = lda.transform(state_A_trials[:, b, :]).flatten()
+            p_B = lda.transform(state_B_trials[:, b, :]).flatten()
 
-        # Align sign so Context 1 is consistently positive relative to Context 2
-        if np.nanmean(proj_A) < np.nanmean(proj_B):
-            proj_A = -proj_A
-            proj_B = -proj_B
+            # Align sign so Context 1 is consistently positive relative to Context 2
+            if np.nanmean(p_A) < np.nanmean(p_B):
+                p_A = -p_A
+                p_B = -p_B
 
-        # Store single-trial context latents per spatial bin: shape (n_bins, 2 * min_trials)
-        region_latents[region] = np.concatenate((proj_A.T, proj_B.T), axis=1)
+            proj_A[b, :] = p_A
+            proj_B[b, :] = p_B
+
+        # Store single-trial context projections per spatial bin for each context
+        region_latents[region] = {'ctx_A': proj_A, 'ctx_B': proj_B}
 
     # Correlate latent context projections per spatial bin for each pair of simultaneously recorded regions
     available_regions = list(region_latents.keys())
@@ -177,11 +183,19 @@ for date in unique_dates:
 
         r_per_bin = np.zeros(len(unique_positions))
         for b, pos in enumerate(unique_positions):
-            z1 = region_latents[region1][b, :]
-            z2 = region_latents[region2][b, :]
+            # Compute within-context trial-by-trial correlations to avoid bimodal step-function artifact
+            r_contexts = []
+            for ctx_key in ['ctx_A', 'ctx_B']:
+                z1 = region_latents[region1][ctx_key][b, :]
+                z2 = region_latents[region2][ctx_key][b, :]
 
-            if np.std(z1) > 0 and np.std(z2) > 0:
-                r_per_bin[b] = stats.pearsonr(z1, z2)[0]
+                if np.std(z1) > 0 and np.std(z2) > 0:
+                    r_val = stats.pearsonr(z1, z2)[0]
+                    if not np.isnan(r_val):
+                        r_contexts.append(r_val)
+
+            if len(r_contexts) > 0:
+                r_per_bin[b] = np.mean(r_contexts)
             else:
                 r_per_bin[b] = np.nan
 
