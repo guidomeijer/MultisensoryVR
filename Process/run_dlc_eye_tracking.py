@@ -196,7 +196,7 @@ for root, directory, files in os.walk(DATA_PATH / 'Raw_Data_READONLY'):
             video_path = video_path[0]
             
         # Extract a single frame from the video
-        subprocess.call(['ffmpeg', '-y', '-ss', '00:05:00', '-i', video_path,
+        subprocess.call(['ffmpeg', '-y', '-ss', '00:10:00', '-i', video_path,
                          '-frames:v', '1', '-q:v', '2',
                          video_path.parent / 'single_frame.jpg'])
         
@@ -211,33 +211,35 @@ for root, directory, files in os.walk(DATA_PATH / 'Raw_Data_READONLY'):
         eye_x = int(float(dlc_output.iloc[3, 1]))
         eye_y = int(float(dlc_output.iloc[3, 2]))
 
-        # Crop out the eye into new video
-        eye_path = video_path.with_name(f'{video_path.stem}_eyecrop{video_path.suffix}')
+        # Crop out the eye into new video and adjust brightness curves
+        eye_path = video_path.with_name(f'eyecrop{video_path.suffix}')
         if not eye_path.is_file():
             print('\nCrop eye out of video')
+
+            vf_pipeline = (
+                f'crop={EYE_WIDTH_PX}:{EYE_HEIGHT_PX}:{int(eye_x-EYE_WIDTH_PX/2)}:{int(eye_y-EYE_HEIGHT_PX/2)},'
+                "curves=all='0/0 0.2/0.6 1/1',format=yuv420p"
+                )
+
             subprocess.call([
-                'ffmpeg', '-i', video_path, '-vf',
-                f'crop={EYE_WIDTH_PX}:{EYE_HEIGHT_PX}:{int(eye_x-EYE_WIDTH_PX/2)}:{int(eye_y-EYE_HEIGHT_PX/2)}',
-                '-c:v', 'libx265', '-crf', '0', '-c:a', 'copy',
-                '-y', eye_path])
-        
-        # Apply curve to increase low to mid level brightness
-        eye_adjust_path = eye_path.with_name(f'{eye_path.stem}_adjusted{eye_path.suffix}')
-        if not eye_adjust_path.is_file():
-            subprocess.call([
-                'ffmpeg', '-i', eye_path, '-vf', "curves=all='0/0 0.2/0.6 1/1',format=yuv420p",
-                '-c:a', 'copy', '-y', eye_adjust_path])
+                'ffmpeg', '-threads', str(N_CPUS),
+                '-i', str(video_path),
+                '-vf', vf_pipeline,
+                '-c:v', 'libx265', '-preset', 'ultrafast', '-crf', '0',
+                '-c:a', 'copy',
+                '-y', str(eye_path)
+            ])
 
         # Track pupil using pre-trained model
         print('\nStart eye tracking')
-        deeplabcut.analyze_videos(DLC_EYE_TRACK, eye_adjust_path, save_as_csv=True)
+        deeplabcut.analyze_videos(DLC_EYE_TRACK, eye_path, save_as_csv=True)
         
         # Create labelled video
-        deeplabcut.create_labeled_video(DLC_EYE_TRACK, [eye_adjust_path], save_frames=False)
+        deeplabcut.create_labeled_video(DLC_EYE_TRACK, [eye_path], save_frames=False)
         label_local_path = list(video_path.parent.rglob('*labeled.mp4'))[0]
         
         # Filter traces
-        deeplabcut.filterpredictions(DLC_EYE_TRACK, [eye_adjust_path])
+        deeplabcut.filterpredictions(DLC_EYE_TRACK, [eye_path])
         
         # Get pupil by fitting elipse using least squares method
         if not (root / 'pupil.csv').is_file():
