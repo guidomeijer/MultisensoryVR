@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import deeplabcut
 import subprocess
-import shutil
 from scipy.interpolate import interp1d
 from joblib import Parallel, delayed
 from ellipse import LsqEllipse
@@ -19,7 +18,7 @@ MIN_PROB = 0.7  # minimum probablitiy of tracked points to contribute to pupil f
 MIN_POINTS = 5  # minimum number of points to fit pupil ellipse
 MAX_WH_RATIO = 1.5  # maximum ratio between width and height to prevent bad fits
 SHUFFLE = 3  # which trained DLC model to use
-EYE_FLAG = 'eyetrack_me_fr.flag'
+EYE_FLAG = 'eyetrack_me.flag'
 
 # %% Functions
 def fit_ellipse(i, eye_dlc):
