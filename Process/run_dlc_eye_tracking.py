@@ -232,7 +232,7 @@ for root, directory, files in os.walk(DATA_PATH / 'Raw_Data_READONLY'):
 
         # Track pupil using pre-trained model
         print('\nStart eye tracking')
-        deeplabcut.analyze_videos(DLC_EYE_TRACK, eye_path, save_as_csv=True)
+        deeplabcut.analyze_videos(DLC_EYE_TRACK, [eye_path], save_as_csv=True)
         
         # Create labelled video
         deeplabcut.create_labeled_video(DLC_EYE_TRACK, [eye_path], save_frames=False)
