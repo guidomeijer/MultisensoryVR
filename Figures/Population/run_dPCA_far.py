@@ -5,6 +5,8 @@ Created on Wed Apr  9 15:28:35 2025
 By Guido Meijer
 """
 
+from ast import If
+
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -45,13 +47,16 @@ def run_stats(df, y_col, t_thres=0.2):
     positions = test1_matrix.columns.values
     X = test1_matrix.values - test2_matrix.values
     
-    # Calculate threshold
-    t_threshold = stats.t.ppf(1 - t_thres / 2, test1_matrix.shape[0] - 1)
+    # Set threshold: scalar t-threshold for standard clustering, or dict for TFCE
+    if isinstance(t_thres, dict):
+        threshold = t_thres
+    else:
+        threshold = stats.t.ppf(1 - t_thres / 2, test1_matrix.shape[0] - 1)
     
     # Run MNE cluster test
     t_obs, clusters, cluster_p_values, H0 = mne.stats.permutation_cluster_1samp_test(
         X,
-        threshold=t_threshold,
+        threshold=threshold,
         n_permutations=1000, 
         tail=0,          
         out_type='mask'  
@@ -153,11 +158,14 @@ for i in np.arange(len(spike_dict['date'])):
         # Fit the model using BOTH the 3D and 4D arrays
         Z = dpca.fit_transform(X_mean, X_trials)
 
-        # Extract encoder/decoder weights for spatial (t) and contextual (s) axes
-        w_spatial = dpca.D['t'][:, 0]
-        w_context = dpca.D['s'][:, 0]
+        # Ensure Context 1 is always the positive branch relative to Context 2
+        if np.mean(Z['s'][0, 0, :]) < np.mean(Z['s'][0, 1, :]):
+            Z['s'] = -Z['s']
+            Z['st'] = -Z['st']
 
         # Calculate dot product
+        w_spatial = dpca.D['t'][:, 0]
+        w_context = dpca.D['s'][:, 0]
         dot_prod = np.dot(w_spatial, w_context) / (np.linalg.norm(w_spatial) * np.linalg.norm(w_context))
 
         dot_df = pd.concat((dot_df, pd.DataFrame(data={
@@ -199,11 +207,14 @@ for i, region in enumerate(REGION_ORDER):
                   title=REGION_NAMES[i])
 
     # Context trajectory
-    p_values, positions = run_stats(plot_df, y_col='context_traj', t_thres=0.8)
+    p_values, positions = run_stats(plot_df, y_col='context_traj', t_thres=0.2)
     sns.lineplot(data=plot_df, x='position', y='context_traj', hue='context',
                  ax=axs[1, i], hue_order=[1, 2], palette=[colors['context1'], colors['context2']],
                  legend=False, errorbar='se', err_kws={'lw': 0})
-    add_significance(positions, p_values, ax=axs[1, i])
+    #sns.lineplot(data=plot_df, x='position', y='context_traj', hue='context',
+    #             ax=axs[1, i], hue_order=[1, 2], palette=[colors['context1'], colors['context2']],
+    #             legend=False, units='session', estimator=None)
+    add_significance(positions, p_values, ax=axs[1, i], y_pos=0.4)
     axs[1, i].set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150], ylabel='', xlabel='',
                   ylim=[-0.4, 0.4], yticks=[-0.4, 0, 0.4], yticklabels=[-0.4, 0, 0.4])
 
@@ -229,89 +240,3 @@ plt.tight_layout()
 plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'dpca_far_trajectories_{USE_TYPE}.pdf')
 plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'dpca_far_trajectories_{USE_TYPE}.jpg', dpi=600)
 plt.show()
-
-# %%
-f, axs = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
-for i, region in enumerate(REGION_ORDER):
-    plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 1)
-                      & (dpca_df['position'] >= 900) & (dpca_df['position'] <= 1325)]
-    p_values, positions = run_stats(plot_df)
-    sns.lineplot(data=plot_df, x='position', y='interaction_traj', hue='context',
-                 hue_order=[1, 2], ax=axs[i], palette=[colors['context1'], colors['context2']],
-                 legend=False, errorbar='se', err_kws={'lw': 0}, zorder=1)
-    add_significance(positions, p_values, ax=axs[i])
-    axs[i].plot([900, 1325], [0, 0], ls='--', lw=0.5, color='k', zorder=0)
-    axs[i].set(title=f'{region}', xticks=[900, 1050, 1200, 1325], xticklabels=[90, 105, 120, 135],
-                  ylim=[-0.4, 0.4], yticks=[-0.4, 0, 0.4], yticklabels=[-0.4, 0, 0.4],
-                  xlabel='', ylabel='')
-axs[0].set_ylabel('Context-Space interaction', labelpad=0)
-f.supxlabel('Position (cm)', fontsize=7, y=0.08)   
-sns.despine(trim=True)
-plt.tight_layout()
-plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'interaction_far_closeup_{USE_TYPE}.pdf')
-plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'interaction_far_closeup_{USE_TYPE}.jpg', dpi=600)
-plt.show()
-
-
-# %%
-
-# Plot
-f, axs = plt.subplots(1, 6, figsize=(7, 1.75), dpi=dpi, sharey=True)
-for i, region in enumerate(REGION_ORDER):
-    plot_df = dpca_df[(dpca_df['region'] == region) & (dpca_df['is_far'] == 0)]
-    p_values, positions = run_stats(plot_df)
-    sns.lineplot(data=plot_df, x='position', y='interaction_traj', hue='context',
-                 ax=axs[i], palette='Set2', legend=False, errorbar='se', err_kws={'lw': 0},
-                 zorder=1)
-    add_significance(positions, p_values, ax=axs[i])
-    axs[i].plot([425, 425], [-1.5, 1.5], ls='--', lw=0.5, color='k', zorder=0)
-    axs[i].plot([875, 875], [-1.5, 1.5], ls='--', lw=0.5, color='k', zorder=0)
-    axs[i].plot([0, 1500], [0, 0], ls='--', lw=0.5, color='k', zorder=0)
-    axs[i].set(xticks=[0, 500, 1000, 1500], xticklabels=[0, 50, 100, 150],
-                  ylim=[-1.5, 1.5], yticks=[-1.5, 0, 1.5], yticklabels=[-1.5, 0, 1.5],
-                  xlabel='')
-axs[0].set(ylabel='Interaction')
-
-f.supxlabel('Position (cm)', fontsize=7)   
-sns.despine(trim=True)
-plt.tight_layout()
-plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'interaction_near_{USE_TYPE}.pdf')
-plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'interaction_near_{USE_TYPE}.jpg', dpi=600)
-plt.show()
-
-# %% Plot spatial-context dot products per region
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
-
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(1.3 * 2, 1.75), dpi=dpi, sharey=False)
-
-this_order = dot_df[dot_df['is_far'] == 1][['region', 'abs_dot_product']].groupby('region').mean().sort_values(
-    'abs_dot_product', ascending=True).index.values
-sns.boxplot(data=dot_df[dot_df['is_far'] == 1], x='region', y='abs_dot_product', order=this_order,
-            palette=colors, hue='region', linewidth=0.75, fliersize=0, ax=ax1)
-ax1.set(ylabel='Spatial-context alignment\n(|dot product|)', xlabel='', ylim=[-0.02, 0.4], title='Far')
-ax1.tick_params(axis='x', labelrotation=90)
-
-sns.boxplot(data=dot_df[dot_df['is_far'] == 0], x='region', y='abs_dot_product', order=REGION_ORDER,
-            palette=colors, hue='region', linewidth=0.75, fliersize=0, ax=ax2)
-ax2.set(ylabel='', xlabel='', title='Near')
-ax2.tick_params(axis='x', labelrotation=90)
-
-sns.despine(trim=True)
-plt.tight_layout()
-plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'spatial_context_dot_product_{USE_TYPE}.pdf')
-plt.savefig(path_dict['paper_fig_path'] / 'dPCA' / f'spatial_context_dot_product_{USE_TYPE}.jpg', dpi=600)
-plt.show()
-
-# %% Statistical comparison of dot products across regions (ANOVA + post hoc)
-for is_far, label in [(1, 'Far'), (0, 'Near')]:
-    sub_df = dot_df[dot_df['is_far'] == is_far].dropna(subset=['abs_dot_product', 'region'])
-    groups = [group['abs_dot_product'].values for _, group in sub_df.groupby('region')]
-    f_val, p_val = stats.f_oneway(*groups)
-    print(f"\n--- One-way ANOVA for {label} dot products across regions ---")
-    print(f"F = {f_val:.4f}, p = {p_val:.4e}")
-    
-    tukey = pairwise_tukeyhsd(endog=sub_df['abs_dot_product'], groups=sub_df['region'], alpha=0.05)
-    print(f"\nTukey HSD Post Hoc ({label}):")
-    print(tukey)
-
-
