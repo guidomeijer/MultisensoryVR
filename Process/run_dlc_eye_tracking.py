@@ -19,6 +19,7 @@ MIN_POINTS = 5  # minimum number of points to fit pupil ellipse
 MAX_WH_RATIO = 1.5  # maximum ratio between width and height to prevent bad fits
 SHUFFLE = 3  # which trained DLC model to use
 EYE_FLAG = 'eyetrack_me.flag'
+ONLY_EPHYS = True  # only process ephys sessions
 
 # %% Functions
 def fit_ellipse(i, eye_dlc):
@@ -176,13 +177,15 @@ def non_uniform_savgol(x, y, window, polynom, n_jobs=N_CPUS):
 
 
 # %% Main script to process eye tracking data
-for root, directory, files in os.walk(DATA_PATH / 'Raw_Data_READONLY'):
+for root, dirnames, files in os.walk(DATA_PATH / 'Raw_Data_READONLY'):
     if EYE_FLAG in files:
+        if 'raw_ephys_data' not in dirnames and ONLY_EPHYS:
+            continue
         root = Path(root)
         print(f'\nFound {EYE_FLAG} in {root}')
         
         # Get path to video file
-        video_dir = [i for i in directory if i[-9:] == '_picamera']
+        video_dir = [i for i in dirnames if i[-9:] == '_picamera']
         if len(video_dir) != 1:
             print(f'More or fewer than 1 video in {root}')
             continue  
