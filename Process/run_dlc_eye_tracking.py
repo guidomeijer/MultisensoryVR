@@ -184,13 +184,13 @@ for root, directory, files in os.walk(DATA_PATH / 'Raw_Data_READONLY'):
         # Get path to video file
         video_dir = [i for i in directory if i[-9:] == '_picamera']
         if len(video_dir) != 1:
-            print('More or fewer than 1 video in {root}')
+            print(f'More or fewer than 1 video in {root}')
             continue  
         else:
             video_dir = video_dir[0]
-        video_path = list((Path(root) / video_dir).rglob('*.mp4'))
+        video_path = list((Path(root) / video_dir).rglob('*picamera*.mp4'))
         if len(video_path) != 1:
-            print('More or fewer than 1 video in {root}')
+            print(f'More or fewer than 1 video in {root}')
             continue
         else:
             video_path = video_path[0]
