@@ -18,6 +18,7 @@ EYE_HEIGHT_PX = 70
 MIN_PROB = 0.7  # minimum probablitiy of tracked points to contribute to pupil fitting
 MIN_POINTS = 5  # minimum number of points to fit pupil ellipse
 MAX_WH_RATIO = 1.5  # maximum ratio between width and height to prevent bad fits
+SHUFFLE = 3  # which trained DLC model to use
 EYE_FLAG = 'eyetrack_me_fr.flag'
 
 # %% Functions
@@ -232,14 +233,16 @@ for root, directory, files in os.walk(DATA_PATH / 'Raw_Data_READONLY'):
 
         # Track pupil using pre-trained model
         print('\nStart eye tracking')
-        deeplabcut.analyze_videos(DLC_EYE_TRACK, [eye_path], shuffle=3, batch_size=32, save_as_csv=True)
+        deeplabcut.analyze_videos(DLC_EYE_TRACK, [eye_path], shuffle=SHUFFLE, batch_size=32,
+                                  save_as_csv=True)
         
         # Create labelled video
-        deeplabcut.create_labeled_video(DLC_EYE_TRACK, [eye_path], save_frames=False)
+        deeplabcut.create_labeled_video(DLC_EYE_TRACK, [eye_path], shuffle=SHUFFLE,
+                                        save_frames=False)
         label_local_path = list(video_path.parent.rglob('*labeled.mp4'))[0]
         
         # Filter traces
-        deeplabcut.filterpredictions(DLC_EYE_TRACK, [eye_path])
+        deeplabcut.filterpredictions(DLC_EYE_TRACK, [eye_path], shuffle=SHUFFLE)
         
         # Get pupil by fitting elipse using least squares method
         if not (root / 'pupil.csv').is_file():
