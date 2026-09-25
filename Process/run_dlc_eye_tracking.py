@@ -19,7 +19,7 @@ MIN_POINTS = 5  # minimum number of points to fit pupil ellipse
 MAX_WH_RATIO = 1.5  # maximum ratio between width and height to prevent bad fits
 SHUFFLE = 3  # which trained DLC model to use
 EYE_FLAG = 'eyetrack_me.flag'
-ONLY_EPHYS = True  # only process ephys sessions
+ONLY_EPHYS = False  # only process ephys sessions
 
 # %% Functions
 def fit_ellipse(i, eye_dlc):
@@ -187,7 +187,7 @@ for root, dirnames, files in os.walk(DATA_PATH / 'Raw_Data_READONLY'):
         # Get path to video file
         video_dir = [i for i in dirnames if i[-9:] == '_picamera']
         if len(video_dir) != 1:
-            print(f'More or fewer than 1 video in {root}')
+            print(f'Not just one video folder in {root}')
             continue  
         else:
             video_dir = video_dir[0]
