@@ -19,6 +19,8 @@ colors, dpi = figure_style()
 
 # Settings
 PLOT_REGIONS = ['VIS', 'AUD', 'TEa', 'PERI', 'LEC', 'CA1']
+REGION_NAMES = ['Visual cortex', 'Auditory cortex', 'Temporal association cortex',
+                'Perirhinal cortex', 'Lateral enthorinal cortex', 'Hippocampus (CA1)']
 
 # Load in data
 path_dict = paths()
@@ -39,39 +41,99 @@ context_df = context_df[context_df['Far'].isin([0, 1])]
 LINE_COLOR = 'grey'
 
 plot_df = context_df[context_df['Far'] == 1]
-f, axs = plt.subplots(1, 6, figsize=(7, 1.5), dpi=dpi, sharey=True)
-for i, region in enumerate(PLOT_REGIONS):
-    # Create spatial bin matrix train_position by test_position and average over dates
-    pivot_df = plot_df[plot_df['region'] == region].groupby(['train_position', 'test_position']).mean(
-        numeric_only=True)['accuracy'].unstack()
+f, axs = plt.subplots(2, 6, figsize=(7, 3.5), dpi=dpi, gridspec_kw={'width_ratios': [2, 1, 2, 1, 2, 1]})
+axs = axs.flatten()
+for idx, (region, region_name) in enumerate(zip(PLOT_REGIONS, REGION_NAMES)):
+    i = idx * 2
+    region_df = context_df[context_df['region'] == region]
+
+    # --- Heatmap Plotting ---
+    pivot_df = plot_df[plot_df['region'] == region].groupby(
+        ['train_position', 'test_position']
+    ).mean(numeric_only=True)['accuracy'].unstack()
     
     sns.heatmap(pivot_df, cmap='RdBu_r', ax=axs[i], vmin=0.3, vmax=0.7, cbar=False)
     axs[i].plot([40, 40], [0, 150], color=LINE_COLOR, ls='--', lw=0.5)
     axs[i].plot([0, 150], [40, 40], color=LINE_COLOR, ls='--', lw=0.5)
     axs[i].plot([130, 130], [0, 150], color=LINE_COLOR, ls='--', lw=0.5)
     axs[i].plot([0, 150], [130, 130], color=LINE_COLOR, ls='--', lw=0.5)
-
-    #axs[i].plot([50, 50], [0, 150], color=LINE_COLOR, ls='--', lw=0.5)
-    #axs[i].plot([0, 150], [50, 50], color=LINE_COLOR, ls='--', lw=0.5)
-    #axs[i].plot([70, 70], [0, 150], color=LINE_COLOR, ls='--', lw=0.5)
-    #axs[i].plot([0, 150], [70, 70], color=LINE_COLOR, ls='--', lw=0.5)
-
-    axs[i].set(xlabel='', ylabel='', xticks=[], yticks=[])
-    axs[i].set_title(region, color=colors[region], weight='bold')
+    axs[i].set(xlabel='', ylabel='', xticks=[], yticks=[], title=region_name)
     axs[i].invert_yaxis()
-axs[0].set(ylabel='Train position')
-f.text(0.5, 0.04, 'Test position', ha='center')
+
+    # --- Data Extraction for Line Plots & Stats ---
+    far_df = region_df[(region_df['Far'] == 1) & 
+                       (region_df['test_position'] >= 1350) & 
+                       (region_df['test_position'] <= 1450)]
+    line_plot_df = far_df.groupby(['subject', 'date', 'train_position']).mean(numeric_only=True).reset_index()
+    line_plot_df['train_position_cm'] = line_plot_df['train_position'] / 10
+
+    control_df = region_df[(region_df['Far'] == 1) & 
+                          (region_df['test_position'] >= 0) & 
+                          (region_df['test_position'] <= 200)]
+    control_df = control_df.groupby(['subject', 'date', 'train_position']).mean(numeric_only=True).reset_index()
+    control_df['train_position_cm'] = control_df['train_position'] / 10
+
+    # --- Cluster-Based Permutation Testing ---
+    test_matrix = line_plot_df.pivot(index=['subject', 'date'], columns='train_position_cm', values='accuracy')
+    control_matrix = control_df.pivot(index=['subject', 'date'], columns='train_position_cm', values='accuracy')
+    
+    # Align matrices to shared indices
+    test_matrix, control_matrix = test_matrix.align(control_matrix, join='inner', axis=0)
+    
+    positions = test_matrix.columns.values
+    X = test_matrix.values - control_matrix.values
+    
+    t_threshold = stats.t.ppf(1 - 0.2 / 2, test_matrix.shape[0] - 1)
+    t_obs, clusters, cluster_p_values, H0 = mne.stats.permutation_cluster_1samp_test(
+        X,
+        threshold=t_threshold,
+        n_permutations=1000, 
+        tail=0,
+        out_type='mask'
+    )
+    
+    region_p_values = np.ones(len(positions))
+    for cluster_mask, p_val in zip(clusters, cluster_p_values):
+        if p_val < 0.05:
+            region_p_values[cluster_mask] = p_val
+
+    # --- Clean Line Plotting ---
+    # Standard orientation: x = spatial position (cm), y = accuracy
+    sns.lineplot(
+        data=line_plot_df, 
+        x='accuracy', 
+        y='train_position_cm', 
+        errorbar='se', 
+        orient='y',
+        ax=axs[i+1],
+        err_kws={'lw': 0}, 
+        color='k'
+    )
+    
+    # Add baseline and significance
+    axs[i+1].axvline(0.5, ls='--', color='k', lw=0.5)
+    add_significance(positions, region_p_values, ax=axs[i+1], orientation='v', x_pos=0.78)
+    axs[i+1].set(xlim=[0.3, 0.8], ylim=[0, 150])
+    
+    axs[i+1].axis('off')
+    sns.despine(ax=axs[i+1], trim=True)
+
+# Add scale line
+axs[7].plot([0.3, 0.5], [-5, -5], color='k', clip_on=False)
+axs[7].text(0.4, -16, '20%', va='center', ha='center')
+#axs[7].text(0.5, -10, '0', va='center', ha='center')
 
 # Add a single colorbar in the right margin to keep all subplot widths perfectly equal
 # Coordinates: [left, bottom, width, height] relative to the figure
-cbar_ax = f.add_axes([0.93, 0.14, 0.01, 0.71])
-cbar = f.colorbar(axs[5].collections[0], cax=cbar_ax)
-cbar.set_label('Decoding accuracy', fontsize=7, rotation=270, labelpad=10)
+cbar_ax = f.add_axes([0.92, 0.55, 0.01, 0.3])
+cbar = f.colorbar(axs[0].collections[0], cax=cbar_ax, ticks=[0.3, 0.4, 0.5, 0.6, 0.7])
+cbar.ax.set_yticklabels(['30', '40', '50', '60', '70'])
+cbar.set_label('Context decoding accuracy (%)', fontsize=7, rotation=270, labelpad=12)
 
-plt.subplots_adjust(left=0.04, bottom=0.14, right=0.92, top=0.85, wspace=0.05, hspace=0.2)
+plt.subplots_adjust(left=0.04, bottom=0.12, right=0.88, top=0.85, wspace=0.15, hspace=0.3)
 plt.savefig(path_dict['paper_fig_path'] / 'Decoding' / 'decode_context_binpairs_far.pdf')
 plt.savefig(path_dict['paper_fig_path'] / 'Decoding' / 'decode_context_binpairs_far.jpg', dpi=600)
-plt.show()
+
 
 # %% Near objects heatmaps
 plot_df = context_df[context_df['Far'] == 0]

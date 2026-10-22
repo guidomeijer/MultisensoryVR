@@ -325,7 +325,7 @@ for i, region in enumerate(REGION_ORDER):
         continue
 
     res = pca_pseudo_results[region]
-    dist_10d = res['eucl_dist_10d']
+    dist_10d = res['eucl_dist_10d'] - np.mean(res['eucl_dist_10d'][unique_positions_cm < 40])
     n_comp = res['n_components']
     region_color = colors.get(region, 'k')
 

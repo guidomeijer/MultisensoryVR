@@ -9,10 +9,12 @@ from ast import If
 
 import numpy as np
 import pandas as pd
+from scipy.linalg import subspace_angles
 import seaborn as sns
 import pickle
 from scipy import stats
 import mne
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
 import matplotlib.pyplot as plt
 from dPCA import dPCA
 from msvr_functions import paths, load_subjects, figure_style, load_objects, add_significance
@@ -82,8 +84,7 @@ neuron_type = pd.read_csv(path_dict['save_path'] / 'waveform_metrics.csv',
                           dtype={'subject': str, 'date': str})
 
 # Loop over recordings
-dpca_df = pd.DataFrame()
-dot_df = pd.DataFrame()
+dpca_df, dpca_diff, dot_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 for i in np.arange(len(spike_dict['date'])):
 
     # Get session info
@@ -168,13 +169,21 @@ for i in np.arange(len(spike_dict['date'])):
         w_context = dpca.D['s'][:, 0]
         dot_prod = np.dot(w_spatial, w_context) / (np.linalg.norm(w_spatial) * np.linalg.norm(w_context))
 
+        # Calculate subpsace angles (in degrees) between spatial and context subspaces
+        V_space = dpca.D['t'][:, :10]    
+        V_context = dpca.D['s'][:, :10]  
+        angles_deg = np.rad2deg(subspace_angles(V_space, V_context))
+        min_subspace_angle = np.min(angles_deg)
+
         dot_df = pd.concat((dot_df, pd.DataFrame(data={
             'subject': [this_subject],
             'session': [this_ses],
             'region': [region],
             'is_far': [is_far],
             'dot_product': [dot_prod],
-            'abs_dot_product': [np.abs(dot_prod)]})))
+            'abs_dot_product': [np.abs(dot_prod)],
+            'min_subspace_angle': [min_subspace_angle]
+            })))
 
         # Put results in dataframe
         dpca_df = pd.concat((dpca_df, pd.DataFrame(data={
@@ -183,6 +192,16 @@ for i in np.arange(len(spike_dict['date'])):
             'interaction_traj': np.concatenate((Z['st'][0, 0, :], Z['st'][0, 1, :])),
             'context': np.concatenate((np.ones(n_bins), 2*np.ones(n_bins))).astype(int),
             'position': np.tile(np.unique(spatial_bins), 2),
+            'subject': this_subject, 
+            'session': this_ses, 
+            'region': region, 
+            'is_far': is_far})))
+        
+        dpca_diff = pd.concat((dpca_diff, pd.DataFrame(data={
+            'position_diff': np.abs(Z['t'][0, 0, :] - Z['t'][0, 1, :]),
+            'context_diff': np.abs(Z['s'][0, 0, :] - Z['s'][0, 1, :]),
+            'interaction_diff': np.abs(Z['st'][0, 0, :] - Z['st'][0, 1, :]),
+            'position': np.unique(spatial_bins),
             'subject': this_subject, 
             'session': this_ses, 
             'region': region, 
@@ -233,7 +252,7 @@ for i, region in enumerate(REGION_ORDER):
 
 axs[0, 0].set_ylabel('Position trajectory', labelpad=0)
 axs[1, 0].set_ylabel('Context trajectory', labelpad=0)
-axs[2, 0].set_ylabel('Context-Space interaction', labelpad=0)
+axs[2, 0].set_ylabel('Context - Space interaction', labelpad=0)
 f.supxlabel('Position (cm)', fontsize=7, y=0.03)
 sns.despine(trim=True)
 plt.tight_layout()
