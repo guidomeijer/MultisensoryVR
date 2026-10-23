@@ -43,8 +43,6 @@ def process_recording(i, subject, date, probe, n_recs, path_dict, rel_bin_center
     running_speed = np.load(session_path / 'continuous.wheelSpeed.npy')
     timestamps = np.load(session_path / 'continuous.times.npy')
     lick_pos = np.load(session_path / 'lick.positions.npy')
-    sampling_freq = 1 / np.round(np.mean(np.diff(timestamps)), 3)
-    all_obj_df = load_objects(subject, date)
 
     # Get the acceleration as the first derivative of the speed
     acceleration = np.gradient(running_speed)
