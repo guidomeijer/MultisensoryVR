@@ -94,7 +94,7 @@ ax1.plot([0, 1], [30, 30], color='k')
 ax1.text(0.5, 30, '**', fontsize=12, ha='center', va='center')
 #ax1.text(0, 10, '**', fontsize=12, ha='center', va='center')
 #ax1.text(1, 26, '**', fontsize=12, ha='center', va='center')
-ax1.set(xticks=[0, 1], xticklabels=[1, 2], xlabel='Rewarded object',
+ax1.set(xticks=[0, 1], xticklabels=['First', 'Second'], xlabel='Rewarded object',
         ylabel='Anticipatory speed change (%)',
         yticks=np.arange(0, 31, 10), ylim=[-5, 30], xlim=[-0.5, 1.5])
 

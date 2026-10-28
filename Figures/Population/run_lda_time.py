@@ -138,7 +138,7 @@ lda_df = pd.concat(lda_results, ignore_index=True)
 # Per recording, average the absolute distance over trials within each context and then over
 # the two contexts, so that recordings are the unit of the error bars
 per_rec_df = (lda_df.groupby(['subject', 'date', 'region', 'object', 'time', 'context'])
-              ['lda_distance_abs'].mean()
+              ['lda_distance'].mean()
               .groupby(['subject', 'date', 'region', 'object', 'time']).mean()
               .reset_index())
 per_rec_df['object'] = per_rec_df['object'].map({1: 'Object 1', 2: 'Object 2'})
@@ -152,7 +152,7 @@ axs = axs.flatten()
 for r, region in enumerate(regions):
     ax = axs[r]
     plot_df = per_rec_df[per_rec_df['region'] == region]
-    sns.lineplot(data=plot_df, x='time', y='lda_distance_abs', hue='object', ax=ax,
+    sns.lineplot(data=plot_df, x='time', y='lda_distance', hue='object', ax=ax,
                  hue_order=['Object 1', 'Object 2'], palette=[colors['obj1'], colors['obj2']],
                  errorbar='se', err_kws={'lw': 0}, legend=(r == 0))
     ax.axvline(0, ls='--', lw=0.5, color='k', zorder=0)
