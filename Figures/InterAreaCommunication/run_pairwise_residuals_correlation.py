@@ -20,9 +20,9 @@ from msvr_functions import paths, load_subjects, figure_style
 colors, dpi = figure_style()
 
 # Settings
-MIN_NEURONS = 1          # Minimum neurons required per region in a session
+MIN_NEURONS = 5          # Minimum neurons required per region in a session
 MIN_TRIALS = 5           # Minimum trials required per context
-USE_FAR_ONLY = False     # Set to True if only FAR sessions should be included
+USE_FAR_ONLY = True     # Set to True if only FAR sessions should be included
 
 # Load paths and subjects
 path_dict = paths()

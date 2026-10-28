@@ -202,7 +202,7 @@ for date in unique_dates:
         # Baseline subtraction (0 to 400 mm)
         baseline_mask = (unique_positions >= BASELINE_WIN[0]) & (unique_positions <= BASELINE_WIN[1])
         baseline_r = np.nanmean(r_per_bin[baseline_mask])
-        r_per_bin = r_per_bin - baseline_r
+        r_per_bin_bl = r_per_bin - baseline_r
 
         for b, pos in enumerate(unique_positions):
             corr_results.append({
@@ -213,6 +213,7 @@ for date in unique_dates:
                 'region_pair': pair_name,
                 'position': pos,
                 'correlation': r_per_bin[b],
+                'correlation_bl': r_per_bin_bl[b],
                 'is_far': is_far
             })
 
