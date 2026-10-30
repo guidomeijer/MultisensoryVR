@@ -23,6 +23,7 @@ from msvr_functions import paths
 MIN_TRIALS = 10
 N_CORES = 18
 DECODER = 'randomforest'      # regression, svm, randomforest, lda
+GLM = True
 
 # Initialize
 path_dict = paths(sync=False)
@@ -38,7 +39,8 @@ elif DECODER == 'lda':
     clf = LinearDiscriminantAnalysis()
 
 # Load in processed data
-with open(path_dict['google_drive_data_path'] / 'residuals_position_20mms.pickle', 'rb') as handle:
+load_file = 'residuals_position_20mms.pickle' if GLM else 'firing_rates_position_20mms.pickle'
+with open(path_dict['google_drive_data_path'] / load_file, 'rb') as handle:
     residuals_dict = pickle.load(handle)
 
 def decode_single_train_bin(train_bin, rel_pos_bins, X_decode_all, y, positions, trials, train_trials, test_trials, classifier):
@@ -136,4 +138,5 @@ for i in range(len(residuals_dict['residuals'])):
             })))    
 
 # Save to disk
-decode_df.to_csv(path_dict['save_path'] / f'decode_context_binpairs_{DECODER}.csv', index=False)
+save_file = f'decode_context_glm_{DECODER}.csv' if GLM else f'decode_context_fr_{DECODER}.csv'
+decode_df.to_csv(path_dict['save_path'] / save_file, index=False)

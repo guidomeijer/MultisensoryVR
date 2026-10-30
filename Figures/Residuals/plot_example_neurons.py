@@ -27,7 +27,6 @@ plot_neurons = {
     'probe': ['probe00', 'probe00', 'probe00', 'probe00', 'probe00', 'probe01'],
     'neuron_id': [302, 481, 546, 678, 278, 85]
     }
-"""    
 plot_neurons = {
     'region': ['TEa', 'TEa', 'VIS', 'CA1'],
     'subject': ['459601', '459601', '459601', '462910'],
@@ -35,6 +34,15 @@ plot_neurons = {
     'probe': ['probe00', 'probe00', 'probe00', 'probe00'],
     'neuron_id': [302, 481, 546, 278],
     'y_lim': [6, 3, 8, 2.5]
+    }
+"""   
+plot_neurons = {
+    'region': ['TEa', 'VIS', 'CA1'],
+    'subject': ['459601', '459601', '462910'],
+    'date': ['20240409', '20240411', '20240813'],
+    'probe': ['probe00', 'probe00', 'probe00'],
+    'neuron_id': [302, 546, 278],
+    'y_lim': [6, 8, 2.5]
     }
 
 # Load in data
@@ -44,7 +52,7 @@ with open(path_dict['google_drive_data_path'] / 'residuals_position_20mms.pickle
     spike_dict = pickle.load(handle)
 
 # Construct figure
-f, axs = plt.subplots(1, len(plot_neurons['region']), figsize=(5.5, 2), dpi=dpi)
+f, axs = plt.subplots(1, len(plot_neurons['region']), figsize=(4.1, 2), dpi=dpi)
 
 # Loop over neurons
 for i in range(len(plot_neurons['region'])):
@@ -88,7 +96,7 @@ for i in range(len(plot_neurons['region'])):
     sns.lineplot(data=plot_df, x='spatial_bin', y='residual_fr', hue='context', ax=axs[i],
                     palette=[colors['context1'], colors['context2']], errorbar='se',
                     err_kws={'lw': 0})
-    axs[i].axvspan(TEST_BINS[0], TEST_BINS[1], color='gray', alpha=0.2, lw=0)
+    #axs[i].axvspan(TEST_BINS[0], TEST_BINS[1], color='gray', alpha=0.2, lw=0)
 
     axs[i].set(xticks=[0, 500, 1000, 1500], xticklabels=['0', '50', '100', '150'],
                ylim=[-y_lim, y_lim], yticks=[-y_lim, 0, y_lim], yticklabels=[-y_lim, 0, y_lim],

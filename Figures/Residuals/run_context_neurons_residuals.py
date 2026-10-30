@@ -12,7 +12,6 @@ import pickle
 from scipy import stats
 import mne
 import matplotlib.pyplot as plt
-from dPCA import dPCA
 from msvr_functions import paths, load_subjects, figure_style, load_objects, add_significance
 colors, dpi = figure_style()
 mne.set_log_level('WARNING')
