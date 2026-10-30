@@ -23,7 +23,7 @@ from msvr_functions import paths
 MIN_TRIALS = 10
 N_CORES = 18
 DECODER = 'randomforest'      # regression, svm, randomforest, lda
-GLM = True
+GLM = False
 
 # Initialize
 path_dict = paths(sync=False)
@@ -41,7 +41,7 @@ elif DECODER == 'lda':
 # Load in processed data
 load_file = 'residuals_position_20mms.pickle' if GLM else 'firing_rates_position_20mms.pickle'
 with open(path_dict['google_drive_data_path'] / load_file, 'rb') as handle:
-    residuals_dict = pickle.load(handle)
+    fr_dict = pickle.load(handle)
 
 def decode_single_train_bin(train_bin, rel_pos_bins, X_decode_all, y, positions, trials, train_trials, test_trials, classifier):
     train_mask = (positions == train_bin) & np.isin(trials, train_trials)
@@ -69,21 +69,22 @@ def decode_single_train_bin(train_bin, rel_pos_bins, X_decode_all, y, positions,
     return row
 
 # Loop over recordings
+decode_target = 'residuals' if GLM else 'firing_rate'
 decode_df = pd.DataFrame()
-for i in range(len(residuals_dict['residuals'])):
-    print(f'Recording {i+1} of {len(residuals_dict["residuals"])}')
+for i in range(len(fr_dict[decode_target])):
+    print(f'Recording {i+1} of {len(fr_dict[decode_target])}')
     
-    unique_trials = np.unique(residuals_dict['trial'][i])
+    unique_trials = np.unique(fr_dict['trial'][i])
     if unique_trials.shape[0] < MIN_TRIALS:
         continue
 
     # Decode per brain region
-    for r, region in enumerate(np.unique(residuals_dict['region'][i])):
+    for r, region in enumerate(np.unique(fr_dict['region'][i])):
         if region == 'root':
             continue
         
         # Select neurons from this brain region
-        X_decode_all = residuals_dict['residuals'][i][:, residuals_dict['region'][i] == region]
+        X_decode_all = fr_dict[decode_target][i][:, fr_dict['region'][i] == region]
 
         # Check constraints
         if X_decode_all.shape[1] == 0:
@@ -97,7 +98,7 @@ for i in range(len(residuals_dict['residuals'])):
             continue
 
         # Get position bins
-        rel_pos_bins = np.unique(residuals_dict['position'][i]).astype(int)
+        rel_pos_bins = np.unique(fr_dict['position'][i]).astype(int)
         n_bins = len(rel_pos_bins)
         
         print(f'Decoding {region} (N={n_neurons} neurons)')
@@ -111,8 +112,8 @@ for i in range(len(residuals_dict['residuals'])):
             results = Parallel(n_jobs=N_CORES)(
                 delayed(decode_single_train_bin)(
                     train_bin, rel_pos_bins, X_decode_all, 
-                    residuals_dict['context'][i], residuals_dict['position'][i].astype(int), 
-                    residuals_dict['trial'][i], train_trials, test_trials, clf
+                    fr_dict['context'][i], fr_dict['position'][i].astype(int), 
+                    fr_dict['trial'][i], train_trials, test_trials, clf
                 )
                 for train_bin in rel_pos_bins
             )
@@ -132,11 +133,11 @@ for i in range(len(residuals_dict['residuals'])):
             'region': region,
             'n_neurons': n_neurons,
             'n_trials':  unique_trials.shape[0],
-            'subject': residuals_dict['subject'][i],
-            'date': residuals_dict['date'][i],
-            'probe': residuals_dict['probe'][i]
+            'subject': fr_dict['subject'][i],
+            'date': fr_dict['date'][i],
+            'probe': fr_dict['probe'][i]
             })))    
 
 # Save to disk
 save_file = f'decode_context_glm_{DECODER}.csv' if GLM else f'decode_context_fr_{DECODER}.csv'
-decode_df.to_csv(path_dict['save_path'] / save_file, index=False)
+decode_df.to_csv(path_dict['google_drive_data_path'] / save_file, index=False)
