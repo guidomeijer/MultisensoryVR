@@ -27,7 +27,7 @@ ba = BrainRegions()
 
 N_PATTERNS = {'AUD': 7, 'CA1': 6, 'LEC': 3, 'PERI': 6, 'TEa': 5, 'VIS': 5}
 
-def paths(sync=False, full_sync=False, force_sync=False):
+def paths():
     """
     Load in figure path from paths.json, if this file does not exist it will be generated from
     user input
@@ -64,153 +64,6 @@ def paths(sync=False, full_sync=False, force_sync=False):
     with open(join(dirname(realpath(__file__)), 'paths.json')) as json_file:
         path_dict = json.load(json_file)
         path_dict = {key: Path(value) for key, value in path_dict.items()}
-
-
-    # Synchronize data from the server with the local data folder
-
-    # Create Subjects folder if it doesn't exist
-    if not isdir(join(path_dict['local_data_path'], 'Subjects')):
-        os.mkdir(join(path_dict['local_data_path'], 'Subjects'))
-
-    # Read in the time of last sync
-    if isfile(join(path_dict['local_data_path'], 'sync_timestamp.txt')):
-        f = open(join(path_dict['local_data_path'], 'sync_timestamp.txt'), 'r')
-        sync_time = datetime.datetime.strptime(f.read(), '%Y%m%d_%H%M')
-        f.close()
-    else:
-        # If never been synched set date to yesterday so that it runs the first time
-        sync_time = datetime.datetime.now() - datetime.timedelta(hours=24)
-
-    # Synchronize server with local data once a day
-    if force_sync:
-        sync = True
-    if sync:
-        if ((datetime.datetime.now() - sync_time).total_seconds() > 12*60*60) | force_sync:
-            print('Synchronizing data from server with local data folder')
-            if not isdir(path_dict['server_path']):
-                print('Server path not found')
-                return path_dict
-
-            # Loop over subjects
-            subjects = os.listdir(join(path_dict['server_path'], 'Subjects'))
-            for i, subject in enumerate(subjects):
-                if not isdir(join(path_dict['local_data_path'], 'Subjects', subject)):
-                    os.mkdir(join(path_dict['local_data_path'], 'Subjects', subject))
-
-                # Loop over sessions
-                sessions = os.listdir(join(path_dict['server_path'], 'Subjects', subject))
-                for j, session in enumerate(sessions):
-
-                    # Get server path and files on server
-                    server_path = join(path_dict['server_path'], 'Subjects', subject, session)
-                    server_files = [f for f in os.listdir(server_path)
-                                    if (isfile(join(server_path, f)) & (f[-4:] != 'flag'))]
-                    if len(server_files) == 0:
-                        continue
-
-                    # Get local path and files on local disk
-                    local_path = join(path_dict['local_data_path'], 'Subjects', subject, session)
-                    if not isdir(local_path):
-                        os.mkdir(local_path)
-                    local_files = [f for f in os.listdir(local_path)
-                                   if isfile(join(local_path, f)) & (f[-4:] != 'flag')]
-
-                    # Copy files one way or another depending on which has the most files
-                    if len(server_files) > len(local_files):
-                        print(f'Copying files from server {server_path}')
-                        for f, file in enumerate(server_files):
-                            if not isfile(join(local_path, file)):
-                                shutil.copyfile(join(server_path, file), join(local_path, file))
-                    elif len(server_files) < len(local_files):
-                        print(f'Copying files to server {server_path}')
-                        for f, file in enumerate(local_files):
-                            if not isfile(join(server_path, file)):
-                                shutil.copyfile(join(local_path, file), join(server_path, file))
-
-                    # Synchronize neural data
-                    if isdir(join(local_path, 'probe00')):
-                        local_probe_files = [f for f in os.listdir(join(local_path, 'probe00'))
-                                             if isfile(join(local_path, 'probe00', f))]
-                        server_probe_files = [f for f in os.listdir(join(server_path, 'probe00'))
-                                              if isfile(join(server_path, 'probe00', f))]
-                        if len(local_probe_files) > len(server_probe_files):
-                            print(f'{subject} {session} | Copying probe00 files to server {server_path}')
-                            for f, file in enumerate(local_probe_files):
-                                if not isfile(join(server_path, 'probe00', file)):
-                                    shutil.copyfile(join(local_path, 'probe00', file),
-                                                    join(server_path, 'probe00', file))
-                        elif len(local_probe_files) < len(server_probe_files):
-                            print(f'{subject} {session} | Copying probe00 files from server {server_path}')
-                            for f, file in enumerate(server_probe_files):
-                                if not isfile(join(local_path, 'probe00', file)):
-                                    shutil.copyfile(join(server_path, 'probe00', file),
-                                                    join(local_path, 'probe00', file))
-                    if isdir(join(local_path, 'probe01')):
-                        local_probe_files = [f for f in os.listdir(join(local_path, 'probe01'))
-                                             if isfile(join(local_path, 'probe01', f))]
-                        server_probe_files = [f for f in os.listdir(join(server_path, 'probe01'))
-                                              if isfile(join(server_path, 'probe01', f))]
-                        if len(local_probe_files) > len(server_probe_files):
-                            print(f'{subject} {session} | Copying probe01 files to server {server_path}')
-                            for f, file in enumerate(local_probe_files):
-                                if not isfile(join(server_path, 'probe01', file)):
-                                    shutil.copyfile(join(local_path, 'probe01', file),
-                                                    join(server_path, 'probe01', file))
-                        elif len(local_probe_files) < len(server_probe_files):
-                            print(f'{subject} {session} | Copying probe01 files from server {server_path}')
-                            for f, file in enumerate(server_probe_files):
-                                if not isfile(join(local_path, 'probe01', file)):
-                                    shutil.copyfile(join(server_path, 'probe01', file),
-                                                    join(local_path, 'probe01', file))
-
-                    # If the probe folder does not exist on local drive, copy it from server
-                    if (isdir(join(server_path, 'probe00'))) & (~isdir(join(local_path, 'probe00'))):
-                        print(f'{subject} {session} | Copying probe00 folder from server')
-                        if full_sync:
-                            shutil.copytree(join(server_path, 'probe00'), join(local_path, 'probe00'))
-                        else:
-                            os.mkdir(join(local_path, 'probe00'))
-                            server_probe_files = [f for f in os.listdir(join(server_path, 'probe00'))
-                                                  if isfile(join(server_path, 'probe00', f))]
-                            for f, file in enumerate(server_probe_files):
-                                shutil.copyfile(join(server_path, 'probe00', file),
-                                                join(local_path, 'probe00', file))
-
-                    if (isdir(join(server_path, 'probe01'))) & (~isdir(join(local_path, 'probe01'))):
-                        print(f'{subject} {session} | Copying probe01 folder from server')
-                        if full_sync:
-                            shutil.copytree(join(server_path, 'probe01'), join(local_path, 'probe01'))
-                        else:
-                            os.mkdir(join(local_path, 'probe01'))
-                            server_probe_files = [f for f in os.listdir(join(server_path, 'probe01'))
-                                                  if isfile(join(server_path, 'probe01', f))]
-                            for f, file in enumerate(server_probe_files):
-                                shutil.copyfile(join(server_path, 'probe01', file),
-                                                join(local_path, 'probe01', file))
-
-                    # Copy raw data from server if a full sync is requested
-                    if (not isdir(join(server_path, 'raw_video_data'))) & full_sync:
-                        print(
-                            f'Copying raw video data {join(path_dict["server_path"], "Subjects", subject, session)}')
-                        shutil.copytree(join(server_path, 'raw_video_data'),
-                                        join(local_path, 'raw_video_data'))
-                    if isdir(join(path_dict['server_path'], 'Subjects', subject, session, 'raw_ephys_data')) & full_sync:
-                        if not isdir(join(local_path, 'raw_ephys_data')):
-                            print(
-                                f'Copying raw ephys data {join(path_dict["server_path"], "Subjects", subject, session)}')
-                            shutil.copytree(join(server_path, 'raw_ephys_data'),
-                                            join(local_path, 'raw_ephys_data'))
-                    if (not isdir(join(local_path, 'raw_behavior_data'))) & full_sync:
-                        print(
-                            f'Copying raw behavior data {join(path_dict["server_path"], "Subjects", subject, session)}')
-                        shutil.copytree(join(server_path, 'raw_behavior_data'),
-                                        join(local_path, 'raw_behavior_data'))
-
-            # Update synchronization timestamp
-            with open(join(path_dict['local_data_path'], 'sync_timestamp.txt'), 'w') as f:
-                f.write(datetime.datetime.now().strftime('%Y%m%d_%H%M'))
-                f.close()
-            print('Done')
 
     return path_dict
 
@@ -399,7 +252,7 @@ def figure_style(font_size=7):
 
 
 def load_subjects():
-    path_dict = paths(sync=False)
+    path_dict = paths()
     subjects = pd.read_csv(join(path_dict['repo_path'], 'subjects.csv'),
                            delimiter=';|,',
                            engine='python',
