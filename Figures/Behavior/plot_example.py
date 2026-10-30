@@ -8,7 +8,6 @@ By Guido Meijer
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from os.path import join
 import pandas as pd
 from msvr_functions import (load_subjects, paths, figure_style, event_aligned_averages,
                             load_objects)
@@ -132,5 +131,5 @@ f.text(0.5, 0.05, 'Time from object entry (s)', ha='center')
 sns.despine(trim=True)
 plt.subplots_adjust(bottom=0.22, top=0.85)
 
-plt.savefig(join(path_dict['google_drive_paper_path'], 'example_mouse_running.pdf'))
-plt.savefig(join(path_dict['google_drive_paper_path'], 'example_mouse_running.jpg'), dpi=600)
+plt.savefig(path_dict['paper_fig_path'] / 'Behavior' / 'example_mouse_running.pdf')
+plt.savefig(path_dict['paper_fig_path'] / 'Behavior' / 'example_mouse_running.jpg', dpi=600)

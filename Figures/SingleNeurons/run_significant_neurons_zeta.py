@@ -174,7 +174,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
         })))
     
     # Save to disk
-    stats_df.to_csv(join(path_dict['save_path'], 'significant_neurons.csv'), index=False)
+    stats_df.to_csv(join(path_dict['google_drive_data_path'], 'significant_neurons.csv'), index=False)
         
            
         

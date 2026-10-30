@@ -14,7 +14,7 @@ colors, dpi = figure_style()
 # Load in data
 path_dict = paths()
 subjects = load_subjects()
-stats_df = pd.read_csv(join(path_dict['save_path'], 'significant_neurons.csv'))
+stats_df = pd.read_csv(join(path_dict['google_drive_data_path'], 'significant_neurons.csv'))
 stats_df['subject'] = stats_df['subject'].astype(str)
 stats_df['date'] = stats_df['date'].astype(str)
 session_df = stats_df[['subject', 'date', 'probe']].value_counts().reset_index()
