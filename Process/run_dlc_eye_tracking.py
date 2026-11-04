@@ -186,15 +186,7 @@ for root, dirnames, files in os.walk(DATA_PATH):
         root = Path(root)
         print(f'\nFound {EYE_FLAG} in {root}')
         found_flags += 1
-        
-        # Get path to video file
-        video_dir = [i for i in dirnames if i[-9:] == '_picamera']
-        if len(video_dir) != 1:
-            print(f'Not just one video folder in {root}')
-            continue  
-        else:
-            video_dir = video_dir[0]
-        video_path = list((Path(root) / video_dir).rglob('*picamera*.mp4'))
+        video_path = list((root / 'raw_video_data').rglob('*picamera.mp4'))
         if len(video_path) != 1:
             print(f'More or fewer than 1 video in {root}')
             continue
