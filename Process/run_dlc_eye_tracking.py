@@ -8,7 +8,8 @@ from scipy.interpolate import interp1d
 from joblib import Parallel, delayed
 from ellipse import LsqEllipse
 
-DATA_PATH = Path('/vol/battaglialab/imaging1/Angela/2_Experiments/2021-0052-018_Neural correlates of memories')
+#DATA_PATH = Path('/vol/battaglialab/imaging1/Angela/2_Experiments/2021-0052-018_Neural correlates of memories')
+DATA_PATH = Path('/vol/battaglialab/imaging1/guido/Subjects')
 DLC_FIND_EYE = Path('/vol/battaglialab/imaging1/guido/DLC/find-eye-guido-2023-11-10/config.yaml')
 DLC_EYE_TRACK = Path('/vol/battaglialab/imaging1/guido/DLC/pupil-tracking-guido-2023-11-13/config.yaml')
 N_CPUS = 12
