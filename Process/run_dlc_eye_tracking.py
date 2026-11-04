@@ -269,8 +269,8 @@ for root, dirnames, files in os.walk(DATA_PATH):
                 print('Pupil traces saved to server')
         
         # Delete eyetrack_me.flag from server
-        os.remove(root / 'eyetrack_me.flag')
-        print('\nDone! Deleted eyetrack_me.flag\n')
+        os.remove(root / EYE_FLAG)
+        print(f'\nDone! Deleted {EYE_FLAG}\n')
 
 if found_flags == 0:
     print(f'No {EYE_FLAG} found in {DATA_PATH}')
