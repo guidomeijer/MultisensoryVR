@@ -8,7 +8,7 @@ from scipy.interpolate import interp1d
 from joblib import Parallel, delayed
 from ellipse import LsqEllipse
 
-#DATA_PATH = Path('/vol/battaglialab/imaging1/Angela/2_Experiments/2021-0052-018_Neural correlates of memories')
+#DATA_PATH = Path('/vol/battaglialab/imaging1/Angela/2_Experiments/2021-0052-018_Neural correlates of memories/Raw_Data_READONLY'')
 DATA_PATH = Path('/vol/battaglialab/imaging1/guido/Subjects')
 DLC_FIND_EYE = Path('/vol/battaglialab/imaging1/guido/DLC/find-eye-guido-2023-11-10/config.yaml')
 DLC_EYE_TRACK = Path('/vol/battaglialab/imaging1/guido/DLC/pupil-tracking-guido-2023-11-13/config.yaml')
@@ -178,12 +178,14 @@ def non_uniform_savgol(x, y, window, polynom, n_jobs=N_CPUS):
 
 
 # %% Main script to process eye tracking data
-for root, dirnames, files in os.walk(DATA_PATH / 'Raw_Data_READONLY'):
+found_flags = 0
+for root, dirnames, files in os.walk(DATA_PATH):
     if EYE_FLAG in files:
         if 'raw_ephys_data' not in dirnames and ONLY_EPHYS:
             continue
         root = Path(root)
         print(f'\nFound {EYE_FLAG} in {root}')
+        found_flags += 1
         
         # Get path to video file
         video_dir = [i for i in dirnames if i[-9:] == '_picamera']
@@ -277,4 +279,8 @@ for root, dirnames, files in os.walk(DATA_PATH / 'Raw_Data_READONLY'):
         # Delete eyetrack_me.flag from server
         os.remove(root / 'eyetrack_me.flag')
         print('\nDone! Deleted eyetrack_me.flag\n')
-        
+
+if found_flags == 0:
+    print(f'No {EYE_FLAG} found in {DATA_PATH}')
+else:
+    print(f'Processed {found_flags} sessions')
