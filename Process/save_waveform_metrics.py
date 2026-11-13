@@ -88,6 +88,6 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
     waveform_calc_df = pd.concat((waveform_calc_df, waveform_metrics_calc), ignore_index=True)
     
     # Save result
-    waveform_si_df.to_csv(path_dict['save_path'] / 'waveform_metrics_si.csv', index=False)
-    waveform_calc_df.to_csv(path_dict['save_path'] / 'waveform_metrics_calc.csv', index=False)
+    waveform_si_df.to_csv(path_dict['google_drive_data_path'] / 'waveform_metrics_si.csv', index=False)
+    waveform_calc_df.to_csv(path_dict['google_drive_data_path'] / 'waveform_metrics_calc.csv', index=False)
 

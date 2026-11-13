@@ -17,14 +17,14 @@ mne.set_log_level('WARNING')
 colors, dpi = figure_style()
 
 # Settings
-TARGET = 'glm' # glm or fr
+TARGET = 'fr' # glm or fr
 PLOT_REGIONS = ['VIS', 'AUD', 'TEa', 'PERI', 'LEC', 'CA1']
 REGION_NAMES = ['Visual cortex', 'Auditory cortex', 'Temporal association cortex',
                 'Perirhinal cortex', 'Lateral enthorinal cortex', 'Hippocampus (CA1)']
 
 # Load in data
 path_dict = paths()
-file_path = path_dict['google_drive_data_path'] / 'decode_context_glm_randomforest.csv'
+file_path = path_dict['google_drive_data_path'] / f'decode_context_{TARGET}_randomforest.csv'
 try:
     context_df = pd.read_csv(file_path, dtype={'subject': str})
 except FileNotFoundError:
