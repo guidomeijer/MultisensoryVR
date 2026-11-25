@@ -12,6 +12,11 @@ full track length, every time bin gets spline predictors that depend only on whe
 mouse was during that bin, which makes the position term equivalent to the one used for the
 spatial bins.
 
+Time bins can be overlapping (sliding window): every bin has a width of BIN_SIZE and the bin
+centers are spaced STEP_SIZE apart. With STEP_SIZE = BIN_SIZE the bins are non-overlapping.
+Note that with overlapping bins the GLM samples are not independent; the fitted coefficients
+and residuals are still valid, but the standard errors of the GLM are not.
+
 By Guido Meijer
 """
 
@@ -25,7 +30,8 @@ from joblib import Parallel, delayed
 from msvr_functions import paths, load_neural_data, bin_signal
 
 # Settings
-BIN_SIZE = 0.1  # s
+BIN_SIZE = 0.3  # s, width of each time bin
+STEP_SIZE = 0.1  # s, spacing between bin centers (STEP_SIZE = BIN_SIZE gives non-overlapping bins)
 TRACK_LENGTH = 1500  # mm
 MIN_TRIALS = 0
 MIN_SPEED = 20  # mm/s, time bins with a lower mean speed are excluded
@@ -55,16 +61,19 @@ def process_recording(i, subject, date, probe, n_recs, path_dict):
     # Get the acceleration as the first derivative of the speed
     acceleration = np.gradient(running_speed, timestamps)
 
-    # Create time bins for every trial, only for the periods the mouse is in the environment
-    # (between enterEnvTime and exitEnvTime). The inter-trial periods between exitEnvTime and
-    # the next enterEnvTime are thereby excluded, and the last bin ends before the exitEnvTime
-    # of the last trial.
+    # Create (sliding window) time bins for every trial, only for the periods the mouse is in the
+    # environment (between enterEnvTime and exitEnvTime). The inter-trial periods between
+    # exitEnvTime and the next enterEnvTime are thereby excluded: the first bin starts at
+    # enterEnvTime and the last bin ends before exitEnvTime, so no bin crosses a trial boundary.
     bin_centers_list, trial_id_list = [], []
     for row in trials.itertuples():
         if row.soundId == 0:
             continue
-        n_bins = int(np.floor((row.exitEnvTime - row.enterEnvTime) / BIN_SIZE))
-        bin_centers_list.append(row.enterEnvTime + (BIN_SIZE / 2) + np.arange(n_bins) * BIN_SIZE)
+        duration = row.exitEnvTime - row.enterEnvTime
+        if duration < BIN_SIZE:
+            continue
+        n_bins = int(np.floor((duration - BIN_SIZE) / STEP_SIZE + 1e-9)) + 1
+        bin_centers_list.append(row.enterEnvTime + (BIN_SIZE / 2) + np.arange(n_bins) * STEP_SIZE)
         trial_id_list.append(np.full(n_bins, row.Index))
     bin_centers = np.concatenate(bin_centers_list)
     trial_id = np.concatenate(trial_id_list)
@@ -157,7 +166,9 @@ def process_recording(i, subject, date, probe, n_recs, path_dict):
         'glm_results': glm_results,
         'subject': subject,
         'date': date,
-        'probe': probe
+        'probe': probe,
+        'bin_size': BIN_SIZE,
+        'step_size': STEP_SIZE
     }
 
 
@@ -165,7 +176,12 @@ if __name__ == '__main__':
     # Initialize
     path_dict = paths(sync=False)
     rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)
-    save_path = path_dict['google_drive_data_path'] / f'residuals_time_{MIN_SPEED}mms.pickle'
+    if np.isclose(STEP_SIZE, BIN_SIZE) and np.isclose(BIN_SIZE, 0.1):
+        file_name = f'residuals_time_{MIN_SPEED}mms.pickle'  # original non-overlapping bins
+    else:
+        file_name = (f'residuals_time_{MIN_SPEED}mms_bin{int(round(BIN_SIZE * 1000))}ms'
+                     f'_step{int(round(STEP_SIZE * 1000))}ms.pickle')
+    save_path = path_dict['google_drive_data_path'] / file_name
 
     if OVERWRITE:
         residuals_dict = {
@@ -182,7 +198,9 @@ if __name__ == '__main__':
             'glm_results': [],
             'subject': [],
             'date': [],
-            'probe': []
+            'probe': [],
+            'bin_size': [],
+            'step_size': []
             }
     else:
         with open(save_path, 'rb') as handle:
