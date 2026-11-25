@@ -52,7 +52,7 @@ MIN_SPEED = 20  # mm/s, has to match create_time_residuals.py
 BIN_SIZE = 0.2  # s, width of the time bins, has to match create_time_residuals.py
 STEP_SIZE = 0.05  # s, spacing between bin centers, has to match create_time_residuals.py
 WINDOW = [-1, 1]  # s around object entry
-AXIS_WINDOWS = [[-1, 0], [0, 1]]  # s around object entry, one LDA axis is fit per epoch and
+AXIS_WINDOWS = [[-0.8, -0.2], [0.2, 0.8]]  # s around object entry, one LDA axis is fit per epoch and
                                   # used for all time bins in that epoch (based on bin centers)
 MIN_NEURONS = 10  # minimum number of neurons per region
 N_FOLDS = 10
@@ -301,7 +301,59 @@ if MOUSE_GROUP != 'all':
 decode_df.to_csv(path_dict['google_drive_data_path'] / f'decode_object_residuals_lda_fixed_axis{suffix}.csv', index=False)
 corr_df.to_csv(path_dict['google_drive_data_path'] / f'region_corr_lda_fixed_axis{suffix}.csv', index=False)
 
+# %% Plot LDA decoding example
+f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+plot_df = decode_df[(decode_df['region'] == 'TEa') & (decode_df['object'] == 2)]
+sns.lineplot(data=plot_df, x='time', y='accuracy', ax=ax1, color='k',
+                errorbar='se', err_kws={'lw': 0})
+ax1.set(ylabel='LDA decoding accuracy (%)', xlabel='Time from object entry (s)',
+        yticks=[0.5, 0.6, 0.7, 0.8], yticklabels=[50, 60, 70, 80], ylim=[0.48, 0.8])
+ax1.axvline(0, ls=':', lw=0.5, color='grey', zorder=0)
+ax1.axhline(0.5, ls=':', lw=0.5, color='grey', zorder=0)
+
+sns.despine(trim=True)
+plt.tight_layout()
+
+# %% Plot LDA correlation example
+f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+plot_df = decode_df[(decode_df['region'] == 'TEa') & (decode_df['object'] == 2)]
+sns.lineplot(data=plot_df, x='time', y='accuracy', ax=ax1, color='k',
+                errorbar='se', err_kws={'lw': 0})
+ax1.set(ylabel='LDA decoding accuracy (%)', xlabel='Time from object entry (s)',
+        yticks=[0.5, 0.6, 0.7, 0.8], yticklabels=[50, 60, 70, 80], ylim=[0.48, 0.8])
+ax1.axvline(0, ls=':', lw=0.5, color='grey', zorder=0)
+ax1.axhline(0.5, ls=':', lw=0.5, color='grey', zorder=0)
+
+sns.despine(trim=True)
+plt.tight_layout()
+
 # %% Plot LDA decoding accuracy on the fixed axis per region, separately per object
+f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+plot_df = decode_df[(decode_df['region'] == 'TEa') & (decode_df['object'] == 2)]
+sns.lineplot(data=plot_df, x='time', y='accuracy', ax=ax1, color='k',
+                errorbar='se', err_kws={'lw': 0})
+ax1.set(ylabel='LDA decoding accuracy (%)', xlabel='Time from object entry (s)',
+        yticks=[0.5, 0.6, 0.7, 0.8], yticklabels=[50, 60, 70, 80], ylim=[0.48, 0.8])
+ax1.axvline(0, ls=':', lw=0.5, color='grey', zorder=0)
+ax1.axhline(0.5, ls=':', lw=0.5, color='grey', zorder=0)
+
+sns.despine(trim=True)
+plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'InterAreaCommunication' / f'decode_TEa.pdf')
+
+f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
+plot_df = corr_df[(corr_df['region_pair'] == 'CA1-TEa') & (corr_df['object'] == 2)]
+sns.lineplot(data=plot_df, x='time', y='r', ax=ax1, color='k',
+                errorbar='se', err_kws={'lw': 0})
+ax1.set(ylabel='LDA projection correlation (r)', xlabel='Time from object entry (s)')
+ax1.axvline(0, ls=':', lw=0.5, color='grey', zorder=0)
+ax1.axhline(0, ls=':', lw=0.5, color='grey', zorder=0)
+
+sns.despine(trim=True)
+plt.tight_layout()
+plt.savefig(path_dict['paper_fig_path'] / 'InterAreaCommunication' / f'correlate_CA1_TEa.pdf')
+
+# %%
 
 # Boundaries between epochs (other than object entry, which is always drawn)
 epoch_boundaries = sorted({w[0] for w in AXIS_WINDOWS[1:]} - {0})
