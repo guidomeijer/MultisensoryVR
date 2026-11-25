@@ -113,7 +113,7 @@ sns.barplot(data=per_ses_df, x='region', y='perc_context_obj1', ax=ax2, hue='reg
 ax2.plot(use_xlim, [context_obj1_chance, context_obj1_chance], ls='--', color='lightgrey',
          lw=0.75)
 #ax2.set(xlabel='', title='Context first landmark', yticks=[0, 1, 2, 3, 4, 5, 6], ylim=[0, 6], ylabel='')
-ax2.set(xlabel='', title='Rewarded object 1', yticks=[0, 5, 10, 15], ylim=[0, 17], ylabel='', xlim=use_xlim)
+ax2.set(xlabel='', title='First rew. object', yticks=[0, 5, 10, 15], ylim=[0, 17], ylabel='', xlim=use_xlim)
 ax2.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_obj2']].groupby('region').mean().sort_values(
@@ -122,7 +122,7 @@ sns.barplot(data=per_ses_df, x='region', y='perc_context_obj2', ax=ax3, hue='reg
             palette=colors, order=this_order)
 ax3.plot(use_xlim, [context_obj2_chance, context_obj2_chance], ls='--', color='lightgrey',
          lw=0.75)
-ax3.set(xlabel='', title='Rewarded object 2', yticks=[0, 5, 10, 15], ylim=[0, 17], ylabel='', xlim=use_xlim)
+ax3.set(xlabel='', title='Second rew. object', yticks=[0, 5, 10, 15], ylim=[0, 17], ylabel='', xlim=use_xlim)
 ax3.tick_params(axis='x', labelrotation=90)
 
 this_order = per_ses_df[['region', 'perc_context_diff']].groupby('region').mean().sort_values(

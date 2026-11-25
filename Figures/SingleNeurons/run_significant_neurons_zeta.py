@@ -71,7 +71,7 @@ for i, (subject, date, probe) in enumerate(zip(rec['subject'], rec['date'], rec[
                                                   min_fr=0.1)
     trials = pd.read_csv(join(path_dict['local_data_path'], 'Subjects', subject, date, 'trials.csv'))
     all_obj_df = load_objects(subject, date)      
-     
+    
     # Get event times 
     goal1_times = all_obj_df.loc[(all_obj_df['object'] == 1) & (all_obj_df['goal'] == 1), 'times'].values
     no_goal1_times = all_obj_df.loc[(all_obj_df['object'] == 1) & (all_obj_df['goal'] == 0), 'times'].values

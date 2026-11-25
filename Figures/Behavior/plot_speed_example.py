@@ -147,25 +147,19 @@ sns.lineplot(data=obj1_df[obj1_df['subject'] == subject], x='time', y='value', h
              ax=axs[0], hue_order=[1, 0], palette=[colors['goal'], colors['no-goal']],
              errorbar='se', err_kws={'lw': 0}, legend=None)
 axs[0].set(ylabel='Running speed (cm/s)', xlabel='',
-           title='First rewarded object', xticks=[-2, -1, 0, 1, 2, 3], yticks=[5, 10, 15, 20])
+           title='First rew. object', xticks=[-2, -1, 0, 1, 2, 3], yticks=[5, 10, 15, 20])
 
 axs[1].plot([0, 0], [4, 21], ls='--', color='grey', lw=0.5)
 sns.lineplot(data=obj2_df[obj2_df['subject'] == subject], x='time', y='value', hue='goal',
              ax=axs[1], hue_order=[1, 0], palette=[colors['goal'], colors['no-goal']],
              errorbar='se', err_kws={'lw': 0}, legend=None)
-axs[1].set(title='Second rewarded object', xticks=[-2, -1, 0, 1, 2, 3], yticks=[5, 10, 15, 20], xlabel='',
+axs[1].set(title='Second rew. object', xticks=[-2, -1, 0, 1, 2, 3], yticks=[5, 10, 15, 20], xlabel='',
            ylim=[4.8, 20])
 add_significance(obj1_times, obj1_p, ax=axs[0], y_pos=19)
 add_significance(obj2_times, obj2_p, ax=axs[1], y_pos=19)
-#handles, previous_labels = axs[1].get_legend_handles_labels()
-#axs[1].legend(handles=handles, labels=['Rewarded', 'Unrewarded'], title='',
-#              bbox_to_anchor=[0.4, 0.7])
-
-
 f.text(0.5, 0.05, 'Time from object entry (s)', ha='center')
 
 sns.despine(trim=True)
-plt.subplots_adjust(bottom=0.22, top=0.85)
-
+plt.subplots_adjust(left=0.15, bottom=0.22, top=0.85)
 plt.savefig(path_dict['paper_fig_path'] / 'Behavior' / 'example_mouse_running.pdf')
 plt.savefig(path_dict['paper_fig_path'] / 'Behavior' / 'example_mouse_running.jpg', dpi=600)

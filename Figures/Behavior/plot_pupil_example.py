@@ -159,7 +159,7 @@ sns.lineplot(data=obj1_df, x='time', y='value', hue='goal',
 ax1.set(ylabel='Pupil size (z-score)', xticks=[-2, -1, 0, 1, 2, 3], xlabel='',
         yticks=[-0.8, -0.6, -0.4, -0.2, 0], ylim=[-0.8, 0], title='First rew. object')
 times, p_values = goal_cluster_test(obj1_df)
-add_significance(times, p_values, ax=ax1, y_pos=0.02)
+add_significance(times, p_values, ax=ax1, y_pos=0)
 
 ax2.plot([0, 0], [-0.4, 0.8], ls='--', color='grey', lw=0.5)
 sns.lineplot(data=obj2_df, x='time', y='value', hue='goal',
@@ -168,7 +168,7 @@ sns.lineplot(data=obj2_df, x='time', y='value', hue='goal',
 ax2.set(xticks=[-2, -1, 0, 1, 2, 3], xlabel='', ylabel='', title='Second rew. object',
         yticks=[-0.4, 0, 0.4, 0.8], yticklabels=[-0.4, 0, 0.4, 0.8], ylim=[-0.4, 0.8])
 times, p_values = goal_cluster_test(obj2_df)
-add_significance(times, p_values, ax=ax2, y_pos=0.8)
+add_significance(times, p_values, ax=ax2, y_pos=0.76)
 
 f.text(0.5, 0.05, 'Time from object entry (s)', ha='center')
 

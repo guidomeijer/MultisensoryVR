@@ -14,8 +14,8 @@ from msvr_functions import paths, load_objects, figure_style
 colors, dpi = figure_style()
 
 # Settings
-T_WINDOW = [0, 2]  # window relative to object entry in which to average pupil size
-BASELINE = [-2, -1]  # baseline window relative to object entry
+T_WINDOW = [-1, 0]  # window relative to object entry in which to average pupil size
+BASELINE = [-3, -2]  # baseline window relative to object entry
 LAST_SES = 5
 MIN_TRIALS = 30
 
@@ -68,6 +68,12 @@ for i, subject in enumerate(subjects):
                            & (timestamps < obj_time + T_WINDOW[1])]) - baseline)
 
         # Difference in pupil response between rewarded and unrewarded for this session
+        #pupil_obj1_ses.append(
+        #    (np.nanmean(pupil_dict['obj1_goal1']) - np.nanmean(pupil_dict['obj1_goal0']))
+        #    / np.nanmean(pupil_dict['obj1_goal1']))
+        #pupil_obj2_ses.append(
+        #    np.nanmean(pupil_dict['obj2_goal1']) - np.nanmean(pupil_dict['obj2_goal0'])
+        #    / np.nanmean(pupil_dict['obj2_goal1']))
         pupil_obj1_ses.append(np.nanmean(pupil_dict['obj1_goal1']) - np.nanmean(pupil_dict['obj1_goal0']))
         pupil_obj2_ses.append(np.nanmean(pupil_dict['obj2_goal1']) - np.nanmean(pupil_dict['obj2_goal0']))
 
@@ -90,14 +96,17 @@ print(f'First vs second object: p = {p_obj1_obj2:.3f}')
 
 # %% Plot
 
-f, ax1 = plt.subplots(figsize=(1.3, 1.75), dpi=dpi)
+f, ax1 = plt.subplots(figsize=(1.2, 1.75), dpi=dpi)
 
 ax1.plot([-0.5, 1.5], [0, 0], ls='--', color='grey')
+ax1.plot([np.zeros_like(pupil_obj1), np.ones_like(pupil_obj2)], [pupil_obj1, pupil_obj2], color='k')
 ax1.hlines(np.mean(pupil_obj1), -0.2, 0.2, color='tab:red', lw=1.5)
 ax1.hlines(np.mean(pupil_obj2), 0.8, 1.2, color='tab:red', lw=1.5)
-ax1.plot([np.zeros_like(pupil_obj1), np.ones_like(pupil_obj2)], [pupil_obj1, pupil_obj2], color='k')
+ax1.plot([0, 1], [0.1, 0.1], color='k', clip_on=False)
+ax1.text(0.5, 0.1, '**', fontsize=12, ha='center', va='center')
 ax1.set(xticks=[0, 1], xticklabels=['First', 'Second'], xlabel='Rewarded object',
-        ylabel='Pupil size change (z)', xlim=[-0.5, 1.5])
+        ylabel='Pupil size change (z)', xlim=[-0.5, 1.5], yticks=[-0.1, 0, 0.1],
+        yticklabels=[-0.1, 0, 0.1])
 
 sns.despine(trim=False)
 plt.tight_layout()

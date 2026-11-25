@@ -13,7 +13,7 @@ import pandas as pd
 from matplotlib.ticker import FormatStrFormatter
 from msvr_functions import (paths, peri_multiple_events_time_histogram, load_objects, load_trials,
                             load_neural_data, figure_style, load_subjects)
-path_dict = paths(sync=False)
+path_dict = paths()
 colors, dpi = figure_style()
 
 # Settings
@@ -73,7 +73,7 @@ peri_multiple_events_time_histogram(
                    {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax1.set(title='Rew. object 1', ylabel='Firing rate (spks/cm)', yticks=[0, 1],
+ax1.set(title='First rew. object', ylabel='Firing rate (spks/cm)', yticks=[0, 1],
         xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
 ax1.yaxis.set_label_coords(-0.25, 0.75)
 ax1.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
@@ -89,7 +89,7 @@ peri_multiple_events_time_histogram(
                    {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax2.set(title='Rew. object 2', yticks=[0, 1], ylabel='',
+ax2.set(title='Second rew. object', yticks=[0, 1], ylabel='',
         xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
 ax2.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
@@ -152,7 +152,7 @@ peri_multiple_events_time_histogram(
     errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax1.set(title='Rew. object 1', ylabel='Firing rate (spks/cm)', yticks=[0, 1],
+ax1.set(title='First rew. object', ylabel='Firing rate (spks/cm)', yticks=[0, 1],
         xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
 ax1.yaxis.set_label_coords(-0.25, 0.75)
 ax1.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
@@ -167,7 +167,7 @@ peri_multiple_events_time_histogram(
     errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax2.set(title='Rew. object 2', yticks=[0, 1], ylabel='',
+ax2.set(title='Second rew. object', yticks=[0, 1], ylabel='',
         xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
 ax2.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
@@ -216,7 +216,7 @@ peri_multiple_events_time_histogram(
     errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax1.set(title='Rew. object 1', ylabel='Firing rate (spks/cm)', yticks=[0, 2],
+ax1.set(title='First rew. object', ylabel='Firing rate (spks/cm)', yticks=[0, 2],
         xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
 ax1.yaxis.set_label_coords(-0.25, 0.75)
 ax1.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
@@ -231,7 +231,7 @@ peri_multiple_events_time_histogram(
     errbar_kwargs=[{'color': colors['goal'], 'alpha': 0.3, 'lw': 0}, {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax2.set(title='Rew. object 2', yticks=[0, 2], ylabel='',
+ax2.set(title='Second rew. object', yticks=[0, 2], ylabel='',
         xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
 ax2.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
@@ -283,7 +283,7 @@ peri_multiple_events_time_histogram(
                    {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax1.set(title='Rew. object 1', yticks=[0, 1], xlabel='', ylabel='Firing rate (spks/cm)',
+ax1.set(title='First rew. object', yticks=[0, 1], xlabel='', ylabel='Firing rate (spks/cm)',
         xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
 ax1.yaxis.set_label_coords(-0.25, 0.75)
 ax1.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
@@ -299,7 +299,7 @@ peri_multiple_events_time_histogram(
                    {'color': colors['no-goal'], 'alpha': 0.3, 'lw': 0}],
     raster_kwargs=[{'color': colors['goal'], 'lw': 0.5}, {'color': colors['no-goal'], 'lw': 0.5}],
     eventline_kwargs={'lw': 0}, include_raster=True)
-ax2.set(title='Rew. object 2', yticks=[0, 1], ylabel='',
+ax2.set(title='Second rew. object', yticks=[0, 1], ylabel='',
         xlabel='', xticks=[-D_BEFORE_OBJ, 0, D_AFTER_OBJ])
 ax2.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
 
