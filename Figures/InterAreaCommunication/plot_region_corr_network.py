@@ -105,7 +105,7 @@ cmap = plt.get_cmap(CMAP)
 # %% Plot network per epoch, one figure per object (same color scale for all figures)
 
 for obj in sorted(summary_df['object'].unique()):
-    f, axs = plt.subplots(1, len(EPOCHS), figsize=(2.5 * len(EPOCHS) + 0.6, 2.5), dpi=dpi,
+    f, axs = plt.subplots(1, len(EPOCHS), figsize=(4.8, 2.5), dpi=dpi,
                           squeeze=False)
     axs = axs[0]
     for j, epoch_name in enumerate(EPOCHS.keys()):
@@ -141,15 +141,14 @@ for obj in sorted(summary_df['object'].unique()):
         ax.axis('off')
         ax.set_title(epoch_name, fontsize=7)
 
-    obj_title = 'Objects pooled' if obj == 'pooled' else f'Object {obj}'
-    f.suptitle(obj_title, fontsize=7)
-
     # Colorbar
     f.subplots_adjust(right=0.85)
-    cax = f.add_axes([0.88, 0.25, 0.02, 0.5])
+    cax = f.add_axes([0.88, 0.25, 0.01, 0.5])
     cbar = f.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax)
-    cbar.set_label('Correlation AUC (r·s)', fontsize=7)
-    cbar.ax.tick_params(labelsize=6)
+    cbar.set_label('Correlation AUC (r·s)', fontsize=7, rotation=270, labelpad=10)
+    cbar.set_ticks([-0.1, 0, 0.1])
+    cbar.set_ticklabels([-0.1, 0, 0.1])
+    cbar.ax.tick_params(labelsize=7)
 
-    #plt.savefig(path_dict['fig_path'] / f'region_corr_lda_network_object{obj}{suffix}.pdf')
+    plt.savefig(path_dict['paper_fig_path'] / 'InterAreaCommunication' / f'region_corr_lda_network_object{obj}.pdf')
     plt.show()
