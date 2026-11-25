@@ -43,7 +43,7 @@ import matplotlib.pyplot as plt
 from itertools import combinations
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.model_selection import StratifiedKFold
-from msvr_functions import paths, figure_style, load_objects
+from msvr_functions import paths, figure_style, load_objects, load_subjects
 
 colors, dpi = figure_style()
 
@@ -60,6 +60,8 @@ SHRINKAGE = 'auto'  # Ledoit-Wolf shrinkage of the within-class covariance
 MIN_TRIALS_GROUP = 5  # minimum number of entries per object x context group to include it
 MIN_TRIALS_CORR = 20  # minimum total number of entries to compute a correlation
 POOL_OBJECTS = False  # pool object 1 and 2 in the correlation (after z-scoring per object)
+MOUSE_GROUP = 'all'  # 'all', 'far' or 'near': only use FAR or NEAR mice
+assert MOUSE_GROUP in ['all', 'far', 'near'], "MOUSE_GROUP must be 'all', 'far' or 'near'"
 
 # Time grid relative to object entry (in units of steps)
 rel_bins = np.arange(int(np.round(WINDOW[0] / STEP_SIZE)),
@@ -128,6 +130,13 @@ def project_entries(model, X_all, entry_bin_idx):
 # Group recordings by session (simultaneous recordings on different probes)
 sessions = pd.DataFrame({'subject': spike_dict['subject'],
                          'date': spike_dict['date']}).astype(str).drop_duplicates()
+
+# Only keep FAR or NEAR mice
+if MOUSE_GROUP != 'all':
+    subjects = load_subjects()
+    group_subjects = subjects.loc[subjects['Far'] == int(MOUSE_GROUP == 'far'), 'SubjectID']
+    sessions = sessions[sessions['subject'].isin(group_subjects.astype(str))]
+    print(f'Using {MOUSE_GROUP.upper()} mice only: {sessions.shape[0]} sessions')
 
 decode_results, axis_results, corr_results = [], [], []
 for subject, date in zip(sessions['subject'], sessions['date']):
@@ -287,6 +296,8 @@ corr_df = pd.DataFrame(corr_results)
 
 # Save to disk (file names include the bin settings)
 suffix = f'_bin{int(round(BIN_SIZE * 1000))}ms_step{int(round(STEP_SIZE * 1000))}ms'
+if MOUSE_GROUP != 'all':
+    suffix += f'_{MOUSE_GROUP}'
 decode_df.to_csv(path_dict['google_drive_data_path'] / f'decode_object_residuals_lda_fixed_axis{suffix}.csv', index=False)
 corr_df.to_csv(path_dict['google_drive_data_path'] / f'region_corr_lda_fixed_axis{suffix}.csv', index=False)
 
@@ -321,7 +332,7 @@ for obj in [1, 2]:
     f.supxlabel('Time from object entry (s)', fontsize=7)
     sns.despine(trim=True)
     plt.tight_layout()
-    #plt.savefig(path_dict['fig_path'] / f'decode_object{obj}_residuals_lda_fixed_axis_accuracy{suffix}.pdf')
+    plt.savefig(path_dict['paper_fig_path'] / 'InterAreaCommunication' / f'decode_object{obj}_residuals_lda_fixed_axis_accuracy{suffix}.pdf')
     plt.show()
 
 # %% Plot pooled noise correlation of the fixed-axis LDA projections between region pairs
@@ -354,5 +365,5 @@ for obj_name in corr_df['object'].unique():
     f.supxlabel('Time from object entry (s)', fontsize=7)
     sns.despine(trim=True)
     plt.tight_layout()
-    #plt.savefig(path_dict['fig_path'] / f'region_corr_lda_fixed_axis_object-{obj_name}{suffix}.pdf')
+    plt.savefig(path_dict['paper_fig_path'] / 'InterAreaCommunication' / f'region_corr_lda_fixed_axis_object-{obj_name}{suffix}.pdf')
     plt.show()

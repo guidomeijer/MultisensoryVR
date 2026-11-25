@@ -30,8 +30,8 @@ from joblib import Parallel, delayed
 from msvr_functions import paths, load_neural_data, bin_signal
 
 # Settings
-BIN_SIZE = 0.3  # s, width of each time bin
-STEP_SIZE = 0.1  # s, spacing between bin centers (STEP_SIZE = BIN_SIZE gives non-overlapping bins)
+BIN_SIZE = 0.2  # s, width of each time bin
+STEP_SIZE = 0.05  # s, spacing between bin centers (STEP_SIZE = BIN_SIZE gives non-overlapping bins)
 TRACK_LENGTH = 1500  # mm
 MIN_TRIALS = 0
 MIN_SPEED = 20  # mm/s, time bins with a lower mean speed are excluded
@@ -174,7 +174,7 @@ def process_recording(i, subject, date, probe, n_recs, path_dict):
 
 if __name__ == '__main__':
     # Initialize
-    path_dict = paths(sync=False)
+    path_dict = paths()
     rec = pd.read_csv(path_dict['repo_path'] / 'recordings.csv').astype(str)
     if np.isclose(STEP_SIZE, BIN_SIZE) and np.isclose(BIN_SIZE, 0.1):
         file_name = f'residuals_time_{MIN_SPEED}mms.pickle'  # original non-overlapping bins
