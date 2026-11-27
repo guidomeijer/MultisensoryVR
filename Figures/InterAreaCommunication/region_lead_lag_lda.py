@@ -1,4 +1,5 @@
-# %% -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
+# %% 
 """
 Created on Fri Nov 27 2026
 

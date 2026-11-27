@@ -39,12 +39,15 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import pickle
+import mne
 import matplotlib.pyplot as plt
+from scipy import stats
 from itertools import combinations
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.model_selection import StratifiedKFold
-from msvr_functions import paths, figure_style, load_objects, load_subjects
-
+from msvr_functions import (paths, figure_style, load_objects, load_subjects,
+                            add_significance)
+mne.set_log_level('WARNING')
 colors, dpi = figure_style()
 
 # Settings
@@ -62,6 +65,12 @@ MIN_TRIALS_CORR = 20  # minimum total number of entries to compute a correlation
 POOL_OBJECTS = False  # pool object 1 and 2 in the correlation (after z-scoring per object)
 MOUSE_GROUP = 'all'  # 'all', 'far' or 'near': only use FAR or NEAR mice
 assert MOUSE_GROUP in ['all', 'far', 'near'], "MOUSE_GROUP must be 'all', 'far' or 'near'"
+
+# Cluster-based permutation statistics (against chance, over recordings)
+CLUSTER_THRESHOLD_P = 0.2  # two-sided p-value of the t-test used to form clusters
+N_PERMUTATIONS = 1000
+CLUSTER_ALPHA = 0.05  # significance level of the clusters
+MIN_RECORDINGS = 3  # minimum number of recordings to run the test
 
 # Time grid relative to object entry (in units of steps)
 rel_bins = np.arange(int(np.round(WINDOW[0] / STEP_SIZE)),
@@ -125,6 +134,30 @@ def project_entries(model, X_all, entry_bin_idx):
     if np.any(valid):
         proj[valid] = lda_projection(model, X_all[entry_bin_idx[valid]])
     return proj
+
+
+def cluster_test(df, value_col, chance):
+    """
+    Cluster-based permutation test (one-sample, two-sided) of value_col against chance over
+    recordings (subject x date), across time bins. Recordings that miss one or more time bins are
+    excluded. Returns the time bins and a p-value per time bin (the p-value of the significant
+    cluster it belongs to, 1 otherwise).
+    """
+    rec_matrix = df.pivot_table(index=['subject', 'date'], columns='time', values=value_col)
+    times = rec_matrix.columns.values
+    rec_matrix = rec_matrix.dropna(axis=0)
+    p_values = np.ones(times.shape[0])
+    if rec_matrix.shape[0] < MIN_RECORDINGS:
+        return times, p_values
+    X = rec_matrix.values - chance
+    t_threshold = stats.t.ppf(1 - CLUSTER_THRESHOLD_P / 2, X.shape[0] - 1)
+    _, clusters, cluster_p_values, _ = mne.stats.permutation_cluster_1samp_test(
+        X, threshold=t_threshold, n_permutations=N_PERMUTATIONS, tail=0, out_type='mask',
+        seed=42)
+    for cluster_mask, p_val in zip(clusters, cluster_p_values):
+        if p_val < CLUSTER_ALPHA:
+            p_values[cluster_mask] = p_val
+    return times, p_values
 
 
 # Group recordings by session (simultaneous recordings on different probes)
@@ -307,9 +340,11 @@ plot_df = decode_df[(decode_df['region'] == 'TEa') & (decode_df['object'] == 2)]
 sns.lineplot(data=plot_df, x='time', y='accuracy', ax=ax1, color='k',
                 errorbar='se', err_kws={'lw': 0})
 ax1.set(ylabel='LDA decoding accuracy (%)', xlabel='Time from object entry (s)',
-        yticks=[0.5, 0.6, 0.7, 0.8], yticklabels=[50, 60, 70, 80], ylim=[0.48, 0.8])
+        yticks=[0.5, 0.6, 0.7, 0.8], yticklabels=[50, 60, 70, 80], ylim=[0.48, 0.85])
 ax1.axvline(0, ls=':', lw=0.5, color='grey', zorder=0)
 ax1.axhline(0.5, ls=':', lw=0.5, color='grey', zorder=0)
+add_significance(*cluster_test(plot_df, 'accuracy', 0.5), ax=ax1, y_pos=0.8,
+                 alpha=CLUSTER_ALPHA)
 
 sns.despine(trim=True)
 plt.tight_layout()
@@ -320,22 +355,11 @@ plot_df = decode_df[(decode_df['region'] == 'TEa') & (decode_df['object'] == 2)]
 sns.lineplot(data=plot_df, x='time', y='accuracy', ax=ax1, color='k',
                 errorbar='se', err_kws={'lw': 0})
 ax1.set(ylabel='LDA decoding accuracy (%)', xlabel='Time from object entry (s)',
-        yticks=[0.5, 0.6, 0.7, 0.8], yticklabels=[50, 60, 70, 80], ylim=[0.48, 0.8])
+        yticks=[0.5, 0.6, 0.7, 0.8], yticklabels=[50, 60, 70, 80], ylim=[0.48, 0.85])
 ax1.axvline(0, ls=':', lw=0.5, color='grey', zorder=0)
 ax1.axhline(0.5, ls=':', lw=0.5, color='grey', zorder=0)
-
-sns.despine(trim=True)
-plt.tight_layout()
-
-# %% Plot LDA decoding accuracy on the fixed axis per region, separately per object
-f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
-plot_df = decode_df[(decode_df['region'] == 'TEa') & (decode_df['object'] == 2)]
-sns.lineplot(data=plot_df, x='time', y='accuracy', ax=ax1, color='k',
-                errorbar='se', err_kws={'lw': 0})
-ax1.set(ylabel='LDA decoding accuracy (%)', xlabel='Time from object entry (s)',
-        yticks=[0.5, 0.6, 0.7, 0.8], yticklabels=[50, 60, 70, 80], ylim=[0.48, 0.8])
-ax1.axvline(0, ls=':', lw=0.5, color='grey', zorder=0)
-ax1.axhline(0.5, ls=':', lw=0.5, color='grey', zorder=0)
+add_significance(*cluster_test(plot_df, 'accuracy', 0.5), ax=ax1, y_pos=0.8,
+                 alpha=CLUSTER_ALPHA)
 
 sns.despine(trim=True)
 plt.tight_layout()
@@ -345,9 +369,12 @@ f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
 plot_df = corr_df[(corr_df['region_pair'] == 'CA1-TEa') & (corr_df['object'] == 2)]
 sns.lineplot(data=plot_df, x='time', y='r', ax=ax1, color='k',
                 errorbar='se', err_kws={'lw': 0})
-ax1.set(ylabel='LDA projection correlation (r)', xlabel='Time from object entry (s)')
+ax1.set(ylabel='LDA projection correlation (r)', xlabel='Time from object entry (s)',
+        yticks=[-0.1, 0, 0.1, 0.2], yticklabels=[-0.1, 0, 0.1, 0.2])
 ax1.axvline(0, ls=':', lw=0.5, color='grey', zorder=0)
 ax1.axhline(0, ls=':', lw=0.5, color='grey', zorder=0)
+ax1.set_ylim(top=max(ax1.get_ylim()[1], 0.22))
+add_significance(*cluster_test(plot_df, 'r', 0), ax=ax1, y_pos=0.2, alpha=CLUSTER_ALPHA)
 
 sns.despine(trim=True)
 plt.tight_layout()
@@ -374,6 +401,7 @@ for obj in [1, 2]:
                      errorbar='se', err_kws={'lw': 0})
         ax.axhline(0.5, ls='--', lw=0.5, color='grey', zorder=0)
         ax.axvline(0, ls='--', lw=0.5, color='k', zorder=0)
+        add_significance(*cluster_test(plot_df, 'accuracy', 0.5), ax=ax, alpha=CLUSTER_ALPHA)
         n_rec = plot_df[['subject', 'date']].drop_duplicates().shape[0]
         ax.set(title=f'{region} (n={n_rec})', xlabel='', ylabel='')
         if r % n_cols == 0:
@@ -406,6 +434,7 @@ for obj_name in corr_df['object'].unique():
                      errorbar='se', err_kws={'lw': 0})
         ax.axhline(0, ls='--', lw=0.5, color='grey', zorder=0)
         ax.axvline(0, ls='--', lw=0.5, color='k', zorder=0)
+        add_significance(*cluster_test(plot_df, 'r', 0), ax=ax, alpha=CLUSTER_ALPHA)
         n_rec = plot_df[['subject', 'date']].drop_duplicates().shape[0]
         ax.set(title=f'{region_pair} (n={n_rec})', xlabel='', ylabel='')
         if p % n_cols == 0:
