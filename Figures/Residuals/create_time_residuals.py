@@ -1,10 +1,15 @@
-# -*- coding: utf-8 -*-
+# %% -*- coding: utf-8 -*-
 """
 Created on Thu Oct 22 2026
 
 Same as create_position_residuals.py but neural activity is binned in time bins instead of
-spatial bins. Only the periods during which the mouse is inside an environment (between
-enterEnvTime and exitEnvTime of each trial) are used.
+spatial bins. Only time bins around object entries are used: a time bin is included when its
+center falls within OBJ_WINDOW (s) of the entry into any of the objects (1, 2 and 3) of that
+trial. Bins are only created while the mouse is inside the environment (between enterEnvTime
+and exitEnvTime of each trial), so windows that extend beyond these boundaries are truncated.
+The time grid is the same as when all bins in the environment are used (aligned to
+enterEnvTime), so time bins in overlapping windows of neighboring objects are only included
+once.
 
 Position is regressed out by evaluating a B-spline basis on the (mean) position of the mouse,
 relative to enterEnvPos, within each time bin. Because the spline knots are fixed over the
@@ -27,11 +32,13 @@ import statsmodels.api as sm
 import pickle
 from patsy import dmatrix
 from joblib import Parallel, delayed
-from msvr_functions import paths, load_neural_data, bin_signal
+from msvr_functions import paths, load_neural_data, bin_signal, load_objects
 
 # Settings
-BIN_SIZE = 0.01  # s, width of each time bin
-STEP_SIZE = 0.01  # s, spacing between bin centers (STEP_SIZE = BIN_SIZE gives non-overlapping bins)
+BIN_SIZE = 0.02  # s, width of each time bin
+STEP_SIZE = 0.02  # s, spacing between bin centers (STEP_SIZE = BIN_SIZE gives non-overlapping bins)
+OBJ_WINDOW = [-2, 2]  # s around object entry, bins with their center in this window are used
+OBJECTS = [1, 2, 3]  # objects whose entries are used
 TRACK_LENGTH = 1500  # mm
 MIN_TRIALS = 0
 MIN_SPEED = 20  # mm/s, time bins with a lower mean speed are excluded
@@ -61,20 +68,38 @@ def process_recording(i, subject, date, probe, n_recs, path_dict):
     # Get the acceleration as the first derivative of the speed
     acceleration = np.gradient(running_speed, timestamps)
 
+    # Load in object entry times (trial_nr corresponds to the row index of trials.csv)
+    obj_df = load_objects(subject, date)
+    obj_df = obj_df[obj_df['object'].isin(OBJECTS) & ~np.isnan(obj_df['times'])]
+    entries_per_trial = obj_df.groupby('trial_nr')['times'].apply(np.array).to_dict()
+
     # Create (sliding window) time bins for every trial, only for the periods the mouse is in the
     # environment (between enterEnvTime and exitEnvTime). The inter-trial periods between
     # exitEnvTime and the next enterEnvTime are thereby excluded: the first bin starts at
     # enterEnvTime and the last bin ends before exitEnvTime, so no bin crosses a trial boundary.
+    # Then only keep the bins whose center lies within OBJ_WINDOW of an object entry.
     bin_centers_list, trial_id_list = [], []
     for row in trials.itertuples():
         if row.soundId == 0:
+            continue
+        entries = entries_per_trial.get(row.Index, np.array([]))
+        if entries.size == 0:
             continue
         duration = row.exitEnvTime - row.enterEnvTime
         if duration < BIN_SIZE:
             continue
         n_bins = int(np.floor((duration - BIN_SIZE) / STEP_SIZE + 1e-9)) + 1
-        bin_centers_list.append(row.enterEnvTime + (BIN_SIZE / 2) + np.arange(n_bins) * STEP_SIZE)
-        trial_id_list.append(np.full(n_bins, row.Index))
+        these_centers = row.enterEnvTime + (BIN_SIZE / 2) + np.arange(n_bins) * STEP_SIZE
+        rel_time = these_centers[:, None] - entries[None, :]  # bins x object entries
+        in_window = np.any((rel_time >= OBJ_WINDOW[0] - 1e-9)
+                           & (rel_time <= OBJ_WINDOW[1] + 1e-9), axis=1)
+        if not np.any(in_window):
+            continue
+        bin_centers_list.append(these_centers[in_window])
+        trial_id_list.append(np.full(np.sum(in_window), row.Index))
+    if len(bin_centers_list) == 0:
+        print('No time bins around object entries, skipping session')
+        return None
     bin_centers = np.concatenate(bin_centers_list)
     trial_id = np.concatenate(trial_id_list)
 
@@ -168,7 +193,8 @@ def process_recording(i, subject, date, probe, n_recs, path_dict):
         'date': date,
         'probe': probe,
         'bin_size': BIN_SIZE,
-        'step_size': STEP_SIZE
+        'step_size': STEP_SIZE,
+        'obj_window': OBJ_WINDOW
     }
 
 
@@ -197,7 +223,8 @@ if __name__ == '__main__':
             'date': [],
             'probe': [],
             'bin_size': [],
-            'step_size': []
+            'step_size': [],
+            'obj_window': []
             }
     else:
         with open(save_path, 'rb') as handle:

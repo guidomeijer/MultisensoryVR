@@ -51,16 +51,16 @@ from msvr_functions import paths, figure_style, load_objects, load_subjects
 colors, dpi = figure_style()
 
 # Analysis selection
-REGION1 = 'CA1'
-REGION2 = 'TEa'
+REGION1 = 'TEa'
+REGION2 = 'CA1'
 CENTER_TIME = -0.5  # s relative to object entry, time bin on which the analysis is centered
 OBJECT = 2  # 1 or 2
 MAX_LAG = 0.4  # s, maximum lag between the two regions
 
 # Settings
 MIN_SPEED = 20  # mm/s, has to match create_time_residuals.py
-BIN_SIZE = 0.1  # s, width of the time bins, has to match create_time_residuals.py
-STEP_SIZE = 0.1  # s, spacing between bin centers, has to match create_time_residuals.py
+BIN_SIZE = 0.01  # s, width of the time bins, has to match create_time_residuals.py
+STEP_SIZE = 0.01  # s, spacing between bin centers, has to match create_time_residuals.py
 MIN_NEURONS = 10  # minimum number of neurons per region
 N_FOLDS = 10
 SHRINKAGE = 'auto'  # Ledoit-Wolf shrinkage of the within-class covariance
