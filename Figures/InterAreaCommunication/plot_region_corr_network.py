@@ -34,8 +34,8 @@ colors, dpi = figure_style()
 # Settings
 BIN_SIZE = 0.2  # s, has to match region_corr_lda.py
 STEP_SIZE = 0.05  # s, has to match region_corr_lda.py
-EPOCHS = {'Pre-entry (-1 to 0 s)': [-1, 0],
-          'Post-entry (0 to 1 s)': [0, 1]}
+EPOCHS = {'Pre-entry (-1 to 0 s)': [-0.5, 0],
+          'Post-entry (0 to 1 s)': [0.2, 1]}
 MIN_COVERAGE = 0.8  # minimum fraction of time bins in an epoch that need a correlation value
 MIN_SESSIONS = 3  # minimum number of sessions for a region pair to be plotted
 ONLY_SIGNIFICANT = True  # only draw region pairs with a session AUC significantly different from 0

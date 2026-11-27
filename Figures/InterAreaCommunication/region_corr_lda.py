@@ -334,32 +334,17 @@ if MOUSE_GROUP != 'all':
 decode_df.to_csv(path_dict['google_drive_data_path'] / f'decode_object_residuals_lda_fixed_axis{suffix}.csv', index=False)
 corr_df.to_csv(path_dict['google_drive_data_path'] / f'region_corr_lda_fixed_axis{suffix}.csv', index=False)
 
-# %% Plot LDA decoding example
-f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
-plot_df = decode_df[(decode_df['region'] == 'TEa') & (decode_df['object'] == 2)]
-sns.lineplot(data=plot_df, x='time', y='accuracy', ax=ax1, color='k',
-                errorbar='se', err_kws={'lw': 0})
-ax1.set(ylabel='LDA decoding accuracy (%)', xlabel='Time from object entry (s)',
-        yticks=[0.5, 0.6, 0.7, 0.8], yticklabels=[50, 60, 70, 80], ylim=[0.48, 0.85])
-ax1.axvline(0, ls=':', lw=0.5, color='grey', zorder=0)
-ax1.axhline(0.5, ls=':', lw=0.5, color='grey', zorder=0)
-add_significance(*cluster_test(plot_df, 'accuracy', 0.5), ax=ax1, y_pos=0.8,
-                 alpha=CLUSTER_ALPHA)
-
-sns.despine(trim=True)
-plt.tight_layout()
-
 # %% Plot LDA correlation example
 f, ax1 = plt.subplots(figsize=(1.75, 1.75), dpi=dpi)
 plot_df = decode_df[(decode_df['region'] == 'TEa') & (decode_df['object'] == 2)]
 sns.lineplot(data=plot_df, x='time', y='accuracy', ax=ax1, color='k',
                 errorbar='se', err_kws={'lw': 0})
 ax1.set(ylabel='LDA decoding accuracy (%)', xlabel='Time from object entry (s)',
-        yticks=[0.5, 0.6, 0.7, 0.8], yticklabels=[50, 60, 70, 80], ylim=[0.48, 0.85])
+        yticks=[0.5, 0.6, 0.7, 0.8], yticklabels=[50, 60, 70, 80], ylim=[0.48, 0.8])
 ax1.axvline(0, ls=':', lw=0.5, color='grey', zorder=0)
 ax1.axhline(0.5, ls=':', lw=0.5, color='grey', zorder=0)
-add_significance(*cluster_test(plot_df, 'accuracy', 0.5), ax=ax1, y_pos=0.8,
-                 alpha=CLUSTER_ALPHA)
+add_significance(*cluster_test(plot_df, 'accuracy', 0.5), ax=ax1, alpha=CLUSTER_ALPHA, y_pos=0.78)
+
 
 sns.despine(trim=True)
 plt.tight_layout()
@@ -370,11 +355,10 @@ plot_df = corr_df[(corr_df['region_pair'] == 'CA1-TEa') & (corr_df['object'] == 
 sns.lineplot(data=plot_df, x='time', y='r', ax=ax1, color='k',
                 errorbar='se', err_kws={'lw': 0})
 ax1.set(ylabel='LDA projection correlation (r)', xlabel='Time from object entry (s)',
-        yticks=[-0.1, 0, 0.1, 0.2], yticklabels=[-0.1, 0, 0.1, 0.2])
+        yticks=[-0.1, 0, 0.1, 0.2], yticklabels=[-0.1, 0, 0.1, 0.2], ylim=[-0.1, 0.2])
 ax1.axvline(0, ls=':', lw=0.5, color='grey', zorder=0)
 ax1.axhline(0, ls=':', lw=0.5, color='grey', zorder=0)
-ax1.set_ylim(top=max(ax1.get_ylim()[1], 0.22))
-add_significance(*cluster_test(plot_df, 'r', 0), ax=ax1, y_pos=0.2, alpha=CLUSTER_ALPHA)
+add_significance(*cluster_test(plot_df, 'r', 0), ax=ax1, alpha=CLUSTER_ALPHA)
 
 sns.despine(trim=True)
 plt.tight_layout()
