@@ -165,16 +165,28 @@ def create_bp_structure(bp, n_cpus=1):
     num_lines = count_lines(bp)
     
     # Decode and create new dataset
-    data = np.zeros(num_lines, dtype=np_DataPacketType_withDigital)
+    # +1 to allow for a final line without a trailing newline
+    data = np.zeros(num_lines + 1, dtype=np_DataPacketType_withDigital)
     non_digital_names = list(np_DataPacketType_noDigital.names)
-
+    valid = np.zeros(num_lines + 1, dtype=bool)
+    bad_lines = []
     with open(bp, 'rb') as bf:
         for nline, line in enumerate(tqdm(bf, total=num_lines)):
-            bl = cobs.decode(base64.b64decode(line[:-1])[:-1])
-            data[non_digital_names][nline] = np.frombuffer(bl[:-8], dtype=np_DataPacketType_noDigital)
-            digital_arr = np.frombuffer(bl[-8:], dtype=np.uint8)
-            data[nline]['digital_in'] = np.hstack([np.unpackbits(digital_arr[1]), np.unpackbits(digital_arr[0])])
-            data[nline]['digital_out'] = np.hstack([np.unpackbits(digital_arr[3]), np.unpackbits(digital_arr[2])])
+            try:
+                bl = cobs.decode(base64.b64decode(line.rstrip(b'\r\n'))[:-1])
+                data[non_digital_names][nline] = np.frombuffer(bl[:-8], dtype=np_DataPacketType_noDigital)
+                digital_arr = np.frombuffer(bl[-8:], dtype=np.uint8)
+                data[nline]['digital_in'] = np.hstack([np.unpackbits(digital_arr[1]), np.unpackbits(digital_arr[0])])
+                data[nline]['digital_out'] = np.hstack([np.unpackbits(digital_arr[3]), np.unpackbits(digital_arr[2])])
+                valid[nline] = True
+            except (ValueError, cobs.DecodeError, IndexError):
+                # binascii.Error is a subclass of ValueError
+                bad_lines.append(nline)
+
+    if len(bad_lines) > 0:
+        print(f'Warning: skipped {len(bad_lines)} corrupt line(s) in log file '
+              f'(line indices: {bad_lines[:10]}{" ..." if len(bad_lines) > 10 else ""})')
+    data = data[valid]
 
     data['digital_in']=np.flip(data['digital_in'], 1)
     data['digital_out']=np.flip(data['digital_out'], 1)
