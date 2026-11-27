@@ -52,7 +52,7 @@ MIN_SPEED = 20  # mm/s, has to match create_time_residuals.py
 BIN_SIZE = 0.2  # s, width of the time bins, has to match create_time_residuals.py
 STEP_SIZE = 0.05  # s, spacing between bin centers, has to match create_time_residuals.py
 WINDOW = [-1, 1]  # s around object entry
-AXIS_WINDOWS = [[-0.8, -0.2], [0.2, 0.8]]  # s around object entry, one LDA axis is fit per epoch and
+AXIS_WINDOWS = [[-1, 0], [0, 1]]  # s around object entry, one LDA axis is fit per epoch and
                                   # used for all time bins in that epoch (based on bin centers)
 MIN_NEURONS = 10  # minimum number of neurons per region
 N_FOLDS = 10

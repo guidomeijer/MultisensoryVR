@@ -23,10 +23,10 @@ from msvr_functions import paths
 MIN_TRIALS = 10
 N_CORES = 18
 DECODER = 'randomforest'      # regression, svm, randomforest, lda
-GLM = False
+GLM = True
 
 # Initialize
-path_dict = paths(sync=False)
+path_dict = paths()
 kfold_cv = KFold(n_splits=5, shuffle=True, random_state=42)
 
 if DECODER == 'regression':
